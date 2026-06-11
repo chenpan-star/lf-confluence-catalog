@@ -1,0 +1,25 @@
+{
+  "name": "lf-confluence-catalog",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/copy-404.js",
+    "preview": "vite preview",
+    "fetch": "node scripts/fetch-confluence.js",
+    "generate": "node scripts/generate-catalog.js",
+    "refresh": "node scripts/refresh-catalog.js",
+    "refresh:offline": "node scripts/refresh-catalog.js --offline",
+    "test:auth": "node scripts/test-confluence-auth.js"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.5.2",
+    "vite": "^6.3.5"
+  }
+}
