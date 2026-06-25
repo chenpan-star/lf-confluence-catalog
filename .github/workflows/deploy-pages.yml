@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+  # Auto-deploy after daily Confluence refresh (bot pushes don't trigger `on: push`)
+  workflow_run:
+    workflows: [Refresh Confluence catalog]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -16,6 +21,9 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -30,7 +38,6 @@ jobs:
 
       - name: Build for GitHub Pages
         env:
-          # Must match your GitHub repo name (e.g. github.com/org/lf-confluence-catalog)
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
         run: |
           npm ci
