@@ -8,10 +8,19 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: confluence-catalog
+  cancel-in-progress: false
 
 jobs:
-  refresh:
+  refresh-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,14 +35,13 @@ jobs:
         run: |
           if [ -z "${{ secrets.ATLASSIAN_API_TOKEN }}" ]; then
             echo "::error::Missing repository secret ATLASSIAN_API_TOKEN"
-            echo "Add it at: Settings → Secrets and variables → Actions"
             exit 1
           fi
           if [ -z "${{ secrets.ATLASSIAN_EMAIL }}" ]; then
             echo "::error::Missing repository secret ATLASSIAN_EMAIL"
             exit 1
           fi
-          echo "Secrets present (values not shown)."
+          echo "Secrets OK."
 
       - name: Install dependencies
         run: npm ci
@@ -45,13 +53,27 @@ jobs:
           ATLASSIAN_SITE: lotusflare.atlassian.net
         run: npm run refresh
 
-      - name: Commit updated catalog
+      - name: Build site with fresh catalog
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Publish site
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Commit updated catalog to repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add public/data/catalog.json
           if git diff --staged --quiet; then
-            echo "No catalog changes — Confluence data unchanged since last refresh."
+            echo "No catalog file changes to commit."
           else
             git commit -m "chore: refresh Confluence catalog"
             git push

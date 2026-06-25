@@ -24,7 +24,8 @@ export function CatalogProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/catalog.json`)
+    const url = `${import.meta.env.BASE_URL}data/catalog.json?v=${Date.now()}`;
+    fetch(url, { cache: 'no-store' })
       .then((r) => {
         if (!r.ok) throw new Error('Failed to load catalog data');
         return r.json();
