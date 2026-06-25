@@ -2,6 +2,7 @@
   --bg: #0c0f14;
   --bg-elevated: #141a22;
   --bg-card: #1a222d;
+  --sidebar-bg: #11161e;
   --border: #2a3544;
   --text: #e8edf4;
   --text-secondary: #9aa8b8;
@@ -310,6 +311,76 @@ code,
   text-align: right;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+.hero-simple {
+  margin-bottom: 1.75rem;
+  padding: 1.75rem 2rem;
+}
+
+.hero-simple h1 {
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+}
+
+.category-grid-home {
+  gap: 1.15rem;
+}
+
+.home-section-muted {
+  margin-bottom: 1rem;
+}
+
+.home-alt-path {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1rem;
+}
+
+.browse-prompt {
+  padding: 1.5rem 1.75rem;
+  max-width: 52ch;
+}
+
+.browse-prompt h2 {
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.browse-prompt p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.browse-prompt-tip {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.page-header-compact {
+  margin-bottom: 1.25rem;
+}
+
+.page-header-compact h1 {
+  font-size: 1.45rem;
+}
+
+.page-header-compact p {
+  font-size: 0.92rem;
+}
+
+.stat-row-inline {
+  margin-top: 0.75rem;
+  gap: 1.25rem;
+}
+
+.stat-compact .stat-value {
+  font-size: 1.35rem;
+}
+
+.stat-compact .stat-label {
+  font-size: 0.72rem;
 }
 
 /* Home & layout extras */

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
+import ContextBar from './ContextBar';
 import './Layout.css';
 
 export default function Layout({ children }) {
@@ -59,7 +60,7 @@ export default function Layout({ children }) {
             </span>
             <input
               type="search"
-              placeholder="Search by page title, space, or person…"
+              placeholder="Search pages, spaces, or people…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Search catalog"
@@ -70,6 +71,8 @@ export default function Layout({ children }) {
           </form>
         </div>
       </header>
+
+      <ContextBar />
 
       <div className="layout-body">
         <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />

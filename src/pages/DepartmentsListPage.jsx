@@ -15,11 +15,11 @@ export default function DepartmentsListPage() {
 
   return (
     <>
-      <header className="page-header">
-        <h1>Departments</h1>
+      <header className="page-header page-header-compact">
+        <h1>Teams</h1>
         <p>
-          Pick your team to browse its Confluence spaces. Every page belongs to a space, and each
-          space is assigned to one department.
+          Optional org view — same spaces grouped by engineering team. Pick a team; spaces appear in
+          the left panel.
         </p>
       </header>
 

@@ -13,9 +13,24 @@
 }
 
 .category-card h3 {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 0.4rem;
+}
+
+.category-card::after {
+  content: '→';
+  position: absolute;
+  right: 1.1rem;
+  top: 1.35rem;
+  color: var(--text-muted);
+  font-size: 1rem;
+  transition: transform 0.15s, color 0.15s;
+}
+
+.category-card:hover::after {
+  color: var(--accent);
+  transform: translateX(3px);
 }
 
 .category-card p {

@@ -1,0 +1,57 @@
+.context-bar {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 0.55rem 1.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.context-trail {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+  font-size: 0.85rem;
+  min-width: min-content;
+}
+
+.context-trail li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.context-trail li:not(:last-child)::after {
+  content: '›';
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin-left: 0.1rem;
+}
+
+.context-trail a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.context-trail a:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.context-trail .context-current span {
+  color: var(--text);
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .context-bar {
+    padding: 0.5rem 1rem;
+  }
+
+  .context-trail {
+    font-size: 0.8rem;
+  }
+}

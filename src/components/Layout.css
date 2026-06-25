@@ -188,7 +188,7 @@
   .sidebar-backdrop {
     display: block;
     position: fixed;
-    inset: 56px 0 0;
+    inset: 96px 0 0;
     z-index: 80;
     background: rgba(0, 0, 0, 0.5);
     border: none;

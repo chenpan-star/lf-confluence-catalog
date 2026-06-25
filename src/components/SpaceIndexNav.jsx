@@ -31,6 +31,7 @@ export default function SpaceIndexNav({
   onCategoryFilterChange,
   categoryOptions,
   showOwner = false,
+  embedded = false,
 }) {
   const navScope = scope || (departmentId ? { type: 'department', id: departmentId } : null);
 
@@ -42,8 +43,12 @@ export default function SpaceIndexNav({
   const ariaLabel =
     navScope?.type === 'category' ? 'Spaces in this category' : 'Spaces in this department';
 
+  const rootClass = embedded
+    ? 'space-index-embedded'
+    : 'space-index-nav dept-shell-nav';
+
   return (
-    <aside className="space-index-nav dept-shell-nav" aria-label={ariaLabel}>
+    <div className={rootClass} aria-label={ariaLabel}>
       <div className="space-nav-toolbar">
         <input
           type="search"
@@ -103,6 +108,6 @@ export default function SpaceIndexNav({
           );
         })}
       </ul>
-    </aside>
+    </div>
   );
 }

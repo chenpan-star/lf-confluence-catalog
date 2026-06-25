@@ -32,6 +32,16 @@
   border-radius: var(--radius);
 }
 
+.space-index-embedded {
+  position: static;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
 .space-index-title {
   font-size: 0.72rem;
   font-weight: 600;

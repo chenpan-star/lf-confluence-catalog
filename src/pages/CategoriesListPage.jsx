@@ -14,11 +14,10 @@ export default function CategoriesListPage() {
 
   return (
     <>
-      <header className="page-header">
-        <h1>Categories</h1>
+      <header className="page-header page-header-compact">
+        <h1>All categories</h1>
         <p>
-          Browse by document type — customer projects, DNO platform components, engineering, and
-          more. Each space has one maintainer responsible for its pages.
+          Each category groups related Confluence spaces. Pick one — spaces appear in the left panel.
         </p>
       </header>
 

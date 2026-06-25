@@ -82,44 +82,37 @@ export default function ConfluencePageRoute() {
 
   return (
     <>
-      <nav className="breadcrumb breadcrumb-compact">
-        {inShell ? (
-          <>
-            <Link to={spacePath}>{space?.name || spaceKey}</Link>
-            <span>/</span>
-          </>
-        ) : (
-          <>
-            <Link to="/">Home</Link>
-            <span>/</span>
-            <Link to="/spaces">Spaces</Link>
-            <span>/</span>
-            {category && space && (
-              <>
-                <Link to={`/category/${space.category}`}>{category.label}</Link>
-                <span>/</span>
-              </>
-            )}
-            {space && (
-              <>
-                <Link to={spacePath}>{space.name}</Link>
-                <span>/</span>
-              </>
-            )}
-          </>
-        )}
-        {parentPage && (
-          <>
-            {parentPath ? (
-              <Link to={parentPath}>{formatTitle(parentPage.title)}</Link>
-            ) : (
-              <span>{formatTitle(parentPage.title)}</span>
-            )}
-            <span>/</span>
-          </>
-        )}
-        <span>{formatTitle(page.title)}</span>
-      </nav>
+      {!inShell && (
+        <nav className="breadcrumb breadcrumb-compact">
+          <Link to="/">Home</Link>
+          <span>/</span>
+          <Link to="/spaces">Spaces</Link>
+          <span>/</span>
+          {category && space && (
+            <>
+              <Link to={`/category/${space.category}`}>{category.label}</Link>
+              <span>/</span>
+            </>
+          )}
+          {space && (
+            <>
+              <Link to={spacePath}>{space.name}</Link>
+              <span>/</span>
+            </>
+          )}
+          {parentPage && (
+            <>
+              {parentPath ? (
+                <Link to={parentPath}>{formatTitle(parentPage.title)}</Link>
+              ) : (
+                <span>{formatTitle(parentPage.title)}</span>
+              )}
+              <span>/</span>
+            </>
+          )}
+          <span>{formatTitle(page.title)}</span>
+        </nav>
+      )}
 
       <header className="page-header">
         <h1>{formatTitle(page.title)}</h1>
