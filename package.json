@@ -11,7 +11,10 @@
     "generate": "node scripts/generate-catalog.js",
     "refresh": "node scripts/refresh-catalog.js",
     "refresh:offline": "node scripts/refresh-catalog.js --offline",
-    "test:auth": "node scripts/test-confluence-auth.js"
+    "test:auth": "node scripts/test-confluence-auth.js",
+    "zoho:auth": "node scripts/zoho-oauth-setup.js",
+    "zoho:test": "node scripts/test-zoho.js",
+    "zoho:fetch": "node scripts/fetch-zoho-people.js"
   },
   "dependencies": {
     "react": "^19.1.0",

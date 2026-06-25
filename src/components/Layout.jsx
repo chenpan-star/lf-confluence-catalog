@@ -37,7 +37,10 @@ export default function Layout({ children }) {
 
           <nav className="nav">
             <Link to="/" className={location.pathname === '/' ? 'active' : ''}>
-              Categories
+              Departments
+            </Link>
+            <Link to="/contributors" className={location.pathname === '/contributors' ? 'active' : ''}>
+              Contributors
             </Link>
           </nav>
         </div>

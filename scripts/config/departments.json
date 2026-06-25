@@ -1,0 +1,66 @@
+{
+  "departments": {
+    "server-engineering": {
+      "label": "Server Engineering",
+      "description": "Backend services, DNO platform modules, APIs, and server-side product components",
+      "color": "#8b5cf6",
+      "owner": { "name": "", "email": "" }
+    },
+    "client-engineering": {
+      "label": "Client Engineering",
+      "description": "Customer delivery, client integrations, and per-account engineering spaces",
+      "color": "#3b82f6",
+      "owner": { "name": "", "email": "" }
+    },
+    "infrastructure-engineering": {
+      "label": "Infrastructure Engineering",
+      "description": "Platform engineering, infrastructure, QA, tooling, and on-call",
+      "color": "#f59e0b",
+      "owner": { "name": "", "email": "" }
+    },
+    "product-management-data-science": {
+      "label": "Product Management and Data Scientist",
+      "description": "Product management, analytics, data platform, and solution architecture",
+      "color": "#06b6d4",
+      "owner": { "name": "", "email": "" }
+    },
+    "hr-recruiting": {
+      "label": "HR/Recruiting",
+      "description": "People operations, onboarding, hiring, and company-wide internal docs",
+      "color": "#10b981",
+      "owner": { "name": "", "email": "" }
+    },
+    "marketing": {
+      "label": "Marketing",
+      "description": "Growth, marketing, and external-facing brand content",
+      "color": "#ec4899",
+      "owner": { "name": "", "email": "" }
+    },
+    "operations-delivery": {
+      "label": "Operations and Delivery",
+      "description": "PMO, delivery management, support, incidents, and operational runbooks",
+      "color": "#ef4444",
+      "owner": { "name": "", "email": "" }
+    },
+    "sales": {
+      "label": "Sales",
+      "description": "Sales enablement, pre-sales, and customer-facing commercial docs",
+      "color": "#a855f7",
+      "owner": { "name": "", "email": "" }
+    },
+    "finance-operations": {
+      "label": "Finance and Operations",
+      "description": "Finance, business operations, and corporate strategy documentation",
+      "color": "#64748b",
+      "owner": { "name": "", "email": "" }
+    },
+    "needs-owner": {
+      "label": "Needs Owner",
+      "description": "Spaces not yet assigned to a department — add mapping in scripts/config/departments.json",
+      "color": "#d97706",
+      "owner": { "name": "", "email": "" }
+    }
+  },
+  "spaceOverrides": {},
+  "contributorOverrides": {}
+}

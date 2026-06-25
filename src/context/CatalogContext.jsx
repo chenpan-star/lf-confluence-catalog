@@ -6,16 +6,25 @@ const CatalogContext = createContext(null);
 function normalizeCatalog(data) {
   if (!data?.spaces) return data;
   const site = data.meta?.source || 'lotusflare.atlassian.net';
-  return {
+  const normalized = {
     ...data,
+    departments: data.departments || {},
+    contributors: data.contributors || [],
     spaces: data.spaces.map((space) => ({
       ...space,
+      department: space.department || 'needs-owner',
       pages: space.pages.map((page) => ({
         ...page,
         url: page.url?.startsWith('http') ? page.url : toConfluenceUrl(page.url, site),
+        parentId: page.parentId || '',
+        parentTitle: page.parentTitle || '',
+        ancestorIds: page.ancestorIds || [],
+        depth: page.depth ?? 0,
+        childCount: page.childCount ?? 0,
       })),
     })),
   };
+  return normalized;
 }
 
 export function CatalogProvider({ children }) {

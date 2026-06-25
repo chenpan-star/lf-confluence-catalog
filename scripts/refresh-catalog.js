@@ -32,6 +32,30 @@ function useCachedRaw(label) {
   }
 }
 
+function hasZohoCredentials() {
+  return Boolean(
+    process.env.ZOHO_CLIENT_ID?.trim() &&
+      process.env.ZOHO_CLIENT_SECRET?.trim() &&
+      process.env.ZOHO_REFRESH_TOKEN?.trim(),
+  );
+}
+
+async function fetchZohoEmployees() {
+  try {
+    const { fetchAndSaveEmployees } = await import('./fetch-zoho-people.js');
+    const payload = await fetchAndSaveEmployees({
+      onProgress: ({ batch, fetched }) => {
+        process.stdout.write(`\r  Zoho batch ${batch}: ${fetched} employees`);
+      },
+    });
+    console.log(`\n  ✓ Fetched ${payload.count} employees from Zoho People\n`);
+    return true;
+  } catch (err) {
+    console.warn(`\n  ⚠ Zoho fetch skipped: ${err.message}\n`);
+    return false;
+  }
+}
+
 async function main() {
   console.log('=== Confluence catalog refresh ===\n');
 
@@ -79,6 +103,10 @@ async function main() {
         'Set ATLASSIAN_EMAIL + ATLASSIAN_API_TOKEN in .env, or place data/raw-pages.json',
     );
     process.exit(1);
+  }
+
+  if (!offlineMode && hasZohoCredentials()) {
+    await fetchZohoEmployees();
   }
 
   const gen = spawnSync('node', ['scripts/generate-catalog.js'], {

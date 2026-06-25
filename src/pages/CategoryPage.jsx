@@ -25,7 +25,7 @@ export default function CategoryPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Categories</Link>
+        <Link to="/">Browse by category</Link>
         <span>/</span>
         <span>{category.label}</span>
       </nav>

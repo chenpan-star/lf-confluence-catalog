@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { parseConfluencePagePath, toConfluenceUrl } from '../lib/confluenceUrl';
+import { catalogPagePath } from '../lib/pageTree';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, formatDate } from '../lib/labels';
+import { DepartmentSourceNote } from './ContributorsPage';
 
 export default function ConfluencePageRoute() {
   const { pathname } = useLocation();
@@ -22,6 +24,11 @@ export default function ConfluencePageRoute() {
     ? toConfluenceUrl(page.url, site)
     : `https://${site}/wiki/spaces/${spaceKey}/pages/${pageId}`;
 
+  const department = space ? catalog.departments?.[space.department] : null;
+  const parentPage =
+    page?.parentId && space?.pages?.find((p) => p.id === page.parentId);
+  const parentPath = parentPage ? catalogPagePath(parentPage.url) : null;
+
   if (!page) {
     return (
       <div className="empty">
@@ -41,15 +48,27 @@ export default function ConfluencePageRoute() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Categories</Link>
+        <Link to="/">Departments</Link>
         <span>/</span>
+        {department && space && (
+          <>
+            <Link to={`/department/${space.department}`}>{department.label}</Link>
+            <span>/</span>
+          </>
+        )}
         {space && (
           <>
-            <Link to={`/category/${space.category}`}>
-              {catalog.categories[space.category]?.label}
-            </Link>
-            <span>/</span>
             <Link to={`/space/${encodeURIComponent(spaceKey)}`}>{space.name}</Link>
+            <span>/</span>
+          </>
+        )}
+        {parentPage && (
+          <>
+            {parentPath ? (
+              <Link to={parentPath}>{parentPage.title}</Link>
+            ) : (
+              <span>{parentPage.title}</span>
+            )}
             <span>/</span>
           </>
         )}
@@ -60,7 +79,19 @@ export default function ConfluencePageRoute() {
         <h1>{page.title}</h1>
         <p>
           <span className="mono">{spaceKey}</span> · Page ID {pageId}
+          {page.parentId && (
+            <>
+              {' '}
+              · Parent:{' '}
+              {parentPath ? (
+                <Link to={parentPath}>{page.parentTitle || parentPage?.title || page.parentId}</Link>
+              ) : (
+                page.parentTitle || page.parentId
+              )}
+            </>
+          )}
         </p>
+        {space && <DepartmentSourceNote space={space} catalog={catalog} />}
       </header>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -89,11 +120,23 @@ export default function ConfluencePageRoute() {
           <dd>{DOC_TYPE_LABELS[page.docType] || page.docType}</dd>
           <dt>Freshness</dt>
           <dd>{RECENCY_LABELS[page.recency] || page.recency}</dd>
+          {page.childCount > 0 && (
+            <>
+              <dt>Child pages</dt>
+              <dd>{page.childCount}</dd>
+            </>
+          )}
         </dl>
       </div>
 
       <p>
-        <a className="card card-link" href={confluenceUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-block', padding: '0.75rem 1.25rem' }}>
+        <a
+          className="card card-link"
+          href={confluenceUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: 'inline-block', padding: '0.75rem 1.25rem' }}
+        >
           Read full page in Confluence ↗
         </a>
       </p>

@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT = join(__dirname, '../data/raw-pages.json');
 
 const CQL = 'type = page AND space.type != personal';
-const EXPAND = 'content,content.history,content.version';
+const EXPAND = 'content,content.history,content.version,content.ancestors';
 const LIMIT = 250;
 const DELAY_MS = 200;
 
@@ -74,6 +74,9 @@ function normalizeResult(result) {
   const spaceName = result.resultGlobalContainer?.title || content.space?.name || '';
   const spaceKey = parseSpaceKey(result);
 
+  const ancestors = content.ancestors || [];
+  const parent = ancestors.length ? ancestors[ancestors.length - 1] : null;
+
   return {
     id: content.id ? String(content.id) : '',
     title: result.title || content.title || '',
@@ -85,6 +88,10 @@ function normalizeResult(result) {
     spaceKey,
     creator: history.createdBy?.displayName || history.createdBy?.publicName || '',
     lastEditor: version.by?.displayName || version.by?.publicName || '',
+    parentId: parent ? String(parent.id) : '',
+    parentTitle: parent?.title || '',
+    ancestorIds: ancestors.map((a) => String(a.id)),
+    depth: ancestors.length,
   };
 }
 

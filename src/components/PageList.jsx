@@ -2,12 +2,7 @@ import { Link } from 'react-router-dom';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
-
-function catalogPagePath(url) {
-  const m = url?.match(/\/spaces\/([^/]+)\/pages\/(\d+)/);
-  if (!m) return null;
-  return `/spaces/${m[1]}/pages/${m[2]}`;
-}
+import { catalogPagePath } from '../lib/pageTree';
 
 export default function PageList({ pages, emptyMessage = 'No pages match your filters.' }) {
   const { catalog } = useCatalog();
@@ -34,6 +29,7 @@ export default function PageList({ pages, emptyMessage = 'No pages match your fi
             )}
             <div className="page-subline">
               <span>Updated {formatDate(page.lastModified)}</span>
+              {page.parentTitle && <span> · Parent: {page.parentTitle}</span>}
               {page.creator && <span> · Created by {page.creator}</span>}
               {page.lastEditor && page.lastEditor !== page.creator && (
                 <span> · Edited by {page.lastEditor}</span>

@@ -3,7 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import BarChart from '../components/BarChart';
 import PageList from '../components/PageList';
+import PageTree from '../components/PageTree';
+import { DepartmentSourceNote } from '../pages/ContributorsPage';
+import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, formatNumber } from '../lib/labels';
+import '../components/PageTree.css';
 
 export default function SpacePage() {
   const { spaceKey } = useParams();
@@ -11,39 +15,60 @@ export default function SpacePage() {
   const [docFilter, setDocFilter] = useState('all');
   const [recencyFilter, setRecencyFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('tree');
 
   const space = spacesByKey[decodeURIComponent(spaceKey)];
 
   const filteredPages = useMemo(() => {
     if (!space) return [];
-    return space.pages.filter((p) => {
+    const matches = (p) => {
       if (docFilter !== 'all' && p.docType !== docFilter) return false;
       if (recencyFilter !== 'all' && p.recency !== recencyFilter) return false;
       if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
-    });
-  }, [space, docFilter, recencyFilter, search]);
+    };
+    if (viewMode === 'tree') {
+      return filterPagesWithAncestors(space.pages, matches);
+    }
+    return space.pages.filter(matches);
+  }, [space, docFilter, recencyFilter, search, viewMode]);
+
+  const pageTree = useMemo(() => buildPageTree(filteredPages), [filteredPages]);
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
   if (!space) return <div className="empty">Space not found.</div>;
 
   const category = catalog.categories[space.category];
+  const department = catalog.departments?.[space.department];
 
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Categories</Link>
+        <Link to="/">Departments</Link>
         <span>/</span>
-        <Link to={`/category/${space.category}`}>{category?.label}</Link>
-        <span>/</span>
+        {department && (
+          <>
+            <Link to={`/department/${space.department}`}>{department.label}</Link>
+            <span>/</span>
+          </>
+        )}
         <span>{space.name}</span>
       </nav>
 
       <header className="page-header">
         <h1>{space.name}</h1>
         <p>
-          <span className="mono">{space.key}</span> ·{' '}
+          <span className="mono">{space.key}</span>
+          {category && (
+            <>
+              {' '}
+              ·{' '}
+              <Link to={`/category/${space.category}`}>{category.label}</Link>
+            </>
+          )}
+          {' '}
+          ·{' '}
           <a href={space.confluenceUrl} target="_blank" rel="noreferrer">
             Open in Confluence ↗
           </a>
@@ -70,6 +95,7 @@ export default function SpacePage() {
             </div>
           )}
         </div>
+        <DepartmentSourceNote space={space} catalog={catalog} />
       </header>
 
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
@@ -83,16 +109,30 @@ export default function SpacePage() {
           <h2 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
             By freshness
           </h2>
-          <BarChart
-            data={space.recency}
-            maxItems={5}
-          />
+          <BarChart data={space.recency} maxItems={5} />
         </div>
       </div>
 
       <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
         Pages ({formatNumber(filteredPages.length)})
       </h2>
+
+      <div className="view-toggle">
+        <button
+          type="button"
+          className={viewMode === 'tree' ? 'active' : ''}
+          onClick={() => setViewMode('tree')}
+        >
+          Tree view
+        </button>
+        <button
+          type="button"
+          className={viewMode === 'flat' ? 'active' : ''}
+          onClick={() => setViewMode('flat')}
+        >
+          Flat list
+        </button>
+      </div>
 
       <div className="filters">
         <input
@@ -105,18 +145,26 @@ export default function SpacePage() {
         <select value={docFilter} onChange={(e) => setDocFilter(e.target.value)}>
           <option value="all">All types</option>
           {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+            <option key={k} value={k}>
+              {v}
+            </option>
           ))}
         </select>
         <select value={recencyFilter} onChange={(e) => setRecencyFilter(e.target.value)}>
           <option value="all">All freshness</option>
           {Object.entries(RECENCY_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+            <option key={k} value={k}>
+              {v}
+            </option>
           ))}
         </select>
       </div>
 
-      <PageList pages={filteredPages} />
+      {viewMode === 'tree' ? (
+        <PageTree tree={pageTree} />
+      ) : (
+        <PageList pages={filteredPages} />
+      )}
     </>
   );
 }
