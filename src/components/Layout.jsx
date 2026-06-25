@@ -54,10 +54,12 @@ export default function Layout({ children }) {
           </Link>
 
           <form className="search-form" onSubmit={handleSearch} role="search">
-            <span className="search-icon" aria-hidden>⌕</span>
+            <span className="search-icon" aria-hidden>
+              ⌕
+            </span>
             <input
               type="search"
-              placeholder="Search pages, spaces, people…"
+              placeholder="Search by page title, space, or person…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Search catalog"

@@ -3,11 +3,9 @@ import './Sidebar.css';
 
 const NAV = [
   { to: '/', label: 'Home', icon: '⌂', end: true },
-  { to: '/stale', label: 'Stale content', icon: '⚠' },
   { to: '/departments', label: 'Departments', icon: '▦' },
   { to: '/spaces', label: 'All Spaces', icon: '▤' },
   { to: '/categories', label: 'Categories', icon: '◫' },
-  { to: '/search', label: 'Search', icon: '⌕' },
 ];
 
 function isActive(pathname, to, end) {
@@ -20,6 +18,7 @@ export default function Sidebar({ mobileOpen, onClose }) {
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
+      <p className="sidebar-hint">Use the search bar above to find any page.</p>
       <nav className="sidebar-nav">
         {NAV.map(({ to, label, icon, end }) => (
           <Link
@@ -28,7 +27,9 @@ export default function Sidebar({ mobileOpen, onClose }) {
             className={isActive(pathname, to, end) ? 'active' : ''}
             onClick={onClose}
           >
-            <span className="sidebar-icon" aria-hidden>{icon}</span>
+            <span className="sidebar-icon" aria-hidden>
+              {icon}
+            </span>
             {label}
           </Link>
         ))}

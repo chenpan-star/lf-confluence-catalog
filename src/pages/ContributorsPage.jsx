@@ -2,37 +2,14 @@ import { Link } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { formatNumber } from '../lib/labels';
 
-const SOURCE_LABELS = {
-  manual: 'Manual override',
-  heuristic: 'Space name / category rules',
-  zoho: 'Zoho employee match',
-  'contributor-network': 'Contributor activity (where editors also work)',
-};
-
-export function DepartmentSourceNote({ space, catalog }) {
-  if (!space) return null;
-  const dept = catalog?.departments?.[space.department];
-  const source = SOURCE_LABELS[space.departmentSource] || space.departmentSource;
-
-  return (
-    <p className="dept-source-note">
-      <strong>Department:</strong> {dept?.label || space.department}
-      {' · '}
-      <span title="Pages inherit department from their Confluence space">{source}</span>
-      {space.networkConfidence > 0 && (
-        <> · {space.networkConfidence}% confidence from editor patterns</>
-      )}
-    </p>
-  );
-}
-
 export default function ContributorsPage() {
   const { catalog, loading, error } = useCatalog();
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
+  if (!catalog) return <div className="empty">Unable to load catalog data.</div>;
 
-  const contributors = catalog?.contributors || [];
+  const contributors = catalog.contributors || [];
 
   return (
     <>

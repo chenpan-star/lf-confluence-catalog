@@ -1,47 +1,73 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { parseConfluencePagePath, toConfluenceUrl } from '../lib/confluenceUrl';
-import { catalogPagePath } from '../lib/pageTree';
+import { catalogPagePath, pageCatalogPath } from '../lib/pageTree';
 import { formatTitle } from '../lib/text';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
-import { buildReviewMailto } from '../lib/contact';
-import { DepartmentSourceNote } from './ContributorsPage';
+import DepartmentSourceNote from '../components/DepartmentSourceNote';
+import SlackReviewButton from '../components/SlackReviewButton';
+
+function findPage(space, pageId) {
+  if (!space?.pages) return null;
+  const id = String(pageId);
+  return space.pages.find(
+    (p) =>
+      (p.id && String(p.id) === id) ||
+      (p.url && p.url.includes(`/pages/${id}`)),
+  );
+}
 
 export default function ConfluencePageRoute() {
   const { pathname } = useLocation();
-  const { catalog, loading, spacesByKey } = useCatalog();
+  const { catalog, loading, resolveSpace } = useCatalog();
   const parsed = parseConfluencePagePath(pathname);
 
   if (loading) return <div className="loading">Loading…</div>;
   if (!parsed) return <div className="empty">Invalid page path.</div>;
+  if (!catalog) return <div className="loading">Loading…</div>;
 
-  const { spaceKey, pageId } = parsed;
-  const space = spacesByKey[spaceKey];
-  const page = space?.pages?.find(
-    (p) => p.id === pageId || p.url.includes(`/pages/${pageId}`),
-  );
+  const { spaceKey, pageId, departmentId } = parsed;
+  const space = resolveSpace(spaceKey);
+  const page = findPage(space, pageId);
 
-  const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
+  const spacePath = departmentId
+    ? `/department/${departmentId}/space/${encodeURIComponent(spaceKey)}`
+    : `/space/${encodeURIComponent(spaceKey)}`;
+
+  const pathForPage = (p) => pageCatalogPath(p, spaceKey, departmentId) || catalogPagePath(p?.url);
+
+  const site = catalog.meta?.source || 'lotusflare.atlassian.net';
   const confluenceUrl = page
     ? toConfluenceUrl(page.url, site)
     : `https://${site}/wiki/spaces/${spaceKey}/pages/${pageId}`;
 
   const department = space ? catalog.departments?.[space.department] : null;
-  const parentPage =
-    page?.parentId && space?.pages?.find((p) => p.id === page.parentId);
-  const parentPath = parentPage ? catalogPagePath(parentPage.url) : null;
+  const parentPage = page?.parentId
+    ? findPage(space, page.parentId) || space?.pages?.find((p) => p.id === page.parentId)
+    : null;
+  const parentPath = parentPage ? pathForPage(parentPage) : null;
+
+  const catalogPageUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${pathname}`
+      : '';
 
   if (!page) {
     return (
       <div className="empty">
         <p>Page not found in local catalog snapshot.</p>
+        {!space && (
+          <p style={{ marginTop: '0.75rem', color: 'var(--text-secondary)' }}>
+            Space <span className="mono">{spaceKey}</span> was not found either.
+          </p>
+        )}
         <p style={{ marginTop: '1rem' }}>
           <a href={confluenceUrl} target="_blank" rel="noreferrer">
             Open in Confluence ↗
           </a>
         </p>
         <p style={{ marginTop: '1rem' }}>
-          <Link to={`/space/${encodeURIComponent(spaceKey)}`}>← Back to {spaceKey} space</Link>
+          <Link to={spacePath}>← Back to {spaceKey} space</Link>
         </p>
       </div>
     );
@@ -49,29 +75,38 @@ export default function ConfluencePageRoute() {
 
   return (
     <>
-      <nav className="breadcrumb">
-        <Link to="/">Home</Link>
-        <span>/</span>
-        <Link to="/departments">Departments</Link>
-        <span>/</span>
-        {department && space && (
+      <nav className="breadcrumb breadcrumb-compact">
+        {departmentId ? (
           <>
-            <Link to={`/department/${space.department}`}>{department.label}</Link>
+            <Link to={spacePath}>{space?.name || spaceKey}</Link>
             <span>/</span>
           </>
-        )}
-        {space && (
+        ) : (
           <>
-            <Link to={`/space/${encodeURIComponent(spaceKey)}`}>{space.name}</Link>
+            <Link to="/">Home</Link>
             <span>/</span>
+            <Link to="/spaces">Spaces</Link>
+            <span>/</span>
+            {department && space && (
+              <>
+                <Link to={`/department/${space.department}`}>{department.label}</Link>
+                <span>/</span>
+              </>
+            )}
+            {space && (
+              <>
+                <Link to={spacePath}>{space.name}</Link>
+                <span>/</span>
+              </>
+            )}
           </>
         )}
         {parentPage && (
           <>
             {parentPath ? (
-              <Link to={parentPath}>{parentPage.title}</Link>
+              <Link to={parentPath}>{formatTitle(parentPage.title)}</Link>
             ) : (
-              <span>{parentPage.title}</span>
+              <span>{formatTitle(parentPage.title)}</span>
             )}
             <span>/</span>
           </>
@@ -88,9 +123,11 @@ export default function ConfluencePageRoute() {
               {' '}
               · Parent:{' '}
               {parentPath ? (
-                <Link to={parentPath}>{page.parentTitle || parentPage?.title || page.parentId}</Link>
+                <Link to={parentPath}>
+                  {formatTitle(page.parentTitle || parentPage?.title || page.parentId)}
+                </Link>
               ) : (
-                page.parentTitle || page.parentId
+                formatTitle(page.parentTitle || page.parentId)
               )}
             </>
           )}
@@ -137,7 +174,9 @@ export default function ConfluencePageRoute() {
         </dl>
       </div>
 
-      <div className="page-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+      <div
+        className="page-actions"
+      >
         <a
           className="btn btn-primary"
           href={confluenceUrl}
@@ -147,21 +186,15 @@ export default function ConfluencePageRoute() {
           Open in Confluence ↗
         </a>
         {(page.recency === 'stale' || page.recency === 'legacy') && space && (
-          <a
+          <SlackReviewButton
+            page={page}
+            spaceName={space.name}
+            spaceKey={space.key || spaceKey}
+            catalogPageUrl={catalogPageUrl}
             className="btn btn-warn"
-            href={buildReviewMailto({
-              page,
-              spaceName: space.name,
-              spaceKey,
-              site,
-              catalogPageUrl:
-                typeof window !== 'undefined'
-                  ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${pathname}`
-                  : '',
-            })}
           >
-            Request review from editor
-          </a>
+            Message editor on Slack
+          </SlackReviewButton>
         )}
       </div>
 

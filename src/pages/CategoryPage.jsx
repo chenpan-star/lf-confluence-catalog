@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
-import SpaceCard from '../components/SpaceCard';
+import SpaceBrowseSection from '../components/SpaceBrowseSection';
 import { formatNumber } from '../lib/labels';
 import '../components/SpaceCard.css';
 
@@ -9,12 +9,9 @@ export default function CategoryPage() {
   const { categoryId } = useParams();
   const { catalog, loading, error } = useCatalog();
 
-  const category = catalog?.categories[categoryId];
+  const category = catalog?.categories?.[categoryId];
   const spaces = useMemo(
-    () =>
-      catalog?.spaces
-        .filter((s) => s.category === categoryId)
-        .sort((a, b) => b.pageCount - a.pageCount) || [],
+    () => catalog?.spaces.filter((s) => s.category === categoryId) || [],
     [catalog, categoryId],
   );
 
@@ -47,15 +44,11 @@ export default function CategoryPage() {
         </div>
       </header>
 
-      <div className="grid grid-3">
-        {spaces.map((space) => (
-          <SpaceCard
-            key={space.key || space.id}
-            space={space}
-            categoryColor={category.color}
-          />
-        ))}
-      </div>
+      <SpaceBrowseSection
+        spaces={spaces}
+        categoryColor={category.color}
+        departmentLabel={(space) => catalog.departments?.[space.department]?.label}
+      />
     </>
   );
 }

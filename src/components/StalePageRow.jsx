@@ -2,30 +2,24 @@ import { Link } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { formatTitle } from '../lib/text';
 import { formatDate, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
-import { buildReviewMailto, primaryContact, guessEmail } from '../lib/contact';
+import { primaryContact } from '../lib/contact';
+import { guessSlackHandle } from '../lib/slack';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
-import { catalogPagePath } from '../lib/pageTree';
+import { pageCatalogPath } from '../lib/pageTree';
+import SlackReviewButton from './SlackReviewButton';
 
 export default function StalePageRow({ page, compact = false }) {
   const { catalog } = useCatalog();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
   const title = formatTitle(page.title);
-  const localPath = page.id
-    ? `/spaces/${encodeURIComponent(page.spaceKey)}/pages/${page.id}`
-    : catalogPagePath(page.url);
+  const localPath = pageCatalogPath(page, page.spaceKey);
   const confluenceUrl = toConfluenceUrl(page.url, site);
   const contact = primaryContact(page);
-  const email = guessEmail(contact);
-  const mailto = buildReviewMailto({
-    page,
-    spaceName: page.spaceName,
-    spaceKey: page.spaceKey,
-    site,
-    catalogPageUrl:
-      localPath && typeof window !== 'undefined'
-        ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${localPath}`
-        : '',
-  });
+  const handle = guessSlackHandle(contact);
+  const catalogPageUrl =
+    localPath && typeof window !== 'undefined'
+      ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${localPath}`
+      : '';
 
   const deptLabel = catalog?.departments?.[page.department]?.label;
 
@@ -44,12 +38,24 @@ export default function StalePageRow({ page, compact = false }) {
           )}
           <span className="stale-meta">
             {page.spaceName} · {formatDate(page.lastModified)}
-            {contact && <> · {contact}</>}
+            {contact && (
+              <>
+                {' '}
+                · {contact}
+                {handle && <span className="mono"> @{handle}</span>}
+              </>
+            )}
           </span>
         </div>
-        <a href={mailto} className="btn btn-sm btn-secondary">
-          Request review
-        </a>
+        <SlackReviewButton
+          page={page}
+          spaceName={page.spaceName}
+          spaceKey={page.spaceKey}
+          catalogPageUrl={catalogPageUrl}
+          className="btn btn-sm btn-secondary"
+        >
+          Slack
+        </SlackReviewButton>
       </li>
     );
   }
@@ -69,21 +75,19 @@ export default function StalePageRow({ page, compact = false }) {
         <Link to={`/space/${encodeURIComponent(page.spaceKey)}`}>{page.spaceName}</Link>
         <div className="mono stale-key">{page.spaceKey}</div>
       </td>
-      {!compact && (
-        <td className="stale-cell-dept">
-          {deptLabel ? (
-            <Link to={`/department/${page.department}`}>{deptLabel}</Link>
-          ) : (
-            '—'
-          )}
-        </td>
-      )}
+      <td className="stale-cell-dept">
+        {deptLabel ? (
+          <Link to={`/department/${page.department}`}>{deptLabel}</Link>
+        ) : (
+          '—'
+        )}
+      </td>
       <td>{formatDate(page.lastModified)}</td>
       <td>
         {contact ? (
           <>
             {contact}
-            {email && <div className="stale-email-hint mono">{email}</div>}
+            {handle && <div className="stale-email-hint mono">@{handle} on Slack</div>}
           </>
         ) : (
           '—'
@@ -95,9 +99,15 @@ export default function StalePageRow({ page, compact = false }) {
         </span>
       </td>
       <td className="stale-actions">
-        <a href={mailto} className="btn btn-sm btn-primary" title="Email editor to review this page">
-          Request review
-        </a>
+        <SlackReviewButton
+          page={page}
+          spaceName={page.spaceName}
+          spaceKey={page.spaceKey}
+          catalogPageUrl={catalogPageUrl}
+          className="btn btn-sm btn-primary"
+        >
+          Slack
+        </SlackReviewButton>
         <a
           href={confluenceUrl}
           target="_blank"

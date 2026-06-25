@@ -16,6 +16,23 @@
   border-bottom: 1px solid var(--border);
 }
 
+@media (max-width: 768px) {
+  .tree-row {
+    padding: 0.75rem 0;
+  }
+
+  .tree-toggle,
+  .tree-toggle-spacer {
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-top: 0;
+  }
+
+  .tree-toggle {
+    font-size: 0.75rem;
+  }
+}
+
 .tree-toggle {
   width: 1.25rem;
   height: 1.25rem;

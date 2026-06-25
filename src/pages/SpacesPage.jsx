@@ -34,8 +34,8 @@ export default function SpacesPage() {
       <header className="page-header">
         <h1>All spaces</h1>
         <p>
-          {formatNumber(catalog.spaces.length)} Confluence spaces. Filter by department or category,
-          or search by name.
+          {formatNumber(catalog.spaces.length)} Confluence spaces. Filter by team or topic, or type
+          a space name to narrow the list.
         </p>
       </header>
 

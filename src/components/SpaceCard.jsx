@@ -1,14 +1,12 @@
 import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
 
-export default function SpaceCard({ space, categoryColor, departmentLabel }) {
+export default function SpaceCard({ space, categoryColor, departmentLabel, to }) {
   const active = space.recency?.active || 0;
+  const dest = to || `/space/${encodeURIComponent(space.key || space.id)}`;
 
   return (
-    <Link
-      to={`/space/${encodeURIComponent(space.key || space.id)}`}
-      className="card card-link space-card"
-    >
+    <Link to={dest} className="card card-link space-card">
       <div className="space-card-header">
         <h3>{space.name}</h3>
         <span className="mono space-key">{space.key}</span>

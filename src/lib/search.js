@@ -28,7 +28,7 @@ export function buildSearchIndex(catalog) {
       score: 0,
     });
 
-    for (const page of space.pages) {
+    for (const page of space.pages || []) {
       const title = page.title || '';
       items.push({
         type: 'page',

@@ -1,9 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import { CatalogProvider } from './context/CatalogContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import DepartmentsListPage from './pages/DepartmentsListPage';
-import DepartmentPage from './pages/DepartmentPage';
+import DepartmentLayout from './layouts/DepartmentLayout';
+import DepartmentHome from './pages/DepartmentHome';
 import SpacesPage from './pages/SpacesPage';
 import CategoriesListPage from './pages/CategoriesListPage';
 import CategoryPage from './pages/CategoryPage';
@@ -18,10 +20,15 @@ export default function App() {
   return (
     <CatalogProvider>
       <Layout>
-        <Routes>
+        <ErrorBoundary>
+          <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/departments" element={<DepartmentsListPage />} />
-          <Route path="/department/:departmentId" element={<DepartmentPage />} />
+          <Route path="/department/:departmentId" element={<DepartmentLayout />}>
+            <Route index element={<DepartmentHome />} />
+            <Route path="space/:spaceKey" element={<SpacePage />} />
+            <Route path="space/:spaceKey/pages/:pageId/*" element={<ConfluencePageRoute />} />
+          </Route>
           <Route path="/spaces" element={<SpacesPage />} />
           <Route path="/categories" element={<CategoriesListPage />} />
           <Route path="/category/:categoryId" element={<CategoryPage />} />
@@ -31,7 +38,8 @@ export default function App() {
           <Route path="/contributors" element={<ContributorsPage />} />
           <Route path="/spaces/:spaceKey/pages/:pageId/*" element={<ConfluencePageRoute />} />
           <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+          </Routes>
+        </ErrorBoundary>
       </Layout>
     </CatalogProvider>
   );

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
 
-export default function DepartmentCard({ id, department, compact = false }) {
+export default function DepartmentCard({ id, department, compact = false, hideStale = false }) {
   const hasOwner = department.owner?.name?.trim();
 
   return (
@@ -27,7 +27,7 @@ export default function DepartmentCard({ id, department, compact = false }) {
         <span>
           <strong>{formatNumber(department.pageCount)}</strong> pages
         </span>
-        {department.staleCount > 0 && (
+        {department.staleCount > 0 && !hideStale && (
           <span className="dept-stale-count">
             <strong>{formatNumber(department.staleCount)}</strong> stale
           </span>

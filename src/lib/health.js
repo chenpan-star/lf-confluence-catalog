@@ -14,7 +14,7 @@ export function computeHealthStats(catalog) {
       byDepartment[deptId] = { active: 0, recent: 0, stale: 0, legacy: 0, unknown: 0 };
     }
 
-    for (const page of space.pages) {
+    for (const page of space.pages || []) {
       const r = page.recency || 'unknown';
       counts[r] = (counts[r] || 0) + 1;
       byDepartment[deptId][r] = (byDepartment[deptId][r] || 0) + 1;

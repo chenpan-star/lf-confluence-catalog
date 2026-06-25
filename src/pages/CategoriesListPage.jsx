@@ -8,7 +8,7 @@ export default function CategoriesListPage() {
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
-  if (!catalog) return null;
+  if (!catalog) return <div className="empty">Unable to load catalog data.</div>;
 
   const { categories } = catalog;
 

@@ -59,3 +59,15 @@ export function catalogPagePath(url) {
   if (!m) return null;
   return `/spaces/${m[1]}/pages/${m[2]}`;
 }
+
+/** In-app path for a page — prefers page id (works for overview/homepage URLs too). */
+export function pageCatalogPath(page, spaceKey, departmentId) {
+  const key = spaceKey || page?.spaceKey;
+  if (page?.id && key) {
+    if (departmentId) {
+      return `/department/${departmentId}/space/${encodeURIComponent(key)}/pages/${page.id}`;
+    }
+    return `/spaces/${encodeURIComponent(key)}/pages/${page.id}`;
+  }
+  return catalogPagePath(page?.url);
+}

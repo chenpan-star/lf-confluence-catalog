@@ -1,0 +1,7 @@
+{
+  "workspaceUrl": "https://lotusflare.slack.com",
+  "teamId": "",
+  "fallbackChannelId": "",
+  "users": {},
+  "_comment": "Add Slack member IDs to users, e.g. \"Linus Chui\": \"U01234567\". Find teamId in Slack URL: app.slack.com/client/TEAM_ID/..."
+}

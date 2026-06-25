@@ -3,9 +3,9 @@ import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../
 import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
-import { catalogPagePath } from '../lib/pageTree';
+import { pageCatalogPath } from '../lib/pageTree';
 
-export default function PageList({ pages, emptyMessage = 'No pages match your filters.' }) {
+export default function PageList({ pages, emptyMessage = 'No pages match your filters.', spaceKey, departmentId }) {
   const { catalog } = useCatalog();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
@@ -16,7 +16,7 @@ export default function PageList({ pages, emptyMessage = 'No pages match your fi
   return (
     <ul className="page-list">
       {pages.map((page) => {
-        const localPath = catalogPagePath(page.url);
+        const localPath = pageCatalogPath(page, spaceKey || page.spaceKey, departmentId);
         const confluenceUrl = toConfluenceUrl(page.url, site);
         const title = formatTitle(page.title);
         return (

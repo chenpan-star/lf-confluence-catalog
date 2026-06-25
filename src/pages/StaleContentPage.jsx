@@ -45,7 +45,7 @@ export default function StaleContentPage() {
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
-  if (!catalog || !health) return null;
+  if (!catalog || !health) return <div className="empty">Unable to load catalog data.</div>;
 
   const { counts } = health;
 
@@ -151,8 +151,9 @@ export default function StaleContentPage() {
       )}
 
       <p className="stale-footnote">
-        &ldquo;Request review&rdquo; opens your email client with a pre-filled message to the last
-        editor (email guessed as first.last@lotusflare.com — verify before sending).
+        &ldquo;Slack&rdquo; copies a message to your clipboard and opens LotusFlare Slack. Paste
+        into a DM to the editor (e.g. @linus.chui). Add Slack user IDs in{' '}
+        <code className="mono">public/config/slack.json</code> for direct DM links.
       </p>
     </>
   );

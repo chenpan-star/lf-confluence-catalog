@@ -4,15 +4,15 @@ import { formatDate, DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS } from '../
 import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
-import { catalogPagePath } from '../lib/pageTree';
+import { pageCatalogPath } from '../lib/pageTree';
 import './PageTree.css';
 
-function PageTreeNode({ node, site, defaultExpandedDepth, depth = 0 }) {
+function PageTreeNode({ node, site, spaceKey, departmentId, defaultExpandedDepth, depth = 0 }) {
   const { page, children } = node;
   const hasChildren = children.length > 0;
   const [expanded, setExpanded] = useState(depth < defaultExpandedDepth);
 
-  const localPath = catalogPagePath(page.url);
+  const localPath = pageCatalogPath(page, spaceKey, departmentId);
   const confluenceUrl = toConfluenceUrl(page.url, site);
 
   return (
@@ -65,6 +65,8 @@ function PageTreeNode({ node, site, defaultExpandedDepth, depth = 0 }) {
               key={child.page.id || child.page.url}
               node={child}
               site={site}
+              spaceKey={spaceKey}
+              departmentId={departmentId}
               defaultExpandedDepth={defaultExpandedDepth}
               depth={depth + 1}
             />
@@ -75,7 +77,7 @@ function PageTreeNode({ node, site, defaultExpandedDepth, depth = 0 }) {
   );
 }
 
-export default function PageTree({ tree, emptyMessage = 'No pages match your filters.' }) {
+export default function PageTree({ tree, spaceKey, departmentId, emptyMessage = 'No pages match your filters.' }) {
   const { catalog } = useCatalog();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
@@ -90,6 +92,8 @@ export default function PageTree({ tree, emptyMessage = 'No pages match your fil
           key={node.page.id || node.page.url}
           node={node}
           site={site}
+          spaceKey={spaceKey}
+          departmentId={departmentId}
           defaultExpandedDepth={1}
         />
       ))}

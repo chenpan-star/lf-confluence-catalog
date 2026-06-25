@@ -44,18 +44,18 @@ export default function SearchPage() {
             )}
           </p>
         ) : (
-          <p>Type in the search bar above and press Search or Enter.</p>
+          <p>Use the search bar at the top of the page — press Enter or click Search.</p>
         )}
       </header>
 
       {!hasQuery && (
         <div className="search-tips card">
-          <h2>Search tips</h2>
+          <h2>How to search</h2>
           <ul>
-            <li>Search by page title, space name, or space key (e.g. <code>Onboarding</code>)</li>
-            <li>Use multiple words to narrow results (e.g. <code>billing runbook</code>)</li>
-            <li>Special characters work — <code>&amp;</code> matches pages with &amp; in the title</li>
-            <li>People names match if they created or edited a page</li>
+            <li>Type a page title (e.g. <code>Onboarding checklist</code>)</li>
+            <li>Type a space name or key (e.g. <code>EN</code> or <code>Engineering</code>)</li>
+            <li>Add more words to narrow results (e.g. <code>billing runbook</code>)</li>
+            <li>Search by a person&apos;s name if they created or edited the page</li>
           </ul>
         </div>
       )}

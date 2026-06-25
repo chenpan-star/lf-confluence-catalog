@@ -1,26 +1,30 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import BarChart from '../components/BarChart';
 import PageList from '../components/PageList';
 import PageTree from '../components/PageTree';
-import { DepartmentSourceNote } from '../pages/ContributorsPage';
+import DepartmentSourceNote from '../components/DepartmentSourceNote';
 import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { formatTitle, normalizeForSearch } from '../lib/text';
+import { formatNumber, DOC_TYPE_LABELS, RECENCY_LABELS } from '../lib/labels';
 import '../components/PageTree.css';
 
 export default function SpacePage() {
   const { spaceKey } = useParams();
-  const { catalog, spacesByKey, loading, error } = useCatalog();
+  const outlet = useOutletContext();
+  const departmentId = outlet?.departmentId;
+  const { catalog, resolveSpace, loading, error } = useCatalog();
   const [docFilter, setDocFilter] = useState('all');
   const [recencyFilter, setRecencyFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('tree');
 
-  const space = spacesByKey[decodeURIComponent(spaceKey)];
+  const space = resolveSpace(spaceKey);
 
   const filteredPages = useMemo(() => {
-    if (!space) return [];
+    if (!space?.pages) return [];
+    const pages = space.pages || [];
     const matches = (p) => {
       if (docFilter !== 'all' && p.docType !== docFilter) return false;
       if (recencyFilter !== 'all' && p.recency !== recencyFilter) return false;
@@ -28,9 +32,9 @@ export default function SpacePage() {
       return true;
     };
     if (viewMode === 'tree') {
-      return filterPagesWithAncestors(space.pages, matches);
+      return filterPagesWithAncestors(pages, matches);
     }
-    return space.pages.filter(matches);
+    return pages.filter(matches);
   }, [space, docFilter, recencyFilter, search, viewMode]);
 
   const pageTree = useMemo(() => buildPageTree(filteredPages), [filteredPages]);
@@ -39,24 +43,26 @@ export default function SpacePage() {
   if (error) return <div className="empty">Error: {error}</div>;
   if (!space) return <div className="empty">Space not found.</div>;
 
-  const category = catalog.categories[space.category];
-  const department = catalog.departments?.[space.department];
+  const category = catalog?.categories?.[space.category];
+  const department = catalog?.departments?.[space.department];
 
   return (
     <>
-      <nav className="breadcrumb">
-        <Link to="/">Home</Link>
-        <span>/</span>
-        <Link to="/spaces">Spaces</Link>
-        <span>/</span>
-        {department && (
-          <>
-            <Link to={`/department/${space.department}`}>{department.label}</Link>
-            <span>/</span>
-          </>
-        )}
-        <span>{space.name}</span>
-      </nav>
+      {!departmentId && (
+        <nav className="breadcrumb">
+          <Link to="/">Home</Link>
+          <span>/</span>
+          <Link to="/spaces">Spaces</Link>
+          <span>/</span>
+          {department && (
+            <>
+              <Link to={`/department/${space.department}`}>{department.label}</Link>
+              <span>/</span>
+            </>
+          )}
+          <span>{space.name}</span>
+        </nav>
+      )}
 
       <header className="page-header">
         <h1>{space.name}</h1>
@@ -100,7 +106,7 @@ export default function SpacePage() {
         <DepartmentSourceNote space={space} catalog={catalog} />
       </header>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div className="grid space-charts" style={{ marginBottom: '2rem' }}>
         <div className="card">
           <h2 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
             By document type
@@ -142,7 +148,7 @@ export default function SpacePage() {
           placeholder="Filter by title…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ minWidth: '200px' }}
+          className="filter-search"
         />
         <select value={docFilter} onChange={(e) => setDocFilter(e.target.value)}>
           <option value="all">All types</option>
@@ -163,9 +169,17 @@ export default function SpacePage() {
       </div>
 
       {viewMode === 'tree' ? (
-        <PageTree tree={pageTree} />
+        <PageTree
+          tree={pageTree}
+          spaceKey={space.key || spaceKey}
+          departmentId={departmentId}
+        />
       ) : (
-        <PageList pages={filteredPages} />
+        <PageList
+          pages={filteredPages}
+          spaceKey={space.key || spaceKey}
+          departmentId={departmentId}
+        />
       )}
     </>
   );
