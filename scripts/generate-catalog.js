@@ -19,6 +19,18 @@ if (!existsSync(inputPath)) {
 }
 
 const pages = JSON.parse(readFileSync(inputPath, 'utf8'));
+const dataSource = process.env.CATALOG_DATA_SOURCE || 'live';
+const fetchedAt = process.env.CATALOG_FETCHED_AT || '';
+const existingCatalogPath = outputPath;
+let previousRefreshedAt = '';
+if (existsSync(existingCatalogPath)) {
+  try {
+    previousRefreshedAt = JSON.parse(readFileSync(existingCatalogPath, 'utf8')).meta?.refreshedAt || '';
+  } catch {
+    /* ignore corrupt existing catalog */
+  }
+}
+
 const spaces = new Map();
 
 for (const p of pages) {
@@ -43,6 +55,7 @@ for (const p of pages) {
   s.docTypes[dt] = (s.docTypes[dt] || 0) + 1;
   s.recency[rc] = (s.recency[rc] || 0) + 1;
   s.pages.push({
+    id: p.id || '',
     title: p.title,
     url: p.url,
     docType: dt,
@@ -56,14 +69,19 @@ for (const p of pages) {
 
 const site = process.env.ATLASSIAN_SITE || 'lotusflare.atlassian.net';
 
+const now = new Date().toISOString();
+const refreshedAt =
+  dataSource === 'live' && fetchedAt ? fetchedAt : previousRefreshedAt || fetchedAt || now;
+
 const exportData = {
   meta: {
     totalPages: pages.length,
     totalSpaces: spaces.size,
-    generatedAt: new Date().toISOString(),
-    refreshedAt: new Date().toISOString(),
+    generatedAt: now,
+    refreshedAt,
+    dataSource,
     source: site,
-    refreshMode: 'scheduled',
+    refreshMode: dataSource === 'live' ? 'scheduled' : 'cached',
   },
   categories: { ...CATEGORIES },
   spaces: [...spaces.values()]

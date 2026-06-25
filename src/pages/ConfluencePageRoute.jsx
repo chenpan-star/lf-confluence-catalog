@@ -13,7 +13,9 @@ export default function ConfluencePageRoute() {
 
   const { spaceKey, pageId } = parsed;
   const space = spacesByKey[spaceKey];
-  const page = space?.pages?.find((p) => p.url.includes(`/pages/${pageId}`));
+  const page = space?.pages?.find(
+    (p) => p.id === pageId || p.url.includes(`/pages/${pageId}`),
+  );
 
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
   const confluenceUrl = page

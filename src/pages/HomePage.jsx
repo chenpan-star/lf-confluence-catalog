@@ -37,6 +37,9 @@ export default function HomePage() {
           <p className="refresh-banner">
             Catalog last refreshed: <strong>{formatDate(meta.refreshedAt)}</strong>
             {meta.refreshMode === 'scheduled' && ' · updates daily via scheduled job'}
+            {meta.dataSource && meta.dataSource !== 'live' && (
+              <> · <strong style={{ color: 'var(--warning, #d97706)' }}>using cached data — run refresh for latest</strong></>
+            )}
           </p>
         )}
         <div className="stat-row" style={{ marginTop: '1.25rem' }}>

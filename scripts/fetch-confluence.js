@@ -56,6 +56,17 @@ function toFullUrl(pathOrUrl) {
   return `https://${site.replace(/^https?:\/\//, '')}${path}`;
 }
 
+/** Use the newest timestamp; prefer content.version.when over search index lastModified. */
+function pickLastModified(searchLastModified, versionWhen) {
+  const candidates = [versionWhen, searchLastModified].filter(Boolean);
+  if (!candidates.length) return '';
+  let newest = candidates[0];
+  for (const value of candidates.slice(1)) {
+    if (new Date(value).getTime() > new Date(newest).getTime()) newest = value;
+  }
+  return newest;
+}
+
 function normalizeResult(result) {
   const content = result.content || {};
   const history = content.history || {};
@@ -64,10 +75,11 @@ function normalizeResult(result) {
   const spaceKey = parseSpaceKey(result);
 
   return {
+    id: content.id ? String(content.id) : '',
     title: result.title || content.title || '',
     url: toFullUrl(result.url || ''),
     excerpt: result.excerpt || '',
-    lastModified: result.lastModified || version.when || '',
+    lastModified: pickLastModified(result.lastModified, version.when),
     createdAt: history.createdDate || '',
     spaceName,
     spaceKey,

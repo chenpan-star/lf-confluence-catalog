@@ -35,8 +35,12 @@ function useCachedRaw(label) {
 async function main() {
   console.log('=== Confluence catalog refresh ===\n');
 
+  let dataSource = 'live';
+  let fetchedAt = '';
+
   if (offlineMode) {
     useCachedRaw('Offline mode — using cached data/raw-pages.json');
+    dataSource = 'offline';
   } else if (hasCredentials()) {
     try {
       const { fetchAllPages } = await import('./fetch-confluence.js');
@@ -46,6 +50,7 @@ async function main() {
           process.stdout.write(`\r  Fetching batch ${batch}: ${fetched}${total} pages`);
         },
       });
+      fetchedAt = new Date().toISOString();
       console.log(`\n  ✓ Fetched ${pages.length} pages from Confluence\n`);
       const { writeFileSync } = await import('fs');
       mkdirSync(dirname(rawPath), { recursive: true });
@@ -54,6 +59,7 @@ async function main() {
       console.error(`\n  ✗ Fetch failed: ${err.message}\n`);
       if (existsSync(rawPath)) {
         useCachedRaw('Falling back to existing data/raw-pages.json');
+        dataSource = 'cache';
       } else {
         console.error('No cache to fall back to. Fix auth (npm run test:auth) or use --offline after first successful fetch.');
         process.exit(1);
@@ -61,10 +67,12 @@ async function main() {
     }
   } else if (existsSync(rawPath)) {
     console.warn('  ⚠ No API credentials — reusing existing data/raw-pages.json\n');
+    dataSource = 'cache';
   } else if (existsSync(legacyPath)) {
     console.warn('  ⚠ No API credentials — copying /tmp/all_confluence_pages.json\n');
     mkdirSync(dirname(rawPath), { recursive: true });
     copyFileSync(legacyPath, rawPath);
+    dataSource = 'cache';
   } else {
     console.error(
       'No credentials and no local export found.\n' +
@@ -76,7 +84,11 @@ async function main() {
   const gen = spawnSync('node', ['scripts/generate-catalog.js'], {
     cwd: root,
     stdio: 'inherit',
-    env: process.env,
+    env: {
+      ...process.env,
+      CATALOG_DATA_SOURCE: dataSource,
+      CATALOG_FETCHED_AT: fetchedAt,
+    },
   });
 
   if (gen.status !== 0) process.exit(gen.status ?? 1);
