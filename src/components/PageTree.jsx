@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
+import { formatDate, DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
+import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
 import { catalogPagePath } from '../lib/pageTree';
@@ -34,10 +35,10 @@ function PageTreeNode({ node, site, defaultExpandedDepth, depth = 0 }) {
         <div className="tree-content">
           <div className="tree-title-row">
             {localPath ? (
-              <Link to={localPath}>{page.title || 'Untitled'}</Link>
+              <Link to={localPath}>{formatTitle(page.title)}</Link>
             ) : (
               <a href={confluenceUrl} target="_blank" rel="noreferrer">
-                {page.title || 'Untitled'}
+                {formatTitle(page.title)}
               </a>
             )}
             {hasChildren && (

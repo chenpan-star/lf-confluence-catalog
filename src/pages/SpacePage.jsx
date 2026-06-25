@@ -6,7 +6,7 @@ import PageList from '../components/PageList';
 import PageTree from '../components/PageTree';
 import { DepartmentSourceNote } from '../pages/ContributorsPage';
 import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
-import { DOC_TYPE_LABELS, RECENCY_LABELS, formatNumber } from '../lib/labels';
+import { formatTitle, normalizeForSearch } from '../lib/text';
 import '../components/PageTree.css';
 
 export default function SpacePage() {
@@ -24,7 +24,7 @@ export default function SpacePage() {
     const matches = (p) => {
       if (docFilter !== 'all' && p.docType !== docFilter) return false;
       if (recencyFilter !== 'all' && p.recency !== recencyFilter) return false;
-      if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !normalizeForSearch(p.title).includes(normalizeForSearch(search))) return false;
       return true;
     };
     if (viewMode === 'tree') {
@@ -45,7 +45,9 @@ export default function SpacePage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Departments</Link>
+        <Link to="/">Home</Link>
+        <span>/</span>
+        <Link to="/spaces">Spaces</Link>
         <span>/</span>
         {department && (
           <>

@@ -1,10 +1,11 @@
+import { Link } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import DepartmentCard from '../components/DepartmentCard';
-import CategoryCard from '../components/CategoryCard';
-import { DEPARTMENT_ORDER, CATEGORY_ORDER } from '../lib/departments';
+import SpaceCard from '../components/SpaceCard';
+import { DEPARTMENT_ORDER } from '../lib/departments';
 import { formatNumber, formatDate } from '../lib/labels';
 import '../components/CategoryCard.css';
-import '../components/PageTree.css';
+import '../components/SpaceCard.css';
 
 export default function HomePage() {
   const { catalog, loading, error } = useCatalog();
@@ -13,78 +14,67 @@ export default function HomePage() {
   if (error) return <div className="empty">Error: {error}</div>;
   if (!catalog) return null;
 
-  const { meta, departments, categories } = catalog;
-  const needsOwner = departments?.['needs-owner'];
+  const { meta, departments } = catalog;
+  const topSpaces = [...catalog.spaces].sort((a, b) => b.pageCount - a.pageCount).slice(0, 6);
+  const topDepts = DEPARTMENT_ORDER.filter(
+    (id) => departments?.[id] && id !== 'needs-owner',
+  ).slice(0, 6);
 
   return (
     <>
-      <header className="page-header">
-        <h1>LotusFlare Confluence Catalog</h1>
+      <section className="hero card">
+        <h1>Find Confluence documentation</h1>
         <p>
           Browse {formatNumber(meta.totalSpaces)} spaces and {formatNumber(meta.totalPages)} pages
-          by department, with category filters and page hierarchy. Read-only — links open in
-          Confluence.
+          organized by department. Use the search bar above or pick a section below.
         </p>
+        <div className="hero-actions">
+          <Link to="/search" className="btn btn-primary">
+            Search catalog
+          </Link>
+          <Link to="/spaces" className="btn btn-secondary">
+            Browse all spaces
+          </Link>
+        </div>
         {meta.refreshedAt && (
-          <p className="refresh-banner">
-            Catalog last refreshed: <strong>{formatDate(meta.refreshedAt)}</strong>
-            {meta.refreshMode === 'scheduled' && ' · updates daily via scheduled job'}
-            {meta.dataSource && meta.dataSource !== 'live' && (
-              <>
-                {' '}
-                ·{' '}
-                <strong style={{ color: 'var(--warning, #d97706)' }}>
-                  using cached data — run refresh for latest
-                </strong>
-              </>
-            )}
+          <p className="hero-meta">
+            Last updated <strong>{formatDate(meta.refreshedAt)}</strong>
+            {meta.refreshMode === 'scheduled' && ' · syncs daily'}
           </p>
         )}
-        <div className="stat-row" style={{ marginTop: '1.25rem' }}>
-          <div className="stat">
-            <span className="stat-value">{formatNumber(Object.keys(departments || {}).length)}</span>
-            <span className="stat-label">Departments</span>
-          </div>
-          <div className="stat">
-            <span className="stat-value">{formatNumber(meta.totalSpaces)}</span>
-            <span className="stat-label">Spaces</span>
-          </div>
-          <div className="stat">
-            <span className="stat-value">{formatNumber(meta.totalPages)}</span>
-            <span className="stat-label">Pages</span>
-          </div>
+      </section>
+
+      <section className="home-section">
+        <div className="section-head">
+          <h2>Departments</h2>
+          <Link to="/departments" className="section-link">
+            View all →
+          </Link>
         </div>
-      </header>
+        <div className="grid grid-3">
+          {topDepts.map((id) => (
+            <DepartmentCard key={id} id={id} department={departments[id]} compact />
+          ))}
+        </div>
+      </section>
 
-      <h2 className="section-heading">Departments</h2>
-      <div className="grid grid-2">
-        {DEPARTMENT_ORDER.filter((id) => departments?.[id] && id !== 'needs-owner').map((id) => (
-          <DepartmentCard key={id} id={id} department={departments[id]} />
-        ))}
-      </div>
-
-      {needsOwner && needsOwner.spaceCount > 0 && (
-        <>
-          <h2 className="section-heading">Needs Owner</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-            {formatNumber(needsOwner.spaceCount)} space(s) are not mapped to a department yet. Assign
-            them in <code className="mono">scripts/config/departments.json</code>.
-          </p>
-          <div className="grid grid-2">
-            <DepartmentCard id="needs-owner" department={needsOwner} />
-          </div>
-        </>
-      )}
-
-      <h2 className="section-heading">Browse by category</h2>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-        Filter spaces by document domain — use alongside departments above.
-      </p>
-      <div className="grid grid-2">
-        {CATEGORY_ORDER.filter((id) => categories[id]).map((id) => (
-          <CategoryCard key={id} id={id} category={categories[id]} />
-        ))}
-      </div>
+      <section className="home-section">
+        <div className="section-head">
+          <h2>Largest spaces</h2>
+          <Link to="/spaces" className="section-link">
+            View all →
+          </Link>
+        </div>
+        <div className="grid grid-3">
+          {topSpaces.map((space) => (
+            <SpaceCard
+              key={space.key}
+              space={space}
+              categoryColor={catalog.categories[space.category]?.color}
+            />
+          ))}
+        </div>
+      </section>
     </>
   );
 }

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { parseConfluencePagePath, toConfluenceUrl } from '../lib/confluenceUrl';
 import { catalogPagePath } from '../lib/pageTree';
+import { formatTitle } from '../lib/text';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, formatDate } from '../lib/labels';
 import { DepartmentSourceNote } from './ContributorsPage';
 
@@ -48,7 +49,9 @@ export default function ConfluencePageRoute() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Departments</Link>
+        <Link to="/">Home</Link>
+        <span>/</span>
+        <Link to="/departments">Departments</Link>
         <span>/</span>
         {department && space && (
           <>
@@ -72,11 +75,11 @@ export default function ConfluencePageRoute() {
             <span>/</span>
           </>
         )}
-        <span>{page.title}</span>
+        <span>{formatTitle(page.title)}</span>
       </nav>
 
       <header className="page-header">
-        <h1>{page.title}</h1>
+        <h1>{formatTitle(page.title)}</h1>
         <p>
           <span className="mono">{spaceKey}</span> · Page ID {pageId}
           {page.parentId && (

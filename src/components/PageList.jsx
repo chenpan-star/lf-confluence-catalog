@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
+import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
 import { catalogPagePath } from '../lib/pageTree';
@@ -17,14 +18,15 @@ export default function PageList({ pages, emptyMessage = 'No pages match your fi
       {pages.map((page) => {
         const localPath = catalogPagePath(page.url);
         const confluenceUrl = toConfluenceUrl(page.url, site);
+        const title = formatTitle(page.title);
         return (
-        <li key={page.url || page.title} className="page-item">
+        <li key={page.url || page.id || page.title} className="page-item">
           <div>
             {localPath ? (
-              <Link to={localPath}>{page.title || 'Untitled'}</Link>
+              <Link to={localPath}>{title}</Link>
             ) : (
               <a href={confluenceUrl} target="_blank" rel="noreferrer">
-                {page.title || 'Untitled'}
+                {title}
               </a>
             )}
             <div className="page-subline">

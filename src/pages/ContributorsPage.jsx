@@ -37,7 +37,7 @@ export default function ContributorsPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Departments</Link>
+        <Link to="/">Home</Link>
         <span>/</span>
         <span>Contributors</span>
       </nav>

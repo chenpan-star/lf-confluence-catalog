@@ -30,7 +30,9 @@ export default function DepartmentPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link to="/">Departments</Link>
+        <Link to="/">Home</Link>
+        <span>/</span>
+        <Link to="/departments">Departments</Link>
         <span>/</span>
         <span>{department.label}</span>
       </nav>

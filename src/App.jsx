@@ -1,8 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import { CatalogProvider } from './context/CatalogContext';
 import Layout from './components/Layout';
-import DepartmentPage from './pages/DepartmentPage';
 import HomePage from './pages/HomePage';
+import DepartmentsListPage from './pages/DepartmentsListPage';
+import DepartmentPage from './pages/DepartmentPage';
+import SpacesPage from './pages/SpacesPage';
+import CategoriesListPage from './pages/CategoriesListPage';
 import CategoryPage from './pages/CategoryPage';
 import SpacePage from './pages/SpacePage';
 import SearchPage from './pages/SearchPage';
@@ -16,12 +19,15 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/departments" element={<DepartmentsListPage />} />
           <Route path="/department/:departmentId" element={<DepartmentPage />} />
+          <Route path="/spaces" element={<SpacesPage />} />
+          <Route path="/categories" element={<CategoriesListPage />} />
           <Route path="/category/:categoryId" element={<CategoryPage />} />
           <Route path="/space/:spaceKey" element={<SpacePage />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/contributors" element={<ContributorsPage />} />
           <Route path="/spaces/:spaceKey/pages/:pageId/*" element={<ConfluencePageRoute />} />
-          <Route path="/search" element={<SearchPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Layout>

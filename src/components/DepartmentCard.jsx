@@ -1,19 +1,23 @@
 import { Link } from 'react-router-dom';
-import { formatNumber, formatDate } from '../lib/labels';
+import { formatNumber } from '../lib/labels';
 
-export default function DepartmentCard({ id, department }) {
+export default function DepartmentCard({ id, department, compact = false }) {
   const hasOwner = department.owner?.name?.trim();
 
   return (
-    <Link to={`/department/${id}`} className="card card-link category-card">
+    <Link
+      to={`/department/${id}`}
+      className={`card card-link category-card${compact ? ' compact' : ''}`}
+    >
       <div className="category-accent" style={{ background: department.color }} />
       <h3>{department.label}</h3>
-      <p>{department.description}</p>
-      {hasOwner ? (
+      {!compact && <p>{department.description}</p>}
+      {!compact && hasOwner && (
         <p className="dept-owner-line">
           Owner: <strong>{department.owner.name}</strong>
         </p>
-      ) : (
+      )}
+      {!compact && !hasOwner && (
         <p className="dept-owner-line dept-owner-empty">Owner: not assigned yet</p>
       )}
       <div className="category-stats">
@@ -24,9 +28,6 @@ export default function DepartmentCard({ id, department }) {
           <strong>{formatNumber(department.pageCount)}</strong> pages
         </span>
       </div>
-      {department.lastActivity && (
-        <p className="dept-activity">Last activity {formatDate(department.lastActivity)}</p>
-      )}
     </Link>
   );
 }
