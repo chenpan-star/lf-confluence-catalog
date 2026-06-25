@@ -9,6 +9,7 @@ import CategoriesListPage from './pages/CategoriesListPage';
 import CategoryPage from './pages/CategoryPage';
 import SpacePage from './pages/SpacePage';
 import SearchPage from './pages/SearchPage';
+import StaleContentPage from './pages/StaleContentPage';
 import ContributorsPage from './pages/ContributorsPage';
 import ConfluencePageRoute from './pages/ConfluencePageRoute';
 import NotFoundPage from './pages/NotFoundPage';
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/categories" element={<CategoriesListPage />} />
           <Route path="/category/:categoryId" element={<CategoryPage />} />
           <Route path="/space/:spaceKey" element={<SpacePage />} />
+          <Route path="/stale" element={<StaleContentPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/contributors" element={<ContributorsPage />} />
           <Route path="/spaces/:spaceKey/pages/:pageId/*" element={<ConfluencePageRoute />} />

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { buildSearchIndex } from '../lib/search';
+import { computeHealthStats } from '../lib/health';
 
 const CatalogContext = createContext(null);
 
@@ -55,7 +56,12 @@ export function CatalogProvider({ children }) {
     return buildSearchIndex(catalog);
   }, [catalog]);
 
-  const value = { catalog, loading, error, spacesByKey, searchIndex };
+  const health = useMemo(() => {
+    if (!catalog) return null;
+    return computeHealthStats(catalog);
+  }, [catalog]);
+
+  const value = { catalog, loading, error, spacesByKey, searchIndex, health };
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }
 

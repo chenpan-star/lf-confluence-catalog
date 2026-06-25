@@ -3,6 +3,7 @@ import './Sidebar.css';
 
 const NAV = [
   { to: '/', label: 'Home', icon: '⌂', end: true },
+  { to: '/stale', label: 'Stale content', icon: '⚠' },
   { to: '/departments', label: 'Departments', icon: '▦' },
   { to: '/spaces', label: 'All Spaces', icon: '▤' },
   { to: '/categories', label: 'Categories', icon: '◫' },

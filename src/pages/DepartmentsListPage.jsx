@@ -6,7 +6,7 @@ import { formatNumber } from '../lib/labels';
 import '../components/CategoryCard.css';
 
 export default function DepartmentsListPage() {
-  const { catalog, loading, error } = useCatalog();
+  const { catalog, loading, error, health } = useCatalog();
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
@@ -26,9 +26,17 @@ export default function DepartmentsListPage() {
       </header>
 
       <div className="grid grid-2">
-        {DEPARTMENT_ORDER.filter((id) => departments?.[id] && id !== 'needs-owner').map((id) => (
-          <DepartmentCard key={id} id={id} department={departments[id]} />
-        ))}
+        {DEPARTMENT_ORDER.filter((id) => departments?.[id] && id !== 'needs-owner').map((id) => {
+          const dh = health?.byDepartment?.[id];
+          const staleCount = (dh?.stale || 0) + (dh?.legacy || 0);
+          return (
+            <DepartmentCard
+              key={id}
+              id={id}
+              department={{ ...departments[id], staleCount }}
+            />
+          );
+        })}
       </div>
 
       {needsOwner && needsOwner.spaceCount > 0 && (

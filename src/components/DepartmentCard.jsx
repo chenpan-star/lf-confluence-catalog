@@ -27,6 +27,11 @@ export default function DepartmentCard({ id, department, compact = false }) {
         <span>
           <strong>{formatNumber(department.pageCount)}</strong> pages
         </span>
+        {department.staleCount > 0 && (
+          <span className="dept-stale-count">
+            <strong>{formatNumber(department.staleCount)}</strong> stale
+          </span>
+        )}
       </div>
     </Link>
   );

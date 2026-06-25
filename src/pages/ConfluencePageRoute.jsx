@@ -3,7 +3,8 @@ import { useCatalog } from '../context/CatalogContext';
 import { parseConfluencePagePath, toConfluenceUrl } from '../lib/confluenceUrl';
 import { catalogPagePath } from '../lib/pageTree';
 import { formatTitle } from '../lib/text';
-import { DOC_TYPE_LABELS, RECENCY_LABELS, formatDate } from '../lib/labels';
+import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
+import { buildReviewMailto } from '../lib/contact';
 import { DepartmentSourceNote } from './ContributorsPage';
 
 export default function ConfluencePageRoute() {
@@ -122,7 +123,11 @@ export default function ConfluencePageRoute() {
           <dt>Document type</dt>
           <dd>{DOC_TYPE_LABELS[page.docType] || page.docType}</dd>
           <dt>Freshness</dt>
-          <dd>{RECENCY_LABELS[page.recency] || page.recency}</dd>
+          <dd>
+            <span style={{ color: RECENCY_COLORS[page.recency] || 'inherit' }}>
+              {RECENCY_LABELS[page.recency] || page.recency}
+            </span>
+          </dd>
           {page.childCount > 0 && (
             <>
               <dt>Child pages</dt>
@@ -132,18 +137,35 @@ export default function ConfluencePageRoute() {
         </dl>
       </div>
 
-      <p>
+      <div className="page-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
         <a
-          className="card card-link"
+          className="btn btn-primary"
           href={confluenceUrl}
           target="_blank"
           rel="noreferrer"
-          style={{ display: 'inline-block', padding: '0.75rem 1.25rem' }}
         >
-          Read full page in Confluence ↗
+          Open in Confluence ↗
         </a>
-      </p>
-      <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+        {(page.recency === 'stale' || page.recency === 'legacy') && space && (
+          <a
+            className="btn btn-warn"
+            href={buildReviewMailto({
+              page,
+              spaceName: space.name,
+              spaceKey,
+              site,
+              catalogPageUrl:
+                typeof window !== 'undefined'
+                  ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${pathname}`
+                  : '',
+            })}
+          >
+            Request review from editor
+          </a>
+        )}
+      </div>
+
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
         This catalog shows metadata only. Page content lives in Confluence.
       </p>
     </>

@@ -472,3 +472,167 @@ code,
 .category-card.compact {
   padding: 1rem;
 }
+
+.dept-stale-count {
+  color: var(--amber);
+}
+
+.btn-warn {
+  background: color-mix(in srgb, var(--amber) 85%, #000);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.health-summary {
+  gap: 0.75rem;
+}
+
+.health-stat {
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.health-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.health-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.health-stat-warn {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--border));
+}
+
+.health-stat-danger {
+  border-color: color-mix(in srgb, #f87171 40%, var(--border));
+}
+
+.stale-list-compact {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stale-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.stale-row.compact {
+  flex-wrap: wrap;
+}
+
+.stale-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.stale-title {
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.stale-title:hover {
+  color: var(--accent);
+}
+
+.stale-meta {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.stale-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.stale-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.stale-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.stale-table-row:hover td {
+  background: var(--bg-elevated);
+}
+
+.stale-cell-title a {
+  font-weight: 600;
+}
+
+.stale-key {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.stale-email-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.stale-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.stale-footnote {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.owner-card-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.owner-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
