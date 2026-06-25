@@ -7,12 +7,12 @@ import { useCatalog } from '../context/CatalogContext';
 import { pageCatalogPath } from '../lib/pageTree';
 import './PageTree.css';
 
-function PageTreeNode({ node, site, spaceKey, departmentId, defaultExpandedDepth, depth = 0 }) {
+function PageTreeNode({ node, site, spaceKey, routeContext, defaultExpandedDepth, depth = 0 }) {
   const { page, children } = node;
   const hasChildren = children.length > 0;
   const [expanded, setExpanded] = useState(depth < defaultExpandedDepth);
 
-  const localPath = pageCatalogPath(page, spaceKey, departmentId);
+  const localPath = pageCatalogPath(page, spaceKey, routeContext);
   const confluenceUrl = toConfluenceUrl(page.url, site);
 
   return (
@@ -66,7 +66,7 @@ function PageTreeNode({ node, site, spaceKey, departmentId, defaultExpandedDepth
               node={child}
               site={site}
               spaceKey={spaceKey}
-              departmentId={departmentId}
+              routeContext={routeContext}
               defaultExpandedDepth={defaultExpandedDepth}
               depth={depth + 1}
             />
@@ -77,7 +77,8 @@ function PageTreeNode({ node, site, spaceKey, departmentId, defaultExpandedDepth
   );
 }
 
-export default function PageTree({ tree, spaceKey, departmentId, emptyMessage = 'No pages match your filters.' }) {
+export default function PageTree({ tree, spaceKey, routeContext, departmentId, emptyMessage = 'No pages match your filters.' }) {
+  const ctx = routeContext || (departmentId ? { departmentId } : {});
   const { catalog } = useCatalog();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
@@ -93,7 +94,7 @@ export default function PageTree({ tree, spaceKey, departmentId, emptyMessage = 
           node={node}
           site={site}
           spaceKey={spaceKey}
-          departmentId={departmentId}
+          routeContext={ctx}
           defaultExpandedDepth={1}
         />
       ))}

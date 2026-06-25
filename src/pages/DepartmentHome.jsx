@@ -37,6 +37,7 @@ export default function DepartmentHome() {
               space={space}
               to={`/department/${departmentId}/space/${encodeURIComponent(space.key || space.id)}`}
               categoryColor={catalog?.categories?.[space.category]?.color || department.color}
+              showOwner
             />
           ))}
       </div>

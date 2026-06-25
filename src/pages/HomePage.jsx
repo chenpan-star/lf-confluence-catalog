@@ -1,23 +1,23 @@
 import { Link } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
-import DepartmentCard from '../components/DepartmentCard';
-import { DEPARTMENT_ORDER } from '../lib/departments';
+import CategoryCard from '../components/CategoryCard';
+import { CATEGORY_ORDER } from '../lib/departments';
 import { formatNumber, formatDate } from '../lib/labels';
 import '../components/CategoryCard.css';
 
 const QUICK_START = [
   {
+    to: '/categories',
+    title: 'Browse by category',
+    description: 'Documentation grouped by type — DNO platform, client projects, engineering, and more.',
+    icon: '◫',
+    primary: true,
+  },
+  {
     to: '/search',
     title: 'Search',
     description: 'Find a page by title, space name, or person who edited it.',
     icon: '⌕',
-    primary: true,
-  },
-  {
-    to: '/departments',
-    title: 'Browse by team',
-    description: 'Documentation grouped by department — the easiest way to explore.',
-    icon: '▦',
   },
   {
     to: '/spaces',
@@ -34,10 +34,8 @@ export default function HomePage() {
   if (error) return <div className="empty">Error: {error}</div>;
   if (!catalog) return <div className="empty">Unable to load catalog data.</div>;
 
-  const { meta, departments } = catalog;
-  const deptList = DEPARTMENT_ORDER.filter(
-    (id) => departments?.[id] && id !== 'needs-owner',
-  );
+  const { meta, categories } = catalog;
+  const catList = CATEGORY_ORDER.filter((id) => categories?.[id]);
 
   return (
     <>
@@ -45,8 +43,8 @@ export default function HomePage() {
         <h1>Find LotusFlare documentation</h1>
         <p className="hero-lead">
           A simple index of {formatNumber(meta.totalSpaces)} Confluence spaces and{' '}
-          {formatNumber(meta.totalPages)} pages. Use search or pick your team below — no Confluence
-          login required to browse here.
+          {formatNumber(meta.totalPages)} pages. Browse by category, pick a space, and see who
+          maintains it — no Confluence login required.
         </p>
         {meta.refreshedAt && (
           <p className="hero-meta">
@@ -77,25 +75,31 @@ export default function HomePage() {
 
       <section className="home-section">
         <div className="section-head">
-          <h2 className="home-section-title">Teams &amp; departments</h2>
-          <Link to="/departments" className="section-link">
+          <h2 className="home-section-title">Categories</h2>
+          <Link to="/categories" className="section-link">
             View all →
           </Link>
         </div>
         <p className="section-desc">
-          Pick your department to see its Confluence spaces and pages.
+          Layer 1 — pick a document domain, then a space. Each space has one maintainer.
         </p>
         <div className="grid grid-3">
-          {deptList.map((id) => (
-            <DepartmentCard
-              key={id}
-              id={id}
-              department={departments[id]}
-              compact
-              hideStale
-            />
+          {catList.map((id) => (
+            <CategoryCard key={id} id={id} category={categories[id]} />
           ))}
         </div>
+      </section>
+
+      <section className="home-section">
+        <div className="section-head">
+          <h2 className="home-section-title">Also browse by team</h2>
+          <Link to="/departments" className="section-link">
+            Departments →
+          </Link>
+        </div>
+        <p className="section-desc">
+          Optional org view — same spaces, grouped by engineering team instead of document type.
+        </p>
       </section>
     </>
   );

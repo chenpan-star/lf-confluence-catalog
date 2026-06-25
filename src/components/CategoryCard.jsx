@@ -17,6 +17,11 @@ export default function CategoryCard({ id, category }) {
         <span>
           <strong>{formatNumber(category.pageCount)}</strong> pages
         </span>
+        {(category.staleCount || 0) > 0 && (
+          <span className="dept-stale-count">
+            <strong>{formatNumber(category.staleCount)}</strong> stale
+          </span>
+        )}
       </div>
     </Link>
   );

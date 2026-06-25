@@ -12,8 +12,11 @@ import '../components/PageTree.css';
 
 export default function SpacePage() {
   const { spaceKey } = useParams();
-  const outlet = useOutletContext();
-  const departmentId = outlet?.departmentId;
+  const outlet = useOutletContext() || {};
+  const departmentId = outlet.departmentId;
+  const categoryId = outlet.categoryId;
+  const inShell = Boolean(departmentId || categoryId);
+  const routeContext = { departmentId, categoryId };
   const { catalog, resolveSpace, loading, error } = useCatalog();
   const [docFilter, setDocFilter] = useState('all');
   const [recencyFilter, setRecencyFilter] = useState('all');
@@ -48,15 +51,15 @@ export default function SpacePage() {
 
   return (
     <>
-      {!departmentId && (
+      {!inShell && (
         <nav className="breadcrumb">
           <Link to="/">Home</Link>
           <span>/</span>
           <Link to="/spaces">Spaces</Link>
           <span>/</span>
-          {department && (
+          {category && (
             <>
-              <Link to={`/department/${space.department}`}>{department.label}</Link>
+              <Link to={`/category/${space.category}`}>{category.label}</Link>
               <span>/</span>
             </>
           )}
@@ -68,7 +71,7 @@ export default function SpacePage() {
         <h1>{space.name}</h1>
         <p>
           <span className="mono">{space.key}</span>
-          {category && (
+          {category && !categoryId && (
             <>
               {' '}
               ·{' '}
@@ -81,6 +84,18 @@ export default function SpacePage() {
             Open in Confluence ↗
           </a>
         </p>
+        {space.owner?.name?.trim() && (
+          <p className="space-owner-header">
+            <strong>Maintainer:</strong> {space.owner.name}
+            {space.owner.email && (
+              <>
+                {' '}
+                ·{' '}
+                <a href={`mailto:${space.owner.email}`}>{space.owner.email}</a>
+              </>
+            )}
+          </p>
+        )}
         <div className="stat-row" style={{ marginTop: '1rem' }}>
           <div className="stat">
             <span className="stat-value">{formatNumber(space.pageCount)}</span>
@@ -100,6 +115,14 @@ export default function SpacePage() {
                 {space.recency.legacy}
               </span>
               <span className="stat-label">Legacy</span>
+            </div>
+          )}
+          {(space.staleCount || 0) > 0 && (
+            <div className="stat">
+              <span className="stat-value" style={{ color: 'var(--amber)' }}>
+                {formatNumber(space.staleCount)}
+              </span>
+              <span className="stat-label">Need review</span>
             </div>
           )}
         </div>
@@ -172,13 +195,13 @@ export default function SpacePage() {
         <PageTree
           tree={pageTree}
           spaceKey={space.key || spaceKey}
-          departmentId={departmentId}
+          routeContext={routeContext}
         />
       ) : (
         <PageList
           pages={filteredPages}
           spaceKey={space.key || spaceKey}
-          departmentId={departmentId}
+          routeContext={routeContext}
         />
       )}
     </>

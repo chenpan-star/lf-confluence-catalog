@@ -17,8 +17,8 @@ export default function CategoriesListPage() {
       <header className="page-header">
         <h1>Categories</h1>
         <p>
-          Browse by document domain — customer projects, platform components, engineering, support,
-          and more. Use alongside departments for finer filtering.
+          Browse by document type — customer projects, DNO platform components, engineering, and
+          more. Each space has one maintainer responsible for its pages.
         </p>
       </header>
 

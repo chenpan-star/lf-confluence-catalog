@@ -3,9 +3,9 @@ import './Sidebar.css';
 
 const NAV = [
   { to: '/', label: 'Home', icon: '⌂', end: true },
-  { to: '/departments', label: 'Departments', icon: '▦' },
-  { to: '/spaces', label: 'All Spaces', icon: '▤' },
   { to: '/categories', label: 'Categories', icon: '◫' },
+  { to: '/spaces', label: 'All Spaces', icon: '▤' },
+  { to: '/departments', label: 'Departments', icon: '▦' },
 ];
 
 function isActive(pathname, to, end) {
@@ -18,7 +18,7 @@ export default function Sidebar({ mobileOpen, onClose }) {
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
-      <p className="sidebar-hint">Use the search bar above to find any page.</p>
+      <p className="sidebar-hint">Categories → Spaces → Pages. Use search to jump anywhere.</p>
       <nav className="sidebar-nav">
         {NAV.map(({ to, label, icon, end }) => (
           <Link

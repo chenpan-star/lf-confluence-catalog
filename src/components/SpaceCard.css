@@ -34,6 +34,19 @@
   color: var(--text-secondary);
 }
 
+.space-owner-line {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.space-owner-header {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-top: 0.35rem;
+}
+
 .space-card-bar {
   position: absolute;
   bottom: 0;

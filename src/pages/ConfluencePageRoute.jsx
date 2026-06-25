@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { parseConfluencePagePath, toConfluenceUrl } from '../lib/confluenceUrl';
+import { spaceScopePath } from '../lib/spacePaths';
 import { catalogPagePath, pageCatalogPath } from '../lib/pageTree';
 import { formatTitle } from '../lib/text';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
@@ -26,15 +27,20 @@ export default function ConfluencePageRoute() {
   if (!parsed) return <div className="empty">Invalid page path.</div>;
   if (!catalog) return <div className="loading">Loading…</div>;
 
-  const { spaceKey, pageId, departmentId } = parsed;
+  const { spaceKey, pageId, departmentId, categoryId } = parsed;
   const space = resolveSpace(spaceKey);
   const page = findPage(space, pageId);
+  const inShell = Boolean(departmentId || categoryId);
+  const routeContext = { departmentId, categoryId };
 
-  const spacePath = departmentId
-    ? `/department/${departmentId}/space/${encodeURIComponent(spaceKey)}`
+  const spacePath = inShell
+    ? spaceScopePath(
+        categoryId ? { type: 'category', id: categoryId } : { type: 'department', id: departmentId },
+        spaceKey,
+      )
     : `/space/${encodeURIComponent(spaceKey)}`;
 
-  const pathForPage = (p) => pageCatalogPath(p, spaceKey, departmentId) || catalogPagePath(p?.url);
+  const pathForPage = (p) => pageCatalogPath(p, spaceKey, routeContext) || catalogPagePath(p?.url);
 
   const site = catalog.meta?.source || 'lotusflare.atlassian.net';
   const confluenceUrl = page
@@ -42,6 +48,7 @@ export default function ConfluencePageRoute() {
     : `https://${site}/wiki/spaces/${spaceKey}/pages/${pageId}`;
 
   const department = space ? catalog.departments?.[space.department] : null;
+  const category = space ? catalog.categories?.[space.category] : null;
   const parentPage = page?.parentId
     ? findPage(space, page.parentId) || space?.pages?.find((p) => p.id === page.parentId)
     : null;
@@ -76,7 +83,7 @@ export default function ConfluencePageRoute() {
   return (
     <>
       <nav className="breadcrumb breadcrumb-compact">
-        {departmentId ? (
+        {inShell ? (
           <>
             <Link to={spacePath}>{space?.name || spaceKey}</Link>
             <span>/</span>
@@ -87,9 +94,9 @@ export default function ConfluencePageRoute() {
             <span>/</span>
             <Link to="/spaces">Spaces</Link>
             <span>/</span>
-            {department && space && (
+            {category && space && (
               <>
-                <Link to={`/department/${space.department}`}>{department.label}</Link>
+                <Link to={`/category/${space.category}`}>{category.label}</Link>
                 <span>/</span>
               </>
             )}
@@ -132,6 +139,18 @@ export default function ConfluencePageRoute() {
             </>
           )}
         </p>
+        {space?.owner?.name?.trim() && (
+          <p className="space-owner-header">
+            <strong>Space maintainer:</strong> {space.owner.name}
+            {space.owner.email && (
+              <>
+                {' '}
+                ·{' '}
+                <a href={`mailto:${space.owner.email}`}>{space.owner.email}</a>
+              </>
+            )}
+          </p>
+        )}
         {space && <DepartmentSourceNote space={space} catalog={catalog} />}
       </header>
 

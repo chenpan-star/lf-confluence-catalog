@@ -7,16 +7,4 @@ export function toConfluenceUrl(url, site = DEFAULT_SITE) {
   return `https://${site.replace(/^https?:\/\//, '')}${path}`;
 }
 
-export function parseConfluencePagePath(pathname) {
-  const deptMatch = pathname.match(/\/department\/([^/]+)\/space\/([^/]+)\/pages\/(\d+)/);
-  if (deptMatch) {
-    return {
-      departmentId: deptMatch[1],
-      spaceKey: decodeURIComponent(deptMatch[2]),
-      pageId: deptMatch[3],
-    };
-  }
-  const match = pathname.match(/\/spaces\/([^/]+)\/pages\/(\d+)/);
-  if (!match) return null;
-  return { spaceKey: decodeURIComponent(match[1]), pageId: match[2] };
-}
+export { parsePageRouteContext as parseConfluencePagePath } from './spacePaths.js';

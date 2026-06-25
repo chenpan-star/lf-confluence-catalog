@@ -169,6 +169,24 @@
   color: var(--text-muted);
 }
 
+.space-index-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+}
+
+.space-index-owner {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.space-index-stale {
+  font-size: 0.65rem;
+  color: var(--amber);
+  font-weight: 500;
+}
+
 .space-browse-main {
   min-width: 0;
 }

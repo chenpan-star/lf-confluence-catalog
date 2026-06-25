@@ -5,7 +5,8 @@ import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
 import { pageCatalogPath } from '../lib/pageTree';
 
-export default function PageList({ pages, emptyMessage = 'No pages match your filters.', spaceKey, departmentId }) {
+export default function PageList({ pages, emptyMessage = 'No pages match your filters.', spaceKey, routeContext, departmentId }) {
+  const ctx = routeContext || (departmentId ? { departmentId } : {});
   const { catalog } = useCatalog();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
@@ -16,7 +17,7 @@ export default function PageList({ pages, emptyMessage = 'No pages match your fi
   return (
     <ul className="page-list">
       {pages.map((page) => {
-        const localPath = pageCatalogPath(page, spaceKey || page.spaceKey, departmentId);
+        const localPath = pageCatalogPath(page, spaceKey || page.spaceKey, ctx);
         const confluenceUrl = toConfluenceUrl(page.url, site);
         const title = formatTitle(page.title);
         return (

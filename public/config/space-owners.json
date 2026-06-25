@@ -1,0 +1,8 @@
+{
+  "defaultOwner": {
+    "name": "Chen Pan",
+    "email": "chen.pan@lotusflare.com"
+  },
+  "spaceOverrides": {},
+  "_comment": "defaultOwner applies to every space unless spaceOverrides has an entry for that space key"
+}

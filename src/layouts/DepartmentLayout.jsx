@@ -74,7 +74,7 @@ export default function DepartmentLayout() {
       <div className="dept-shell">
         <SpaceIndexNav
           spaces={spaces}
-          departmentId={departmentId}
+          scope={{ type: 'department', id: departmentId }}
           search={search}
           onSearchChange={setSearch}
           sort={sort}
@@ -82,6 +82,7 @@ export default function DepartmentLayout() {
           categoryFilter={categoryFilter}
           onCategoryFilterChange={setCategoryFilter}
           categoryOptions={categoryOptions}
+          showOwner
         />
         <div className="dept-shell-main">
           <Outlet context={{ departmentId, department }} />

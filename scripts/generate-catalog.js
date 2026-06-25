@@ -18,6 +18,7 @@ import {
   inferDepartmentFromContributorNetwork,
   buildContributorsCatalog,
 } from './lib/confluence-contributors.js';
+import { loadSpaceOwnerConfig, resolveSpaceOwner } from './lib/space-owner.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const defaultInput = join(__dirname, '../data/raw-pages.json');
@@ -116,6 +117,7 @@ for (const s of spaces.values()) {
 const contributorStats = buildContributorStats(pages);
 const config = loadDepartmentConfig();
 const contributorOverrides = config.contributorOverrides || {};
+const spaceOwnerConfig = loadSpaceOwnerConfig();
 
 // Pass 1: manual → zoho → name/category heuristics
 for (const s of spaces.values()) {
@@ -168,23 +170,29 @@ const refreshedAt =
 
 const exportSpaces = [...spaces.values()]
   .sort((a, b) => b.pageCount - a.pageCount)
-  .map((s) => ({
-    id: s.key || s.name,
-    name: s.name,
-    key: s.key,
-    category: s.category,
-    department: s.department,
-    departmentSource: s.departmentSource,
-    networkConfidence: s.networkConfidence,
-    networkContributors: s.networkContributors,
-    zohoConfidence: s.zohoConfidence,
-    zohoContributors: s.zohoContributors,
-    pageCount: s.pageCount,
-    docTypes: s.docTypes,
-    recency: s.recency,
-    confluenceUrl: `https://${site}/wiki/spaces/${s.key || s.name}`,
-    pages: s.pages.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || '')),
-  }));
+  .map((s) => {
+    const owner = resolveSpaceOwner(s.key, s.name, spaceOwnerConfig);
+    const staleCount = s.pages.filter((p) => p.recency === 'stale' || p.recency === 'legacy').length;
+    return {
+      id: s.key || s.name,
+      name: s.name,
+      key: s.key,
+      category: s.category,
+      department: s.department,
+      departmentSource: s.departmentSource,
+      owner,
+      staleCount,
+      networkConfidence: s.networkConfidence,
+      networkContributors: s.networkContributors,
+      zohoConfidence: s.zohoConfidence,
+      zohoContributors: s.zohoContributors,
+      pageCount: s.pageCount,
+      docTypes: s.docTypes,
+      recency: s.recency,
+      confluenceUrl: `https://${site}/wiki/spaces/${s.key || s.name}`,
+      pages: s.pages.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || '')),
+    };
+  });
 
 const departments = {};
 for (const deptId of DEPARTMENT_ORDER) {
@@ -221,6 +229,7 @@ const exportData = {
     zohoEmployees: zohoEmployeeCount,
     contributorCount: contributorStats.size,
     departmentAssignment: 'space-level',
+    spaceOwnerAssignment: 'space-level',
   },
   contributors,
   departments,
@@ -232,6 +241,7 @@ for (const cid of Object.keys(CATEGORIES)) {
   const catSpaces = exportData.spaces.filter((s) => s.category === cid);
   exportData.categories[cid].pageCount = catSpaces.reduce((n, sp) => n + sp.pageCount, 0);
   exportData.categories[cid].spaceCount = catSpaces.length;
+  exportData.categories[cid].staleCount = catSpaces.reduce((n, sp) => n + (sp.staleCount || 0), 0);
 }
 
 mkdirSync(dirname(outputPath), { recursive: true });

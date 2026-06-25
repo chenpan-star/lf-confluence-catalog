@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
 import { normalizeForSearch } from '../lib/text';
+import { spaceScopePath } from '../lib/spacePaths';
 import './SpaceBrowseSection.css';
 
 export function filterAndSortSpaces(spaces, { search, sort }) {
@@ -20,6 +21,7 @@ export function filterAndSortSpaces(spaces, { search, sort }) {
 
 export default function SpaceIndexNav({
   spaces,
+  scope,
   departmentId,
   search,
   onSearchChange,
@@ -28,14 +30,20 @@ export default function SpaceIndexNav({
   categoryFilter,
   onCategoryFilterChange,
   categoryOptions,
+  showOwner = false,
 }) {
+  const navScope = scope || (departmentId ? { type: 'department', id: departmentId } : null);
+
   const filtered = useMemo(
     () => filterAndSortSpaces(spaces, { search, sort }),
     [spaces, search, sort],
   );
 
+  const ariaLabel =
+    navScope?.type === 'category' ? 'Spaces in this category' : 'Spaces in this department';
+
   return (
-    <aside className="space-index-nav dept-shell-nav" aria-label="Spaces in this department">
+    <aside className="space-index-nav dept-shell-nav" aria-label={ariaLabel}>
       <div className="space-nav-toolbar">
         <input
           type="search"
@@ -73,15 +81,23 @@ export default function SpaceIndexNav({
       <ul className="space-index-list">
         {filtered.map((space) => {
           const key = space.key || space.id;
+          const to = navScope ? spaceScopePath(navScope, key) : `/space/${encodeURIComponent(key)}`;
+          const ownerName = space.owner?.name?.trim();
 
           return (
             <li key={key}>
               <NavLink
-                to={`/department/${departmentId}/space/${encodeURIComponent(key)}`}
+                to={to}
                 className={({ isActive }) => `space-index-link${isActive ? ' active' : ''}`}
               >
                 <span className="space-index-name">{space.name}</span>
                 <span className="mono space-index-key">{key}</span>
+                {showOwner && ownerName && (
+                  <span className="space-index-owner">👤 {ownerName}</span>
+                )}
+                {(space.staleCount || 0) > 0 && (
+                  <span className="space-index-stale">{space.staleCount} stale</span>
+                )}
               </NavLink>
             </li>
           );
