@@ -16,11 +16,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh-and-deploy:
+  # Confluence fetch uses repository secrets only (no github-pages environment).
+  # Environment secrets on github-pages can override repo secrets and cause 403.
+  refresh:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,16 +31,23 @@ jobs:
           cache: npm
 
       - name: Verify secrets are configured
+        env:
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
         run: |
-          if [ -z "${{ secrets.ATLASSIAN_API_TOKEN }}" ]; then
+          if [ -z "$ATLASSIAN_API_TOKEN" ]; then
             echo "::error::Missing repository secret ATLASSIAN_API_TOKEN"
             exit 1
           fi
-          if [ -z "${{ secrets.ATLASSIAN_EMAIL }}" ]; then
+          if [ -z "$ATLASSIAN_EMAIL" ]; then
             echo "::error::Missing repository secret ATLASSIAN_EMAIL"
             exit 1
           fi
           echo "Secrets OK."
+          echo "Email length: ${#ATLASSIAN_EMAIL}"
+          echo "Email domain: ${ATLASSIAN_EMAIL#*@}"
+          echo "Token length: ${#ATLASSIAN_API_TOKEN}"
+          echo "(Expected: domain lotusflare.com, email length 23, token length ~24)"
 
       - name: Install dependencies
         run: npm ci
@@ -64,6 +70,38 @@ jobs:
           ZOHO_ACCOUNTS_URL: https://accounts.zoho.com
           ZOHO_PEOPLE_URL: https://people.zoho.com
         run: npm run refresh
+
+      - name: Upload refreshed catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog
+          path: public/data/catalog.json
+          retention-days: 1
+
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Download refreshed catalog
+        uses: actions/download-artifact@v4
+        with:
+          name: catalog
+          path: public/data
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build site with fresh catalog
         env:
