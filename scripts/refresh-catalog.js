@@ -80,7 +80,16 @@ async function main() {
       mkdirSync(dirname(rawPath), { recursive: true });
       writeFileSync(rawPath, JSON.stringify(pages));
     } catch (err) {
-      console.error(`\n  ✗ Fetch failed: ${err.message}\n`);
+      const email = process.env.ATLASSIAN_EMAIL?.trim() || '(not set)';
+      console.error(`\n  ✗ Fetch failed: ${err.message}`);
+      console.error(`  Account used: ${email}\n`);
+      if (String(err.message).includes('403') || String(err.message).includes('not permitted')) {
+        console.error(
+          '  → This email needs a Confluence license seat. Run: npm run test:auth\n' +
+            '  → For GitHub Actions: update repository secrets ATLASSIAN_EMAIL and ATLASSIAN_API_TOKEN\n' +
+            '    (create token at id.atlassian.com while logged in as that licensed user).\n',
+        );
+      }
       if (existsSync(rawPath)) {
         useCachedRaw('Falling back to existing data/raw-pages.json');
         dataSource = 'cache';
