@@ -40,6 +40,60 @@ Share that URL with your team.
 
 ---
 
+## Custom domain (for Okta / Cloudflare Access)
+
+Use a LotusFlare hostname so IT can put **Cloudflare Access + Okta** in front of the site.  
+Default in this repo: **`confluence-catalog.lotusflare.com`** (`public/CNAME`).
+
+### 1. DNS (ask IT / Infra)
+
+Create a **CNAME** record:
+
+| Type | Name | Target |
+|------|------|--------|
+| CNAME | `confluence-catalog` (or your chosen host) | `chenpan-star.github.io` |
+
+If you use a different hostname, edit `public/CNAME` to match exactly (one line, no `https://`).
+
+### 2. GitHub Pages settings
+
+1. Repo → **Settings** → **Pages**
+2. Under **Custom domain**, enter the same hostname as `public/CNAME`  
+   (e.g. `confluence-catalog.lotusflare.com`) → **Save**
+3. Wait for DNS check (can take up to 24h; often minutes)
+4. Enable **Enforce HTTPS** once the certificate is ready
+
+The `public/CNAME` file is copied into `dist/` on each deploy so GitHub keeps the domain configured.
+
+### 3. Actions variable (required for custom domain)
+
+Project sites on `github.io` use base path `/lf-confluence-catalog/`.  
+A custom domain serves the site at the **domain root**, so assets must use `/`.
+
+1. Repo → **Settings** → **Secrets and variables** → **Actions** → **Variables**
+2. **New repository variable**
+   - Name: `VITE_BASE_PATH`
+   - Value: `/`
+3. Re-run **Deploy to GitHub Pages** (or push a commit)
+
+Until this variable is set, the custom domain may load but CSS/JS routes can 404.
+
+### 4. Verify
+
+```bash
+curl -sI https://confluence-catalog.lotusflare.com/ | head -3
+curl -sI https://confluence-catalog.lotusflare.com/data/catalog.json | head -3
+```
+
+Open the site in a browser and check category navigation works.
+
+### 5. Next: Okta (IT)
+
+After the custom domain works, ask IT to add **Cloudflare Access** with **Okta** on that hostname.  
+The GitHub Pages URL (`*.github.io/...`) will remain publicly reachable unless you stop using it or block it at the edge — treat the custom domain as the canonical internal URL.
+
+---
+
 ## Daily Confluence refresh (optional)
 
 1. Repo → **Settings** → **Secrets and variables** → **Actions**

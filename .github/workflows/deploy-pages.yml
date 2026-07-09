@@ -38,7 +38,9 @@ jobs:
 
       - name: Build for GitHub Pages
         env:
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Custom domain (public/CNAME): set Actions variable VITE_BASE_PATH=/
+          # Default: project site at https://<user>.github.io/<repo>/
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
         run: |
           npm ci
           npm run build
