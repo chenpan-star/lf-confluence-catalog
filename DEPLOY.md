@@ -43,7 +43,10 @@ Share that URL with your team.
 ## Custom domain (for Okta / Cloudflare Access)
 
 Use a LotusFlare hostname so IT can put **Cloudflare Access + Okta** in front of the site.  
-Default in this repo: **`confluence-catalog.lotusflare.com`** (`public/CNAME`).
+Default hostname for IT: **`confluence-catalog.lotusflare.com`** (add `public/CNAME` when DNS is ready).
+
+> **Important:** Only enable the custom domain in GitHub **after** IT confirms DNS resolves.  
+> If you enable it too early, `github.io` will redirect to a dead hostname and the site becomes unreachable.
 
 ### 1. DNS (ask IT / Infra)
 
@@ -63,7 +66,8 @@ If you use a different hostname, edit `public/CNAME` to match exactly (one line,
 3. Wait for DNS check (can take up to 24h; often minutes)
 4. Enable **Enforce HTTPS** once the certificate is ready
 
-The `public/CNAME` file is copied into `dist/` on each deploy so GitHub keeps the domain configured.
+The `public/CNAME` file (when present) is copied into `dist/` on each deploy so GitHub keeps the domain configured.  
+Create `public/CNAME` with one line — the hostname only — when DNS is live.
 
 ### 3. Actions variable (required for custom domain)
 
