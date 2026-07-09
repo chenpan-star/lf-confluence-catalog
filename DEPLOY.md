@@ -91,10 +91,79 @@ curl -sI https://confluence-catalog.lotusflare.com/data/catalog.json | head -3
 
 Open the site in a browser and check category navigation works.
 
-### 5. Next: Okta (IT)
+### 5. Restrict access to LotusFlare employees (Okta + Cloudflare)
 
-After the custom domain works, ask IT to add **Cloudflare Access** with **Okta** on that hostname.  
-The GitHub Pages URL (`*.github.io/...`) will remain publicly reachable unless you stop using it or block it at the edge — treat the custom domain as the canonical internal URL.
+GitHub Pages **cannot** enforce login by itself. The `github.io` URL is public to anyone with the link.  
+To allow **only LotusFlare staff**, IT puts **Cloudflare Access** in front of a **LotusFlare custom domain** with **Okta** as the identity provider.
+
+```mermaid
+flowchart LR
+  User --> CF[Cloudflare Access]
+  CF -->|Okta login| Okta[Okta]
+  CF -->|@lotusflare.com allowed| GH[GitHub Pages origin]
+```
+
+#### What you need from IT (copy this ticket)
+
+**Subject:** Cloudflare Access + Okta for `confluence-catalog.lotusflare.com`
+
+**Request:**
+
+1. **DNS** (Cloudflare-proxied CNAME):
+   - Name: `confluence-catalog.lotusflare.com`
+   - Target: `chenpan-star.github.io`
+   - Proxy: **ON** (orange cloud) — required for Access
+
+2. **Cloudflare Zero Trust → Access → Application**
+   - Type: Self-hosted
+   - Domain: `confluence-catalog.lotusflare.com`
+   - Session: 24h (or company default)
+
+3. **Access policy**
+   - Allow: emails ending in `@lotusflare.com` **OR** Okta group (e.g. all employees)
+   - Deny: everyone else
+
+4. **Identity provider:** Okta (SAML or OIDC — use existing LotusFlare Okta ↔ Cloudflare integration if present)
+
+5. **Confirm** when DNS resolves:
+   ```bash
+   dig +short confluence-catalog.lotusflare.com
+   ```
+
+**Context:** Static internal Confluence catalog on GitHub Pages; contains page titles/URLs/metadata. Origin repo: `chenpan-star/lf-confluence-catalog`.
+
+#### After IT confirms DNS + Access
+
+Do these in order:
+
+| Step | Action |
+|------|--------|
+| 1 | IT confirms `dig confluence-catalog.lotusflare.com` returns Cloudflare IPs |
+| 2 | Create `public/CNAME` with one line: `confluence-catalog.lotusflare.com` |
+| 3 | Commit + push → wait for deploy |
+| 4 | GitHub → **Settings → Pages** → Custom domain → `confluence-catalog.lotusflare.com` |
+| 5 | **Repository variable** `VITE_BASE_PATH` = `/` |
+| 6 | Re-run **Deploy to GitHub Pages** |
+| 7 | Open `https://confluence-catalog.lotusflare.com` → should redirect to **Okta login** |
+| 8 | Share **only** the custom domain URL internally (not `github.io`) |
+
+#### Important limitations
+
+| URL | Protected? |
+|-----|------------|
+| `https://confluence-catalog.lotusflare.com` | **Yes** (after Cloudflare Access) |
+| `https://chenpan-star.github.io/lf-confluence-catalog/` | **No** — still public; do not share |
+
+To reduce leakage: stop sharing the `github.io` link; optionally ask IT if the origin can be blocked (Cloudflare cannot protect `*.github.io`).
+
+#### Verify access works
+
+```bash
+# Without login — should NOT return catalog HTML (Access block or redirect)
+curl -sI https://confluence-catalog.lotusflare.com/data/catalog.json | head -5
+```
+
+In a browser (logged out): opening the URL should show **Cloudflare/Okta login**, not the catalog.
 
 ---
 

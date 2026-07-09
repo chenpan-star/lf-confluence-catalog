@@ -41,8 +41,12 @@ jobs:
           # Custom domain (public/CNAME): set Actions variable VITE_BASE_PATH=/
           # Default: project site at https://<user>.github.io/<repo>/
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+          SITE_ACCESS_PASSWORD: ${{ secrets.SITE_ACCESS_PASSWORD }}
         run: |
           npm ci
+          if [ -n "$SITE_ACCESS_PASSWORD" ]; then
+            export VITE_ACCESS_PASSWORD_HASH=$(node -e "console.log(require('crypto').createHash('sha256').update(process.env.SITE_ACCESS_PASSWORD).digest('hex'))")
+          fi
           npm run build
 
       - uses: actions/upload-pages-artifact@v3

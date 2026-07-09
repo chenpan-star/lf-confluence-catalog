@@ -87,6 +87,14 @@ Summary:
 
 Optional: add `ATLASSIAN_EMAIL` + `ATLASSIAN_API_TOKEN` secrets for daily catalog refresh via Actions.
 
+### Simple password (no IT)
+
+1. Pick a team password and add GitHub **repository secret** `SITE_ACCESS_PASSWORD` (plain password).
+2. Push / deploy — visitors see a password screen before the catalog.
+3. Local dev: `npm run access:hash -- your-password` → add `VITE_ACCESS_PASSWORD_HASH=...` to `.env`.
+
+Note: `catalog.json` is still a public static file for technical users; this blocks normal browsing only.
+
 ## Scripts
 
 | Command | Description |

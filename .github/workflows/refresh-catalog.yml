@@ -106,7 +106,12 @@ jobs:
       - name: Build site with fresh catalog
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-        run: npm run build
+          SITE_ACCESS_PASSWORD: ${{ secrets.SITE_ACCESS_PASSWORD }}
+        run: |
+          if [ -n "$SITE_ACCESS_PASSWORD" ]; then
+            export VITE_ACCESS_PASSWORD_HASH=$(node -e "console.log(require('crypto').createHash('sha256').update(process.env.SITE_ACCESS_PASSWORD).digest('hex'))")
+          fi
+          npm run build
 
       - name: Deploy to GitHub Pages
         uses: actions/upload-pages-artifact@v3
