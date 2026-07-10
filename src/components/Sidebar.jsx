@@ -133,6 +133,42 @@ export default function Sidebar({ mobileOpen, onClose }) {
       </div>
 
       <div className="sidebar-section sidebar-section-teams">
+        <p className="sidebar-section-title">Doc hygiene</p>
+        <nav className="sidebar-primary sidebar-hygiene" aria-label="Doc hygiene">
+          <Link
+            to="/review/editors"
+            className={pathname.startsWith('/review/editors') ? 'active' : ''}
+            onClick={onClose}
+          >
+            <span className="sidebar-icon" aria-hidden>
+              ◉
+            </span>
+            By last editor
+          </Link>
+          <Link
+            to="/stale"
+            className={pathname === '/stale' ? 'active' : ''}
+            onClick={onClose}
+          >
+            <span className="sidebar-icon" aria-hidden>
+              ⏱
+            </span>
+            Stale list
+          </Link>
+          <Link
+            to="/review/my-pages"
+            className={pathname.startsWith('/review/my-pages') ? 'active' : ''}
+            onClick={onClose}
+          >
+            <span className="sidebar-icon" aria-hidden>
+              ✎
+            </span>
+            My pages
+          </Link>
+        </nav>
+      </div>
+
+      <div className="sidebar-section sidebar-section-teams">
         <button
           type="button"
           className="sidebar-section-toggle"

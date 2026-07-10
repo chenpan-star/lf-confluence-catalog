@@ -95,6 +95,10 @@ export default function ContextBar() {
     crumbs.push({ label: 'Contributors' });
   } else if (pathname === '/stale') {
     crumbs.push({ label: 'Stale content' });
+  } else if (pathname === '/review/editors') {
+    crumbs.push({ label: 'By last editor' });
+  } else if (pathname === '/review/my-pages') {
+    crumbs.push({ label: 'My pages' });
   }
 
   if (crumbs.length <= 1) return null;

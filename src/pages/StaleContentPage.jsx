@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import StalePageRow from '../components/StalePageRow';
@@ -56,6 +55,10 @@ export default function StaleContentPage() {
         <p>
           Pages not updated in over 1 year. Review with creators and ask them to{' '}
           <strong>update</strong>, <strong>archive</strong>, or <strong>delete</strong> as needed.
+        </p>
+        <p style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
+          Prefer editor-based workflow?{' '}
+          <Link to="/review/editors">Review by last editor</Link>
         </p>
       </header>
 

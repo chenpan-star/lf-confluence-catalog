@@ -13,6 +13,8 @@ import CategoriesListPage from './pages/CategoriesListPage';
 import SpacePage from './pages/SpacePage';
 import SearchPage from './pages/SearchPage';
 import StaleContentPage from './pages/StaleContentPage';
+import EditorsReviewPage from './pages/EditorsReviewPage';
+import MyPagesReviewPage from './pages/MyPagesReviewPage';
 import ContributorsPage from './pages/ContributorsPage';
 import ConfluencePageRoute from './pages/ConfluencePageRoute';
 import NotFoundPage from './pages/NotFoundPage';
@@ -39,6 +41,8 @@ export default function App() {
           <Route path="/spaces" element={<SpacesPage />} />
           <Route path="/space/:spaceKey" element={<SpacePage />} />
           <Route path="/stale" element={<StaleContentPage />} />
+          <Route path="/review/editors" element={<EditorsReviewPage />} />
+          <Route path="/review/my-pages" element={<MyPagesReviewPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/contributors" element={<ContributorsPage />} />
           <Route path="/spaces/:spaceKey/pages/:pageId/*" element={<ConfluencePageRoute />} />

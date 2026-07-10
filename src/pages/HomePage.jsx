@@ -3,10 +3,11 @@ import { useCatalog } from '../context/CatalogContext';
 import CategoryCard from '../components/CategoryCard';
 import { CATEGORY_ORDER } from '../lib/departments';
 import { formatNumber, formatDate } from '../lib/labels';
+import '../components/ReviewMessageModal.css';
 import '../components/CategoryCard.css';
 
 export default function HomePage() {
-  const { catalog, loading, error } = useCatalog();
+  const { catalog, loading, error, health } = useCatalog();
 
   if (loading) return <div className="loading">Loading catalog…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
@@ -27,6 +28,17 @@ export default function HomePage() {
           <p className="hero-meta">
             {formatNumber(meta.totalSpaces)} spaces · {formatNumber(meta.totalPages)} pages · updated{' '}
             <strong>{formatDate(meta.refreshedAt)}</strong>
+          </p>
+        )}
+        {health && health.needsAttention > 0 && (
+          <p className="hygiene-banner">
+            Doc hygiene: {formatNumber(health.needsAttention)} stale pages across{' '}
+            {formatNumber(
+              new Set(
+                health.stalePages.map((p) => p.lastEditor || p.creator).filter(Boolean),
+              ).size,
+            )}{' '}
+            editors — <Link to="/review/editors">Review by last editor</Link>
           </p>
         )}
       </section>

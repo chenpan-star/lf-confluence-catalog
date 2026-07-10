@@ -127,6 +127,9 @@ function testRoutes(sample) {
     `/department/${deptId}`,
     `/department/${deptId}/space/${encodedKey}`,
     deptPath,
+    '/stale',
+    '/review/editors',
+    '/review/my-pages',
     '/contributors',
   ];
 

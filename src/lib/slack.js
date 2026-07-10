@@ -110,3 +110,60 @@ export async function openSlackReview({
     copied: true,
   };
 }
+
+export function buildBundledReviewMessage({
+  editor,
+  pages,
+  site = 'lotusflare.atlassian.net',
+  maxPages = 15,
+}) {
+  const contact = editor;
+  const handle = guessSlackHandle(contact);
+  const mention = handle ? `@${handle}` : contact || 'there';
+  const shown = pages.slice(0, maxPages);
+  const remaining = pages.length - shown.length;
+
+  const lines = shown.map((page, index) => {
+    const title = formatTitle(page.title);
+    const confluenceUrl =
+      page.url || `https://${site}/wiki/spaces/${page.spaceKey || 'UNKNOWN'}`;
+    const status = page.recency === 'legacy' ? 'legacy' : 'stale';
+    return `${index + 1}. *${title}* (${page.spaceName || page.spaceKey}, ${status}, ${formatDate(page.lastModified)})
+   ${confluenceUrl}`;
+  });
+
+  let body = `Hi ${mention},
+
+I'm reviewing our Confluence documentation catalog. These pages may need updating, archiving, or deleting:
+
+${lines.join('\n\n')}`;
+
+  if (remaining > 0) {
+    body += `\n\n…and ${remaining} more stale page(s) assigned to you in the catalog.`;
+  }
+
+  body += '\n\nThanks!';
+  return body;
+}
+
+export async function openBundledSlackReview({
+  editor,
+  pages,
+  site,
+  slackConfig = DEFAULT_SLACK_CONFIG,
+  maxPages = 15,
+}) {
+  const message = buildBundledReviewMessage({ editor, pages, site, maxPages });
+  const url = buildSlackUrl(editor, slackConfig);
+  const handle = guessSlackHandle(editor);
+
+  try {
+    await navigator.clipboard.writeText(message);
+  } catch {
+    /* clipboard may be blocked */
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+
+  return { contact: editor, handle, url, message, copied: true };
+}
