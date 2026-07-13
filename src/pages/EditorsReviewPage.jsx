@@ -1,22 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import EditorReviewCard from '../components/EditorReviewCard';
 import ReviewMessageModal from '../components/ReviewMessageModal';
+import HygieneHelpCard, { HygieneStat, HygieneStatGrid } from '../components/HygieneHelp';
 import {
   applyEditorGroupFilters,
   groupStalePagesByEditor,
   sortEditorGroups,
 } from '../lib/editorReview';
 import { openBundledSlackReview } from '../lib/slack';
-import { formatNumber, RECENCY_LABELS } from '../lib/labels';
+import { formatNumber } from '../lib/labels';
+import '../components/HygieneHelp.css';
 import '../components/ReviewMessageModal.css';
+
+const SORT_OPTIONS = [
+  { id: 'most-stale', label: 'Most pages first' },
+  { id: 'oldest', label: 'Oldest pages' },
+  { id: 'name', label: 'Name A–Z' },
+];
 
 export default function EditorsReviewPage() {
   const { catalog, loading, error, health, slackConfig } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [modalGroup, setModalGroup] = useState(null);
   const [hideBots, setHideBots] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const recency = searchParams.get('recency') || 'all';
   const spaceKey = searchParams.get('space') || 'all';
@@ -25,6 +34,14 @@ export default function EditorsReviewPage() {
   const pageQuery = searchParams.get('q') || '';
   const [editorDraft, setEditorDraft] = useState(editorQuery);
   const [pageDraft, setPageDraft] = useState(pageQuery);
+
+  useEffect(() => {
+    setEditorDraft(editorQuery);
+  }, [editorQuery]);
+
+  useEffect(() => {
+    setPageDraft(pageQuery);
+  }, [pageQuery]);
 
   const { groups, botPageCount } = useMemo(() => {
     if (!health?.stalePages) return { groups: [], botPageCount: 0 };
@@ -47,11 +64,30 @@ export default function EditorsReviewPage() {
     return catalog.spaces.filter((s) => keys.has(s.key)).sort((a, b) => a.name.localeCompare(b.name));
   }, [catalog, health]);
 
+  function applyFilters({ editor = editorDraft, page = pageDraft } = {}) {
+    const next = new URLSearchParams(searchParams);
+    const editorValue = editor.trim();
+    const pageValue = page.trim();
+
+    if (editorValue) next.set('editor', editorValue);
+    else next.delete('editor');
+
+    if (pageValue) next.set('q', pageValue);
+    else next.delete('q');
+
+    setSearchParams(next, { replace: true });
+  }
+
   function updateParam(key, value) {
     const next = new URLSearchParams(searchParams);
     if (!value || value === 'all') next.delete(key);
     else next.set(key, value);
     setSearchParams(next, { replace: true });
+  }
+
+  function clearPersonSearch() {
+    setEditorDraft('');
+    applyFilters({ editor: '', page: pageDraft });
   }
 
   async function handleSendSlack(group) {
@@ -65,154 +101,209 @@ export default function EditorsReviewPage() {
     setModalGroup(null);
   }
 
-  if (loading) return <div className="loading">Loading…</div>;
-  if (error) return <div className="empty">Error: {error}</div>;
+  if (loading) return <div className="loading">Loading outdated pages…</div>;
+  if (error) return <div className="empty">Something went wrong: {error}</div>;
   if (!catalog || !health) return <div className="empty">Unable to load catalog data.</div>;
 
   const editorCount = groups.length;
+  const hasExtraFilters = pageQuery || recency !== 'all' || spaceKey !== 'all';
 
   return (
     <>
       <nav className="breadcrumb">
         <Link to="/">Home</Link>
         <span>/</span>
-        <span>By last editor</span>
+        <span>Send reminders</span>
       </nav>
 
       <header className="page-header">
-        <h1>Review by last editor</h1>
+        <h1>Send reminders to last editors</h1>
         <p>
-          Stale pages grouped by who edited them last. Message editors to{' '}
-          <strong>update</strong>, <strong>archive</strong>, or <strong>delete</strong> — no space
-          maintainer required.
-        </p>
-        <p style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
-          <Link to="/stale">Flat stale list</Link>
-          {' · '}
-          <Link to="/review/my-pages">My pages</Link>
+          These Confluence pages have not been updated in over a year. Each page is grouped under
+          whoever edited it last — send them a friendly reminder to clean it up.
         </p>
       </header>
 
-      <div className="health-summary grid grid-2" style={{ marginBottom: '1.75rem' }}>
-        <div className="health-stat card health-stat-warn">
-          <span className="health-stat-value">{formatNumber(health.counts.stale)}</span>
-          <span className="health-stat-label">Stale (1–2 years)</span>
-        </div>
-        <div className="health-stat card health-stat-danger">
-          <span className="health-stat-value">{formatNumber(health.counts.legacy)}</span>
-          <span className="health-stat-label">Legacy (&gt;2 years)</span>
-        </div>
-        <div className="health-stat card">
-          <span className="health-stat-value">{formatNumber(editorCount)}</span>
-          <span className="health-stat-label">Editors with stale pages</span>
-        </div>
-        <div className="health-stat card">
-          <span className="health-stat-value">{formatNumber(botPageCount)}</span>
-          <span className="health-stat-label">Bot pages hidden</span>
-        </div>
-      </div>
+      <HygieneHelpCard />
+
+      <HygieneStatGrid>
+        <HygieneStat
+          value={formatNumber(health.needsAttention)}
+          label="Pages need a review"
+        />
+        <HygieneStat
+          value={formatNumber(editorCount)}
+          label="People you can contact"
+        />
+        <HygieneStat
+          value={formatNumber(health.counts.stale)}
+          label="Outdated 1–2 years"
+          tone="warn"
+        />
+        <HygieneStat
+          value={formatNumber(health.counts.legacy)}
+          label="Very old (2+ years)"
+          tone="danger"
+        />
+      </HygieneStatGrid>
+
+      {botPageCount > 0 && hideBots && (
+        <p className="result-count" style={{ marginTop: '-0.75rem' }}>
+          {formatNumber(botPageCount)} automated pages are hidden.{' '}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setHideBots(false)}
+          >
+            Show them
+          </button>
+        </p>
+      )}
 
       <form
-        className="filters toolbar review-toolbar"
+        className="card my-pages-form person-search-bar"
         onSubmit={(e) => {
           e.preventDefault();
-          updateParam('editor', editorDraft.trim());
-          updateParam('q', pageDraft.trim());
+          applyFilters();
         }}
       >
-        <input
-          type="search"
-          placeholder="Filter by editor name…"
-          value={editorDraft}
-          onChange={(e) => setEditorDraft(e.target.value)}
-          style={{ flex: 1, minWidth: '160px' }}
-        />
-        <input
-          type="search"
-          placeholder="Filter pages…"
-          value={pageDraft}
-          onChange={(e) => setPageDraft(e.target.value)}
-          style={{ flex: 1, minWidth: '160px' }}
-        />
-        <select value={recency} onChange={(e) => updateParam('recency', e.target.value)}>
-          <option value="all">Stale + legacy</option>
-          <option value="stale">{RECENCY_LABELS.stale}</option>
-          <option value="legacy">{RECENCY_LABELS.legacy}</option>
-        </select>
-        <select value={spaceKey} onChange={(e) => updateParam('space', e.target.value)}>
-          <option value="all">All spaces</option>
-          {spaceOptions.map((s) => (
-            <option key={s.key} value={s.key}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="btn btn-secondary">
-          Filter
-        </button>
-        <label>
+        <label htmlFor="editor-search">Find a person</label>
+        <p className="my-pages-form-hint">
+          Search by Confluence name, Slack handle, or email — e.g.{' '}
+          <span className="mono">chen.pan</span> or <span className="mono">Chen Pan</span>
+        </p>
+        <div className="my-pages-form-row">
           <input
-            type="checkbox"
-            checked={hideBots}
-            onChange={(e) => setHideBots(e.target.checked)}
+            id="editor-search"
+            type="search"
+            placeholder="Search by name, handle, or email…"
+            value={editorDraft}
+            onChange={(e) => setEditorDraft(e.target.value)}
+            aria-label="Find a person"
           />
-          Hide bots
-        </label>
+          <button type="submit" className="btn btn-primary">
+            Search
+          </button>
+          {editorQuery && (
+            <button type="button" className="btn btn-secondary" onClick={clearPersonSearch}>
+              Clear
+            </button>
+          )}
+        </div>
       </form>
 
-      <div className="review-sort">
-        <span>Sort:</span>
-        <label>
-          <input
-            type="radio"
-            name="sort"
-            checked={sortBy === 'most-stale'}
-            onChange={() => updateParam('sort', 'most-stale')}
-          />
-          Most stale pages
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="sort"
-            checked={sortBy === 'oldest'}
-            onChange={() => updateParam('sort', 'oldest')}
-          />
-          Oldest page
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="sort"
-            checked={sortBy === 'name'}
-            onChange={() => updateParam('sort', 'name')}
-          />
-          Name A–Z
-        </label>
+      <div className="review-pills">
+        <span className="review-pills-label">Sort by</span>
+        {SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            className={`review-pill${sortBy === opt.id ? ' active' : ''}`}
+            onClick={() => updateParam('sort', opt.id)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm review-filters-toggle"
+        onClick={() => setShowFilters((v) => !v)}
+      >
+        {showFilters ? 'Hide extra filters' : 'Extra filters'}
+        {hasExtraFilters && !showFilters ? ' · active' : ''}
+      </button>
+
+      {showFilters && (
+        <div className="review-filters-panel card">
+          <form
+            className="filters toolbar review-toolbar"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilters();
+            }}
+          >
+            <input
+              type="search"
+              placeholder="Find a page title…"
+              value={pageDraft}
+              onChange={(e) => setPageDraft(e.target.value)}
+              aria-label="Find a page"
+              style={{ flex: 1, minWidth: '160px' }}
+            />
+            <select
+              value={recency}
+              onChange={(e) => updateParam('recency', e.target.value)}
+              aria-label="How old"
+            >
+              <option value="all">All outdated pages</option>
+              <option value="stale">1–2 years old</option>
+              <option value="legacy">Over 2 years old</option>
+            </select>
+            <select
+              value={spaceKey}
+              onChange={(e) => updateParam('space', e.target.value)}
+              aria-label="Space"
+            >
+              <option value="all">All spaces</option>
+              {spaceOptions.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="btn btn-primary">
+              Apply
+            </button>
+            <label>
+              <input
+                type="checkbox"
+                checked={hideBots}
+                onChange={(e) => setHideBots(e.target.checked)}
+              />
+              Hide automated accounts
+            </label>
+          </form>
+        </div>
+      )}
+
       <p className="result-count">
-        Showing {formatNumber(filtered.length)} editor{filtered.length === 1 ? '' : 's'}
+        {editorQuery ? (
+          <>
+            {formatNumber(filtered.length)} {filtered.length === 1 ? 'person' : 'people'} matching
+            &ldquo;{editorQuery}&rdquo;
+          </>
+        ) : (
+          <>
+            {formatNumber(filtered.length)} {filtered.length === 1 ? 'person' : 'people'} to contact
+          </>
+        )}
       </p>
 
       {filtered.length === 0 ? (
-        <div className="empty">No editors match your filters.</div>
+        <div className="empty review-empty card">
+          <div className="review-empty-icon" aria-hidden>
+            ✓
+          </div>
+          <p>
+            <strong>No matches.</strong>{' '}
+            {editorQuery
+              ? 'Try a different spelling, Slack handle, or partial name.'
+              : 'Try searching for a person above.'}
+          </p>
+        </div>
       ) : (
         <div className="editor-review-stack">
           {filtered.map((group) => (
-            <EditorReviewCard
-              key={group.editor}
-              group={group}
-              onMessageAll={setModalGroup}
-            />
+            <EditorReviewCard key={group.editor} group={group} onMessageAll={setModalGroup} />
           ))}
         </div>
       )}
 
       <p className="stale-footnote">
-        &ldquo;Message all&rdquo; copies a bundled Slack message for every stale page under that
-        editor. Add Slack user IDs in <code className="mono">public/config/slack.json</code> for
-        direct DM links.
+        Tip: after clicking <strong>Send reminder</strong>, paste the message into a Slack DM. One
+        message can list all outdated pages for that person.
       </p>
 
       {modalGroup && (

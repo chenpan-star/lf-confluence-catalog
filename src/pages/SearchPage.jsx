@@ -62,9 +62,9 @@ export default function SearchPage() {
 
       {hasQuery && !hasResults && (
         <div className="empty">
-          <p>Try a shorter keyword, a space name, or browse by department.</p>
+          <p>Try a shorter keyword, a space name, or search by a person&apos;s name or handle.</p>
           <p style={{ marginTop: '1rem' }}>
-            <Link to="/departments">Browse departments</Link>
+            <Link to="/categories">Browse categories</Link>
             {' · '}
             <Link to="/spaces">Browse all spaces</Link>
           </p>

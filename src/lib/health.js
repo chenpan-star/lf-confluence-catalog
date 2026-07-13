@@ -1,30 +1,32 @@
+import { normalizeForSearch } from './text.js';
+import { pageMatchesAccountableQuery } from './contact.js';
+
 /** Aggregate freshness stats and stale page lists from catalog data. */
 export function computeHealthStats(catalog) {
   const counts = { active: 0, recent: 0, stale: 0, legacy: 0, unknown: 0 };
   const stalePages = [];
-  const byDepartment = {};
+  const byCategory = {};
 
   if (!catalog?.spaces) {
-    return { counts, stalePages, byDepartment, needsAttention: 0, total: 0 };
+    return { counts, stalePages, byCategory, needsAttention: 0, total: 0 };
   }
 
   for (const space of catalog.spaces) {
-    const deptId = space.department || 'needs-owner';
-    if (!byDepartment[deptId]) {
-      byDepartment[deptId] = { active: 0, recent: 0, stale: 0, legacy: 0, unknown: 0 };
+    const catId = space.category || 'misc';
+    if (!byCategory[catId]) {
+      byCategory[catId] = { active: 0, recent: 0, stale: 0, legacy: 0, unknown: 0 };
     }
 
     for (const page of space.pages || []) {
       const r = page.recency || 'unknown';
       counts[r] = (counts[r] || 0) + 1;
-      byDepartment[deptId][r] = (byDepartment[deptId][r] || 0) + 1;
+      byCategory[catId][r] = (byCategory[catId][r] || 0) + 1;
 
       if (r === 'stale' || r === 'legacy') {
         stalePages.push({
           ...page,
           spaceKey: space.key,
           spaceName: space.name,
-          department: deptId,
           spaceCategory: space.category,
         });
       }
@@ -38,17 +40,20 @@ export function computeHealthStats(catalog) {
   return {
     counts,
     stalePages,
-    byDepartment,
+    byCategory,
     needsAttention: counts.stale + counts.legacy,
     total,
   };
 }
 
-export function filterStalePages(stalePages, { department, recency, query, spaceKey } = {}) {
+export function filterStalePages(
+  stalePages,
+  { category, recency, query, personQuery, spaceKey, fallbackToCreator = true } = {},
+) {
   let list = stalePages;
 
-  if (department && department !== 'all') {
-    list = list.filter((p) => p.department === department);
+  if (category && category !== 'all') {
+    list = list.filter((p) => p.spaceCategory === category);
   }
   if (recency && recency !== 'all') {
     list = list.filter((p) => p.recency === recency);
@@ -56,17 +61,43 @@ export function filterStalePages(stalePages, { department, recency, query, space
   if (spaceKey && spaceKey !== 'all') {
     list = list.filter((p) => p.spaceKey === spaceKey);
   }
+  if (personQuery?.trim()) {
+    list = list.filter((p) =>
+      pageMatchesAccountableQuery(personQuery, p, { fallbackToCreator }),
+    );
+  }
   if (query?.trim()) {
-    const q = query.trim().toLowerCase();
+    const q = normalizeForSearch(query);
     list = list.filter(
       (p) =>
-        (p.title || '').toLowerCase().includes(q) ||
-        (p.spaceName || '').toLowerCase().includes(q) ||
-        (p.spaceKey || '').toLowerCase().includes(q) ||
-        (p.creator || '').toLowerCase().includes(q) ||
-        (p.lastEditor || '').toLowerCase().includes(q),
+        normalizeForSearch(p.title || '').includes(q) ||
+        normalizeForSearch(p.spaceName || '').includes(q) ||
+        normalizeForSearch(p.spaceKey || '').includes(q),
     );
   }
 
   return list;
+}
+
+/** Group stale pages by category id for sectioned display. */
+export function groupStalePagesByCategory(stalePages, categoryOrder = []) {
+  const groups = new Map();
+  for (const page of stalePages) {
+    const catId = page.spaceCategory || 'misc';
+    if (!groups.has(catId)) groups.set(catId, []);
+    groups.get(catId).push(page);
+  }
+
+  const ordered = [];
+  const seen = new Set();
+  for (const id of categoryOrder) {
+    if (groups.has(id)) {
+      ordered.push({ categoryId: id, pages: groups.get(id) });
+      seen.add(id);
+    }
+  }
+  for (const [id, pages] of groups) {
+    if (!seen.has(id)) ordered.push({ categoryId: id, pages });
+  }
+  return ordered;
 }

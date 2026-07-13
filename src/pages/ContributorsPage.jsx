@@ -23,23 +23,26 @@ export default function ContributorsPage() {
         <h1>Confluence contributors</h1>
         <p>
           {formatNumber(catalog.meta.contributorCount || contributors.length)} people who created
-          or edited pages. We <strong>do not</strong> know their HR department — instead we infer
-          where they work based on <strong>which spaces they edit most</strong>.
+          or edited pages. Search by name to find their pages, or browse outdated docs by person.
         </p>
         <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Pages are grouped by <strong>space → department</strong>, not by individual contributor.
-          Use this list to see who is active where, and override mappings in{' '}
-          <code className="mono">scripts/config/departments.json</code> as you learn more.
+          Use this list to see who is active where. Search the catalog by person name, or browse
+          outdated pages grouped by last editor.
         </p>
       </header>
 
       <div className="card" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-        <h2 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>How department assignment works</h2>
+        <h2 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>How to find someone&apos;s pages</h2>
         <ol style={{ paddingLeft: '1.25rem', color: 'var(--text-secondary)' }}>
-          <li>Each <strong>Confluence space</strong> is assigned to one department.</li>
-          <li>All <strong>pages</strong> in that space inherit the same department.</li>
-          <li>Contributors help guess the space department by looking at other spaces they edit.</li>
-          <li>Without HR data, contributor “department” is <em>activity-based</em>, not org-chart.</li>
+          <li>
+            Use <Link to="/search">Search</Link> and type their Confluence name or handle.
+          </li>
+          <li>
+            Try <Link to="/review/editors">Send reminders</Link> to filter by person.
+          </li>
+          <li>
+            Or use <Link to="/review/my-pages">Filter by name</Link> to look up pages by editor.
+          </li>
         </ol>
       </div>
 
@@ -50,17 +53,11 @@ export default function ContributorsPage() {
               <strong>{c.name}</strong>
               <div className="page-subline">
                 {formatNumber(c.totalEdits)} edits across {c.spaceCount} spaces
-                {c.inferredDepartment && catalog.departments[c.inferredDepartment] && (
-                  <>
-                    {' '}
-                    · Mostly active in{' '}
-                    <Link to={`/department/${c.inferredDepartment}`}>
-                      {catalog.departments[c.inferredDepartment].label}
-                    </Link>
-                    {c.departmentConfidence > 0 && ` (${c.departmentConfidence}% of their edits)`}
-                  </>
+                {c.inferredDepartment && catalog.departments?.[c.inferredDepartment] && (
+                  <> · Mostly active in {catalog.departments[c.inferredDepartment].label}</>
                 )}
-                {!c.inferredDepartment && ' · Department unclear from activity'}
+                {' · '}
+                <Link to={`/search?q=${encodeURIComponent(c.name)}`}>Search their pages</Link>
               </div>
               <div className="contributor-spaces">
                 Top spaces:{' '}

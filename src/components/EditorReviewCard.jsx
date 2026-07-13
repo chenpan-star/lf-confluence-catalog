@@ -2,34 +2,38 @@ import { useState } from 'react';
 import { isBotEditor } from '../lib/editorReview';
 import { formatNumber } from '../lib/labels';
 import StalePageRow from './StalePageRow';
-import './ReviewMessageModal.css';
+import './HygieneHelp.css';
 
 export default function EditorReviewCard({ group, onMessageAll }) {
   const [expanded, setExpanded] = useState(false);
   const bot = isBotEditor(group.editor);
+
+  const countLabel =
+    group.totalStale === 1
+      ? '1 outdated page'
+      : `${formatNumber(group.totalStale)} outdated pages`;
 
   return (
     <article className="card editor-review-card">
       <div className="editor-review-head">
         <div>
           <h3 className="editor-review-title">{group.editor}</h3>
-          <p className="editor-review-meta">
-            {formatNumber(group.totalStale)} need attention
-            {group.staleCount > 0 && ` · ${formatNumber(group.staleCount)} stale`}
-            {group.legacyCount > 0 && ` · ${formatNumber(group.legacyCount)} legacy`}
-            {group.slackHandle && (
-              <>
-                {' '}
-                · <span className="mono">@{group.slackHandle}</span>
-              </>
-            )}
-          </p>
+          <span className="editor-review-count">{countLabel}</span>
           {group.topSpaceLabels?.length > 0 && (
-            <p className="editor-review-meta">Top spaces: {group.topSpaceLabels.join(', ')}</p>
+            <p className="editor-review-meta">
+              Mostly in: {group.topSpaceLabels.join(', ')}
+            </p>
           )}
-          <div className="editor-review-badges">
-            {bot && <span className="badge">bot</span>}
-          </div>
+          {group.slackHandle && (
+            <p className="editor-review-slack">
+              Slack: <span className="mono">@{group.slackHandle}</span>
+            </p>
+          )}
+          {bot && (
+            <div className="editor-review-badges">
+              <span className="badge">Automated account</span>
+            </div>
+          )}
         </div>
 
         <div className="editor-review-actions">
@@ -37,15 +41,16 @@ export default function EditorReviewCard({ group, onMessageAll }) {
             type="button"
             className="btn btn-sm btn-secondary"
             onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
           >
-            {expanded ? 'Collapse' : `Expand (${group.pages.length})`}
+            {expanded ? 'Hide pages' : `See pages (${group.pages.length})`}
           </button>
           <button
             type="button"
             className="btn btn-sm btn-primary"
             onClick={() => onMessageAll(group)}
           >
-            Message all
+            Send reminder
           </button>
         </div>
       </div>

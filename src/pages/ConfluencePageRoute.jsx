@@ -5,7 +5,7 @@ import { spaceScopePath } from '../lib/spacePaths';
 import { catalogPagePath, pageCatalogPath } from '../lib/pageTree';
 import { formatTitle } from '../lib/text';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
-import DepartmentSourceNote from '../components/DepartmentSourceNote';
+import { isAnonymousEditor } from '../lib/contact';
 import SlackReviewButton from '../components/SlackReviewButton';
 
 function findPage(space, pageId) {
@@ -27,17 +27,14 @@ export default function ConfluencePageRoute() {
   if (!parsed) return <div className="empty">Invalid page path.</div>;
   if (!catalog) return <div className="loading">Loading…</div>;
 
-  const { spaceKey, pageId, departmentId, categoryId } = parsed;
+  const { spaceKey, pageId, categoryId } = parsed;
   const space = resolveSpace(spaceKey);
   const page = findPage(space, pageId);
-  const inShell = Boolean(departmentId || categoryId);
-  const routeContext = { departmentId, categoryId };
+  const inShell = Boolean(categoryId);
+  const routeContext = { categoryId };
 
   const spacePath = inShell
-    ? spaceScopePath(
-        categoryId ? { type: 'category', id: categoryId } : { type: 'department', id: departmentId },
-        spaceKey,
-      )
+    ? spaceScopePath({ type: 'category', id: categoryId }, spaceKey)
     : `/space/${encodeURIComponent(spaceKey)}`;
 
   const pathForPage = (p) => pageCatalogPath(p, spaceKey, routeContext) || catalogPagePath(p?.url);
@@ -47,7 +44,6 @@ export default function ConfluencePageRoute() {
     ? toConfluenceUrl(page.url, site)
     : `https://${site}/wiki/spaces/${spaceKey}/pages/${pageId}`;
 
-  const department = space ? catalog.departments?.[space.department] : null;
   const category = space ? catalog.categories?.[space.category] : null;
   const parentPage = page?.parentId
     ? findPage(space, page.parentId) || space?.pages?.find((p) => p.id === page.parentId)
@@ -118,6 +114,12 @@ export default function ConfluencePageRoute() {
         <h1>{formatTitle(page.title)}</h1>
         <p>
           <span className="mono">{spaceKey}</span> · Page ID {pageId}
+          {category && (
+            <>
+              {' '}
+              · <Link to={`/category/${space.category}`}>{category.label}</Link>
+            </>
+          )}
           {page.parentId && (
             <>
               {' '}
@@ -144,7 +146,6 @@ export default function ConfluencePageRoute() {
             )}
           </p>
         )}
-        {space && <DepartmentSourceNote space={space} catalog={catalog} />}
       </header>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -166,7 +167,19 @@ export default function ConfluencePageRoute() {
           {page.lastEditor && (
             <>
               <dt>Last editor</dt>
-              <dd>{page.lastEditor}</dd>
+              <dd>
+                {page.lastEditor}
+                {isAnonymousEditor(page.lastEditor) && (
+                  <span
+                    className="page-detail-note"
+                    title="Confluence did not record a named editor for the last change"
+                  >
+                    {' '}
+                    — Confluence returned &ldquo;Anonymous&rdquo; (no named editor on the last
+                    version). Use the creator or space maintainer as contact when this happens.
+                  </span>
+                )}
+              </dd>
             </>
           )}
           <dt>Document type</dt>
@@ -186,9 +199,7 @@ export default function ConfluencePageRoute() {
         </dl>
       </div>
 
-      <div
-        className="page-actions"
-      >
+      <div className="page-actions">
         <a
           className="btn btn-primary"
           href={confluenceUrl}
@@ -205,7 +216,7 @@ export default function ConfluencePageRoute() {
             catalogPageUrl={catalogPageUrl}
             className="btn btn-warn"
           >
-            Message editor on Slack
+            Send reminder
           </SlackReviewButton>
         )}
       </div>

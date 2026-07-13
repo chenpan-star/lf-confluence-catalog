@@ -42,27 +42,6 @@ export default function ContextBar() {
         crumbs.push({ label: space?.name || spaceKey });
       }
     }
-  } else if (pathname.startsWith('/department/')) {
-    const deptMatch = pathname.match(/^\/department\/([^/]+)/);
-    const departmentId = deptMatch?.[1];
-    const department = departmentId ? catalog.departments?.[departmentId] : null;
-    if (department) {
-      crumbs.push({ label: department.label, to: `/department/${departmentId}` });
-    }
-    const spaceMatch = pathname.match(/^\/department\/[^/]+\/space\/([^/]+)/);
-    if (spaceMatch && departmentId) {
-      const spaceKey = decodeURIComponent(spaceMatch[1]);
-      const space = resolveSpace(spaceKey);
-      const spacePath = spaceScopePath({ type: 'department', id: departmentId }, spaceKey);
-      const pageMatch = pathname.match(/\/pages\/(\d+)/);
-      if (pageMatch) {
-        crumbs.push({ label: space?.name || spaceKey, to: spacePath });
-        const page = findPage(space, pageMatch[1]);
-        crumbs.push({ label: formatTitle(page?.title || `Page ${pageMatch[1]}`) });
-      } else {
-        crumbs.push({ label: space?.name || spaceKey });
-      }
-    }
   } else if (pathname.startsWith('/space/')) {
     const keyMatch = pathname.match(/^\/space\/([^/]+)/);
     const spaceKey = keyMatch ? decodeURIComponent(keyMatch[1]) : null;
@@ -85,8 +64,6 @@ export default function ContextBar() {
     }
   } else if (pathname === '/categories') {
     crumbs.push({ label: 'Categories' });
-  } else if (pathname === '/departments') {
-    crumbs.push({ label: 'Teams' });
   } else if (pathname === '/spaces') {
     crumbs.push({ label: 'All spaces' });
   } else if (pathname === '/search') {
@@ -94,11 +71,11 @@ export default function ContextBar() {
   } else if (pathname === '/contributors') {
     crumbs.push({ label: 'Contributors' });
   } else if (pathname === '/stale') {
-    crumbs.push({ label: 'Stale content' });
+    crumbs.push({ label: 'Outdated pages' });
   } else if (pathname === '/review/editors') {
-    crumbs.push({ label: 'By last editor' });
+    crumbs.push({ label: 'Send reminders' });
   } else if (pathname === '/review/my-pages') {
-    crumbs.push({ label: 'My pages' });
+    crumbs.push({ label: 'Filter by name' });
   }
 
   if (crumbs.length <= 1) return null;

@@ -62,14 +62,11 @@ export function catalogPagePath(url) {
 
 /** In-app path for a page — prefers page id (works for overview/homepage URLs too). */
 export function pageCatalogPath(page, spaceKey, context) {
-  const ctx = typeof context === 'string' ? { departmentId: context } : (context || {});
+  const ctx = typeof context === 'object' && context ? context : {};
   const key = spaceKey || page?.spaceKey;
   if (page?.id && key) {
     if (ctx.categoryId) {
       return `/category/${ctx.categoryId}/space/${encodeURIComponent(key)}/pages/${page.id}`;
-    }
-    if (ctx.departmentId) {
-      return `/department/${ctx.departmentId}/space/${encodeURIComponent(key)}/pages/${page.id}`;
     }
     return `/spaces/${encodeURIComponent(key)}/pages/${page.id}`;
   }

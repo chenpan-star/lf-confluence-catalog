@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
 
-export default function SpaceCard({ space, categoryColor, departmentLabel, to, showOwner = false }) {
+export default function SpaceCard({ space, categoryColor, to, showOwner = false }) {
   const active = space.recency?.active || 0;
   const dest = to || `/space/${encodeURIComponent(space.key || space.id)}`;
   const ownerName = space.owner?.name?.trim();
@@ -16,9 +16,6 @@ export default function SpaceCard({ space, categoryColor, departmentLabel, to, s
         <p className="space-owner-line">
           Maintainer: <strong>{ownerName}</strong>
         </p>
-      )}
-      {departmentLabel && (
-        <p className="space-dept-label">{departmentLabel}</p>
       )}
       <div className="space-card-stats">
         <span>{formatNumber(space.pageCount)} pages</span>

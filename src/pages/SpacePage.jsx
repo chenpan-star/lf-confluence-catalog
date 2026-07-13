@@ -4,19 +4,18 @@ import { useCatalog } from '../context/CatalogContext';
 import BarChart from '../components/BarChart';
 import PageList from '../components/PageList';
 import PageTree from '../components/PageTree';
-import DepartmentSourceNote from '../components/DepartmentSourceNote';
 import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { formatTitle, normalizeForSearch } from '../lib/text';
+import { pageMatchesPersonQuery } from '../lib/personSearch';
 import { formatNumber, DOC_TYPE_LABELS, RECENCY_LABELS } from '../lib/labels';
 import '../components/PageTree.css';
 
 export default function SpacePage() {
   const { spaceKey } = useParams();
   const outlet = useOutletContext() || {};
-  const departmentId = outlet.departmentId;
   const categoryId = outlet.categoryId;
-  const inShell = Boolean(departmentId || categoryId);
-  const routeContext = { departmentId, categoryId };
+  const inShell = Boolean(categoryId);
+  const routeContext = { categoryId };
   const { catalog, resolveSpace, loading, error } = useCatalog();
   const [docFilter, setDocFilter] = useState('all');
   const [recencyFilter, setRecencyFilter] = useState('all');
@@ -31,7 +30,12 @@ export default function SpacePage() {
     const matches = (p) => {
       if (docFilter !== 'all' && p.docType !== docFilter) return false;
       if (recencyFilter !== 'all' && p.recency !== recencyFilter) return false;
-      if (search && !normalizeForSearch(p.title).includes(normalizeForSearch(search))) return false;
+      if (search) {
+        const q = normalizeForSearch(search);
+        const titleMatch = normalizeForSearch(p.title).includes(q);
+        const personMatch = pageMatchesPersonQuery(search, p);
+        if (!titleMatch && !personMatch) return false;
+      }
       return true;
     };
     if (viewMode === 'tree') {
@@ -47,7 +51,6 @@ export default function SpacePage() {
   if (!space) return <div className="empty">Space not found.</div>;
 
   const category = catalog?.categories?.[space.category];
-  const department = catalog?.departments?.[space.department];
 
   return (
     <>
@@ -126,10 +129,9 @@ export default function SpacePage() {
             </div>
           )}
         </div>
-        <DepartmentSourceNote space={space} catalog={catalog} />
       </header>
 
-      <div className="grid space-charts" style={{ marginBottom: '2rem' }}>
+      <div className="grid space-charts">
         <div className="card">
           <h2 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
             By document type
@@ -168,7 +170,7 @@ export default function SpacePage() {
       <div className="filters">
         <input
           type="search"
-          placeholder="Filter by title…"
+          placeholder="Filter by title or person…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="filter-search"
@@ -192,11 +194,7 @@ export default function SpacePage() {
       </div>
 
       {viewMode === 'tree' ? (
-        <PageTree
-          tree={pageTree}
-          spaceKey={space.key || spaceKey}
-          routeContext={routeContext}
-        />
+        <PageTree tree={pageTree} spaceKey={space.key || spaceKey} routeContext={routeContext} />
       ) : (
         <PageList
           pages={filteredPages}

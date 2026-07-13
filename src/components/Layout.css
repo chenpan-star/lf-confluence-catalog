@@ -8,7 +8,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(12, 15, 20, 0.92);
+  background: var(--header-bg);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
@@ -121,9 +121,10 @@
 
 .main {
   flex: 1;
-  padding: 1.5rem 2rem 2.5rem;
+  padding: 2rem 2.5rem 3rem;
   min-width: 0;
   width: 100%;
+  max-width: 1400px;
 }
 
 .sidebar-backdrop {
@@ -139,7 +140,7 @@
 }
 
 .page-header {
-  margin-bottom: 1.75rem;
+  margin-bottom: 2rem;
 }
 
 .page-header h1 {

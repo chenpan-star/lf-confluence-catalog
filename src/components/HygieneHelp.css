@@ -1,0 +1,380 @@
+.hygiene-help {
+  margin-bottom: 2rem;
+  padding: 1.35rem 1.5rem;
+  background: linear-gradient(135deg, rgba(91, 141, 239, 0.08), rgba(52, 211, 153, 0.06));
+  border-color: rgba(91, 141, 239, 0.2);
+}
+
+.hygiene-help-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.hygiene-help-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.hygiene-help-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.hygiene-help-num {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hygiene-help-tip {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.hygiene-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.hygiene-stat {
+  padding: 1.25rem 1.35rem;
+  text-align: center;
+}
+
+.hygiene-stat-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hygiene-stat-label {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.hygiene-stat-warn .hygiene-stat-value {
+  color: var(--amber);
+}
+
+.hygiene-stat-danger .hygiene-stat-value {
+  color: #f87171;
+}
+
+.review-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.review-pills-label {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-right: 0.25rem;
+}
+
+.review-pill {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.review-pill:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.review-pill.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.review-filters-toggle {
+  margin-bottom: 0.75rem;
+}
+
+.review-filters-panel {
+  margin-bottom: 1rem;
+}
+
+.review-filters-panel .filters {
+  margin-bottom: 0;
+}
+
+.review-empty {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.review-empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.review-modal-steps {
+  margin: 0 1.25rem;
+  padding: 0.75rem 1rem;
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.review-modal-steps strong {
+  color: var(--green);
+}
+
+.review-modal-copied {
+  color: var(--green);
+  font-size: 0.88rem;
+  padding: 0 1.25rem 0.5rem;
+}
+
+.editor-review-badges {
+  margin-top: 0.5rem;
+}
+
+.editor-review-card {
+  padding: 1.15rem 1.25rem;
+  transition: border-color 0.15s;
+}
+
+.editor-review-card:hover {
+  border-color: rgba(91, 141, 239, 0.35);
+}
+
+.editor-review-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.editor-review-count {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--amber);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.editor-review-meta {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  line-height: 1.45;
+}
+
+.editor-review-slack {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.my-pages-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.15rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.my-pages-form label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.my-pages-form-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.my-pages-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.my-pages-form-row input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.person-suggest-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.person-suggest-btn,
+.person-recent-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.person-suggest-btn:hover,
+.person-recent-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.person-recent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.person-recent-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.person-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.person-picker-row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.person-picker-row:hover {
+  border-color: var(--accent);
+}
+
+.person-picker-name {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.person-picker-meta {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  cursor: pointer;
+  margin: 0;
+}
+
+.filter-checkbox input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.creator-fallback-toggle {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.stale-fallback-toggle {
+  flex: 1 1 100%;
+  margin-top: 0.25rem;
+}
+
+.person-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.hygiene-banner {
+  margin-top: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid rgba(91, 141, 239, 0.25);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.hygiene-banner-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.hygiene-banner a {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .editor-review-actions {
+    width: 100%;
+  }
+
+  .editor-review-actions .btn {
+    flex: 1;
+  }
+}

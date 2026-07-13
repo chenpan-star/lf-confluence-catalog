@@ -1,15 +1,16 @@
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
+import { useTheme } from '../context/ThemeContext';
 import SpaceIndexNav from './SpaceIndexNav';
-import { CATEGORY_ORDER, DEPARTMENT_ORDER } from '../lib/departments';
+import PageDetailPanel from './PageDetailPanel';
+import { CATEGORY_ORDER } from '../lib/departments';
 import { formatNumber } from '../lib/labels';
 import './Sidebar.css';
 
 const MAIN_NAV = [
   { to: '/', label: 'Home', icon: '⌂', end: true },
   { to: '/search', label: 'Search', icon: '⌕' },
-  { to: '/spaces', label: 'All spaces', icon: '▤' },
 ];
 
 function isActive(pathname, to, end) {
@@ -22,23 +23,17 @@ function matchCategoryId(pathname) {
   return m?.[1] || null;
 }
 
-function matchDepartmentId(pathname) {
-  const m = pathname.match(/^\/department\/([^/]+)/);
-  return m?.[1] || null;
-}
-
 export default function Sidebar({ mobileOpen, onClose }) {
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
   const params = useParams();
   const { catalog } = useCatalog();
+  const { theme, setTheme, themes } = useTheme();
 
   const activeCategoryId = matchCategoryId(pathname) || params.categoryId;
-  const activeDepartmentId = matchDepartmentId(pathname) || params.departmentId;
 
-  const [teamsOpen, setTeamsOpen] = useState(Boolean(activeDepartmentId));
   const [spaceSearch, setSpaceSearch] = useState('');
   const [spaceSort, setSpaceSort] = useState('name');
-  const [categoryFilter, setCategoryFilter] = useState('all');
 
   const categories = catalog?.categories;
   const catList = CATEGORY_ORDER.filter((id) => categories?.[id]);
@@ -48,30 +43,9 @@ export default function Sidebar({ mobileOpen, onClose }) {
     return catalog.spaces.filter((s) => s.category === activeCategoryId);
   }, [catalog, activeCategoryId]);
 
-  const department = activeDepartmentId ? catalog?.departments?.[activeDepartmentId] : null;
-
-  const allDeptSpaces = useMemo(() => {
-    if (!catalog || !activeDepartmentId) return [];
-    return catalog.spaces.filter((s) => s.department === activeDepartmentId);
-  }, [catalog, activeDepartmentId]);
-
-  const deptSpaces = useMemo(() => {
-    if (categoryFilter === 'all') return allDeptSpaces;
-    return allDeptSpaces.filter((s) => s.category === categoryFilter);
-  }, [allDeptSpaces, categoryFilter]);
-
-  const deptCategoryOptions = useMemo(() => {
-    if (!catalog) return [];
-    const used = new Set(allDeptSpaces.map((s) => s.category));
-    return CATEGORY_ORDER.filter((id) => used.has(id) && catalog.categories?.[id]).map((id) => ({
-      id,
-      label: catalog.categories[id].label,
-    }));
-  }, [catalog, allDeptSpaces]);
-
-  const deptList = DEPARTMENT_ORDER.filter(
-    (id) => catalog?.departments?.[id] && catalog.departments[id].spaceCount > 0,
-  );
+  const personReviewPage = pathname.startsWith('/review/my-pages');
+  const detailSpaceKey = searchParams.get('pageSpace') || '';
+  const detailPageId = searchParams.get('pageId') || '';
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
@@ -90,6 +64,45 @@ export default function Sidebar({ mobileOpen, onClose }) {
           </Link>
         ))}
       </nav>
+
+      <div className="sidebar-section">
+        <p className="sidebar-section-title">Review by person</p>
+        <nav className="sidebar-primary sidebar-hygiene" aria-label="Review by person">
+          <Link
+            to="/review/editors"
+            className={pathname.startsWith('/review/editors') ? 'active' : ''}
+            onClick={onClose}
+          >
+            <span className="sidebar-icon" aria-hidden>
+              ✉
+            </span>
+            Send reminders
+          </Link>
+          <Link
+            to="/review/my-pages"
+            className={pathname.startsWith('/review/my-pages') ? 'active' : ''}
+            onClick={onClose}
+          >
+            <span className="sidebar-icon" aria-hidden>
+              ⌕
+            </span>
+            Filter by name
+          </Link>
+          <Link
+            to="/stale"
+            className={pathname === '/stale' ? 'active' : ''}
+            onClick={onClose}
+          >
+            <span className="sidebar-icon" aria-hidden>
+              ⏱
+            </span>
+            All outdated pages
+          </Link>
+        </nav>
+        {personReviewPage && detailSpaceKey && detailPageId && (
+          <PageDetailPanel spaceKey={detailSpaceKey} pageId={detailPageId} />
+        )}
+      </div>
 
       <div className="sidebar-section">
         <p className="sidebar-section-title">Browse by category</p>
@@ -132,94 +145,27 @@ export default function Sidebar({ mobileOpen, onClose }) {
         </ul>
       </div>
 
-      <div className="sidebar-section sidebar-section-teams">
-        <p className="sidebar-section-title">Doc hygiene</p>
-        <nav className="sidebar-primary sidebar-hygiene" aria-label="Doc hygiene">
-          <Link
-            to="/review/editors"
-            className={pathname.startsWith('/review/editors') ? 'active' : ''}
-            onClick={onClose}
-          >
-            <span className="sidebar-icon" aria-hidden>
-              ◉
-            </span>
-            By last editor
-          </Link>
-          <Link
-            to="/stale"
-            className={pathname === '/stale' ? 'active' : ''}
-            onClick={onClose}
-          >
-            <span className="sidebar-icon" aria-hidden>
-              ⏱
-            </span>
-            Stale list
-          </Link>
-          <Link
-            to="/review/my-pages"
-            className={pathname.startsWith('/review/my-pages') ? 'active' : ''}
-            onClick={onClose}
-          >
-            <span className="sidebar-icon" aria-hidden>
-              ✎
-            </span>
-            My pages
-          </Link>
-        </nav>
-      </div>
-
-      <div className="sidebar-section sidebar-section-teams">
-        <button
-          type="button"
-          className="sidebar-section-toggle"
-          onClick={() => setTeamsOpen((o) => !o)}
-          aria-expanded={teamsOpen}
-        >
-          <span className="sidebar-section-title">Browse by team</span>
-          <span className="sidebar-chevron" aria-hidden>
-            {teamsOpen ? '▾' : '▸'}
-          </span>
-        </button>
-        {teamsOpen && (
-          <ul className="sidebar-team-list">
-            {deptList.map((id) => {
-              const dept = catalog.departments[id];
-              const active = activeDepartmentId === id;
-              return (
-                <li key={id} className={active ? 'sidebar-team-active' : ''}>
-                  <Link
-                    to={`/department/${id}`}
-                    className={`sidebar-team-link${active ? ' active' : ''}`}
-                    onClick={onClose}
-                  >
-                    <span className="sidebar-team-label">{dept.label}</span>
-                    <span className="sidebar-category-count">{dept.spaceCount}</span>
-                  </Link>
-                  {active && allDeptSpaces.length > 0 && (
-                    <div className="sidebar-space-panel">
-                      <SpaceIndexNav
-                        embedded
-                        spaces={deptSpaces}
-                        scope={{ type: 'department', id }}
-                        search={spaceSearch}
-                        onSearchChange={setSpaceSearch}
-                        sort={spaceSort}
-                        onSortChange={setSpaceSort}
-                        categoryFilter={categoryFilter}
-                        onCategoryFilterChange={setCategoryFilter}
-                        categoryOptions={deptCategoryOptions}
-                        showOwner
-                      />
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
       <div className="sidebar-footer">
+        <div className="theme-picker">
+          <span className="theme-picker-label">Theme</span>
+          <div className="theme-picker-options" role="group" aria-label="Color theme">
+            {themes.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                className={`theme-picker-btn${theme === id ? ' active' : ''}`}
+                onClick={() => setTheme(id)}
+                aria-pressed={theme === id}
+                title={label}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Link to="/spaces" className="sidebar-muted" onClick={onClose}>
+          All spaces
+        </Link>
         <Link to="/contributors" className="sidebar-muted" onClick={onClose}>
           Contributors
         </Link>

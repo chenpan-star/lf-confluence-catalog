@@ -17,12 +17,12 @@ export default function HomePage() {
   const catList = CATEGORY_ORDER.filter((id) => categories?.[id]);
 
   return (
-    <>
-      <section className="hero hero-home hero-simple">
+    <div className="home-layout">
+      <section className="hero hero-home">
         <h1>LotusFlare documentation</h1>
         <p className="hero-lead">
-          Find any Confluence page without logging in. Use <strong>Search</strong> at the top, or pick a
-          category below — then choose a space from the left panel.
+          Browse by <strong>category</strong> or search by page, space, or person. Use{' '}
+          <strong>Review by person</strong> to find outdated pages and send reminders to last editors.
         </p>
         {meta.refreshedAt && (
           <p className="hero-meta">
@@ -31,21 +31,66 @@ export default function HomePage() {
           </p>
         )}
         {health && health.needsAttention > 0 && (
-          <p className="hygiene-banner">
-            Doc hygiene: {formatNumber(health.needsAttention)} stale pages across{' '}
-            {formatNumber(
-              new Set(
-                health.stalePages.map((p) => p.lastEditor || p.creator).filter(Boolean),
-              ).size,
-            )}{' '}
-            editors — <Link to="/review/editors">Review by last editor</Link>
-          </p>
+          <div className="hygiene-banner">
+            <p className="hygiene-banner-title">
+              {formatNumber(health.needsAttention)} pages may be outdated
+            </p>
+            <p>
+              Send a friendly reminder to the people who last edited them —{' '}
+              <Link to="/review/editors">Start here</Link>
+            </p>
+          </div>
         )}
       </section>
 
       <section className="home-section">
         <div className="section-head">
-          <h2 className="home-section-title">Pick a category to start</h2>
+          <div>
+            <h2 className="home-section-title">Review by person</h2>
+            <p className="section-desc">
+              Find outdated pages by last editor — search anyone by name or send reminders in bulk.
+            </p>
+          </div>
+        </div>
+        <div className="quick-start-grid">
+          <Link to="/review/editors" className="card card-link quick-start-card quick-start-primary">
+            <span className="quick-start-icon" aria-hidden>
+              ✉
+            </span>
+            <h3>Send reminders</h3>
+            <p>
+              Pages grouped by last editor — copy a Slack message and nudge people to update or
+              archive outdated docs.
+            </p>
+          </Link>
+          <Link to="/review/my-pages" className="card card-link quick-start-card">
+            <span className="quick-start-icon" aria-hidden>
+              ⌕
+            </span>
+            <h3>Filter by name</h3>
+            <p>Search any person by Confluence name, Slack handle, or email to see their pages.</p>
+          </Link>
+          <Link to="/stale" className="card card-link quick-start-card">
+            <span className="quick-start-icon" aria-hidden>
+              ⏱
+            </span>
+            <h3>All outdated pages</h3>
+            <p>
+              Full list of pages not updated in over a year — filter by category, space, or person.
+            </p>
+          </Link>
+        </div>
+      </section>
+
+      <section className="home-section">
+        <div className="section-head">
+          <div>
+            <h2 className="home-section-title">Browse by category</h2>
+            <p className="section-desc">Pick a topic area — spaces appear in the left panel.</p>
+          </div>
+          <Link to="/categories" className="section-link">
+            View all categories →
+          </Link>
         </div>
         <div className="grid grid-2 category-grid-home">
           {catList.map((id) => (
@@ -56,12 +101,11 @@ export default function HomePage() {
 
       <section className="home-section home-section-muted">
         <p className="home-alt-path">
-          Know the space name already?{' '}
-          <Link to="/spaces">Browse all spaces</Link>
+          Know the space name already? <Link to="/spaces">Browse all spaces</Link>
           {' · '}
-          <Link to="/departments">Browse by team</Link>
+          <Link to="/search">Search the catalog</Link>
         </p>
       </section>
-    </>
+    </div>
   );
 }

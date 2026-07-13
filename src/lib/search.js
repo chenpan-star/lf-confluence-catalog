@@ -1,4 +1,5 @@
 import { normalizeForSearch } from './text.js';
+import { personSearchHaystack } from './personSearch.js';
 
 const MAX_SPACES = 15;
 const MAX_PAGES = 100;
@@ -12,29 +13,29 @@ export function buildSearchIndex(catalog) {
   const items = [];
 
   for (const space of catalog.spaces) {
-    const dept = catalog.departments?.[space.department];
-    const deptLabel = dept?.label || '';
     const catLabel = catalog.categories?.[space.category]?.label || '';
+    const ownerName = space.owner?.name || '';
 
     items.push({
       type: 'space',
       key: `space-${space.key}`,
       title: space.name,
-      subtitle: [space.key, deptLabel].filter(Boolean).join(' · '),
+      subtitle: [space.key, catLabel].filter(Boolean).join(' · '),
       path: `/space/${encodeURIComponent(space.key)}`,
       haystack: normalizeForSearch(
-        `${space.name} ${space.key} ${deptLabel} ${catLabel}`,
+        `${space.name} ${space.key} ${catLabel} ${ownerName} ${personSearchHaystack(ownerName)}`,
       ),
       score: 0,
     });
 
     for (const page of space.pages || []) {
       const title = page.title || '';
+      const contactHaystack = personSearchHaystack(page.creator, page.lastEditor);
       items.push({
         type: 'page',
         key: `page-${page.id || page.url}`,
         title,
-        subtitle: [space.name, deptLabel].filter(Boolean).join(' · '),
+        subtitle: [space.name, catLabel].filter(Boolean).join(' · '),
         path: page.id
           ? `/spaces/${encodeURIComponent(space.key)}/pages/${page.id}`
           : null,
@@ -42,7 +43,7 @@ export function buildSearchIndex(catalog) {
         spaceKey: space.key,
         spaceName: space.name,
         haystack: normalizeForSearch(
-          `${title} ${space.name} ${space.key} ${page.parentTitle || ''} ${page.creator || ''} ${page.lastEditor || ''} ${deptLabel}`,
+          `${title} ${space.name} ${space.key} ${page.parentTitle || ''} ${page.creator || ''} ${page.lastEditor || ''} ${catLabel} ${contactHaystack}`,
         ),
         page,
         score: 0,
@@ -68,6 +69,15 @@ function scoreItem(item, query, terms) {
     if (title === term) score += 30;
     else if (title.startsWith(term)) score += 15;
     else if (haystack.includes(term)) score += 5;
+  }
+
+  // Boost person-name matches on pages
+  if (item.type === 'page' && item.page) {
+    const contactHaystack = personSearchHaystack(item.page.creator, item.page.lastEditor);
+    if (contactHaystack.includes(query)) score += 80;
+    for (const term of terms) {
+      if (contactHaystack.includes(term)) score += 25;
+    }
   }
 
   return score;

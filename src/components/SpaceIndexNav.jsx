@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
 import { normalizeForSearch } from '../lib/text';
@@ -9,7 +9,9 @@ export function filterAndSortSpaces(spaces, { search, sort }) {
   let list = [...spaces];
   const q = normalizeForSearch(search);
   if (q) {
-    list = list.filter((s) => normalizeForSearch(`${s.name} ${s.key}`).includes(q));
+    list = list.filter((s) =>
+      normalizeForSearch(`${s.name} ${s.key} ${s.owner?.name || ''}`).includes(q),
+    );
   }
   if (sort === 'pages') {
     list.sort((a, b) => b.pageCount - a.pageCount || (a.name || '').localeCompare(b.name || ''));
@@ -22,33 +24,22 @@ export function filterAndSortSpaces(spaces, { search, sort }) {
 export default function SpaceIndexNav({
   spaces,
   scope,
-  departmentId,
   search,
   onSearchChange,
   sort,
   onSortChange,
-  categoryFilter,
-  onCategoryFilterChange,
-  categoryOptions,
   showOwner = false,
   embedded = false,
 }) {
-  const navScope = scope || (departmentId ? { type: 'department', id: departmentId } : null);
-
   const filtered = useMemo(
     () => filterAndSortSpaces(spaces, { search, sort }),
     [spaces, search, sort],
   );
 
-  const ariaLabel =
-    navScope?.type === 'category' ? 'Spaces in this category' : 'Spaces in this department';
-
-  const rootClass = embedded
-    ? 'space-index-embedded'
-    : 'space-index-nav dept-shell-nav';
+  const rootClass = embedded ? 'space-index-embedded' : 'space-index-nav';
 
   return (
-    <div className={rootClass} aria-label={ariaLabel}>
+    <div className={rootClass} aria-label="Spaces in this category">
       <div className="space-nav-toolbar">
         <input
           type="search"
@@ -63,20 +54,6 @@ export default function SpaceIndexNav({
             <option value="name">A → Z</option>
             <option value="pages">Most pages</option>
           </select>
-          {categoryOptions && onCategoryFilterChange && (
-            <select
-              value={categoryFilter}
-              onChange={(e) => onCategoryFilterChange(e.target.value)}
-              aria-label="Filter by category"
-            >
-              <option value="all">All categories</option>
-              {categoryOptions.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
         <p className="space-index-title">
           {formatNumber(filtered.length)} space{filtered.length !== 1 ? 's' : ''}
@@ -86,7 +63,7 @@ export default function SpaceIndexNav({
       <ul className="space-index-list">
         {filtered.map((space) => {
           const key = space.key || space.id;
-          const to = navScope ? spaceScopePath(navScope, key) : `/space/${encodeURIComponent(key)}`;
+          const to = scope ? spaceScopePath(scope, key) : `/space/${encodeURIComponent(key)}`;
           const ownerName = space.owner?.name?.trim();
 
           return (

@@ -1,7 +1,17 @@
 import { formatTitle } from './text.js';
 import { formatDate } from './labels.js';
+import { personMatchesQuery } from './personSearch.js';
 
 const DEFAULT_DOMAIN = 'lotusflare.com';
+
+const BOT_PATTERNS = [
+  /automation/i,
+  /release note/i,
+  /standup helper/i,
+  /oncall automation/i,
+  /^cs automation$/i,
+  /^dno release note$/i,
+];
 
 /** Best-effort email from Confluence display name (lotusflare.com pattern). */
 export function guessEmail(name, domain = DEFAULT_DOMAIN) {
@@ -24,8 +34,70 @@ export function guessEmail(name, domain = DEFAULT_DOMAIN) {
   return null;
 }
 
+export function isAnonymousEditor(name) {
+  return /^(anonymous|unknown)$/i.test((name || '').trim());
+}
+
+export function isBotEditor(name) {
+  const n = (name || '').trim();
+  if (!n) return false;
+  return BOT_PATTERNS.some((pattern) => pattern.test(n));
+}
+
+/** Last editor cannot be contacted (Anonymous, bot, missing, etc.). */
+export function isUnreachableEditor(name) {
+  const n = (name || '').trim();
+  if (!n) return true;
+  return isAnonymousEditor(n) || isBotEditor(n);
+}
+
+/** Raw last editor value from Confluence (may be Anonymous). */
+export function lastEditorLabel(page) {
+  return (page?.lastEditor || '').trim();
+}
+
+/**
+ * Person responsible for a page: last editor when reachable, otherwise creator.
+ */
+export function accountablePerson(page) {
+  const editor = lastEditorLabel(page);
+  if (editor && !isUnreachableEditor(editor)) return editor;
+  return (page?.creator || '').trim() || editor;
+}
+
+/** Whether contact comes from creator because the last editor was unreachable. */
+export function usesCreatorFallback(page) {
+  const editor = lastEditorLabel(page);
+  if (!editor || !isUnreachableEditor(editor)) return false;
+  return Boolean((page?.creator || '').trim());
+}
+
+/** Best person to contact for reminders (same as accountablePerson). */
 export function primaryContact(page) {
-  return page.lastEditor || page.creator || '';
+  return accountablePerson(page);
+}
+
+/**
+ * Match a person filter against a page.
+ * When fallbackToCreator is true (default), unreachable last editors use creator instead.
+ */
+export function pageMatchesAccountableQuery(query, page, { fallbackToCreator = true } = {}) {
+  if (!query?.trim()) return true;
+
+  const editor = lastEditorLabel(page);
+
+  if (!fallbackToCreator) {
+    return personMatchesQuery(query, editor);
+  }
+
+  if (editor && !isUnreachableEditor(editor)) {
+    return personMatchesQuery(query, editor);
+  }
+
+  const creator = (page?.creator || '').trim();
+  if (creator) return personMatchesQuery(query, creator);
+
+  return personMatchesQuery(query, editor);
 }
 
 /**

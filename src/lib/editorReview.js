@@ -1,14 +1,13 @@
-import { primaryContact } from './contact.js';
+import {
+  accountablePerson,
+  isBotEditor,
+  lastEditorLabel,
+  pageMatchesAccountableQuery,
+  primaryContact,
+} from './contact.js';
 import { guessSlackHandle } from './slack.js';
-
-const BOT_PATTERNS = [
-  /automation/i,
-  /release note/i,
-  /standup helper/i,
-  /oncall automation/i,
-  /^cs automation$/i,
-  /^dno release note$/i,
-];
+import { normalizeForSearch } from './text.js';
+import { pageMatchesPersonQuery, personMatchesQuery, editorsAreSamePerson } from './personSearch.js';
 
 export const EDITOR_REVIEW_MAX_BUNDLE = 15;
 
@@ -16,21 +15,16 @@ export function normalizeEditorName(name) {
   return (name || '').trim();
 }
 
-export function isBotEditor(name) {
-  const n = normalizeEditorName(name);
-  if (!n) return false;
-  return BOT_PATTERNS.some((pattern) => pattern.test(n));
-}
+export { isBotEditor };
 
 export function matchEditorName(contact, filter) {
   if (!filter?.trim() || !contact) return false;
-  const f = filter.trim().toLowerCase();
-  const c = normalizeEditorName(contact).toLowerCase();
-  if (c === f) return true;
-  const handle = guessSlackHandle(contact);
-  if (handle && handle === f) return true;
-  if (c.replace(/\s*\(unlicensed\)\s*/gi, '') === f) return true;
-  return c.includes(f);
+  return personMatchesQuery(filter, contact);
+}
+
+export function matchEditorExactly(contact, editor) {
+  if (!editor?.trim() || !contact) return false;
+  return editorsAreSamePerson(contact, editor);
 }
 
 export function groupStalePagesByEditor(stalePages, { hideBots = true } = {}) {
@@ -105,10 +99,9 @@ export function applyEditorGroupFilters(
   return groups
     .map((group) => {
       if (editorQuery?.trim()) {
-        const q = editorQuery.trim().toLowerCase();
         const matchesEditor =
-          group.editor.toLowerCase().includes(q) ||
-          (group.slackHandle && group.slackHandle.includes(q));
+          personMatchesQuery(editorQuery, group.editor) ||
+          (group.slackHandle && personMatchesQuery(editorQuery, group.slackHandle));
         if (!matchesEditor) return null;
       }
 
@@ -120,12 +113,13 @@ export function applyEditorGroupFilters(
         pages = pages.filter((p) => p.spaceKey === spaceKey);
       }
       if (query?.trim()) {
-        const q = query.trim().toLowerCase();
+        const q = normalizeForSearch(query);
         pages = pages.filter(
           (p) =>
-            (p.title || '').toLowerCase().includes(q) ||
-            (p.spaceName || '').toLowerCase().includes(q) ||
-            (p.spaceKey || '').toLowerCase().includes(q),
+            normalizeForSearch(p.title || '').includes(q) ||
+            normalizeForSearch(p.spaceName || '').includes(q) ||
+            normalizeForSearch(p.spaceKey || '').includes(q) ||
+            pageMatchesPersonQuery(query, p),
         );
       }
       if (!pages.length) return null;
@@ -143,13 +137,23 @@ export function applyEditorGroupFilters(
     .filter(Boolean);
 }
 
-export function collectPagesForEditor(catalog, editorFilter, { staleOnly = false } = {}) {
+export function collectPagesForEditor(
+  catalog,
+  editorFilter,
+  { staleOnly = false, exact = true, fallbackToCreator = true } = {},
+) {
   if (!catalog?.spaces || !editorFilter?.trim()) return [];
 
   const pages = [];
   for (const space of catalog.spaces) {
     for (const page of space.pages || []) {
-      if (!matchEditorName(primaryContact(page), editorFilter)) continue;
+      if (!pageMatchesAccountableQuery(editorFilter, page, { fallbackToCreator })) continue;
+
+      const person = fallbackToCreator ? accountablePerson(page) : lastEditorLabel(page);
+      const matches = exact
+        ? matchEditorExactly(person, editorFilter)
+        : matchEditorName(person, editorFilter);
+      if (!matches) continue;
       if (staleOnly && page.recency !== 'stale' && page.recency !== 'legacy') continue;
       pages.push({
         ...page,
@@ -163,6 +167,56 @@ export function collectPagesForEditor(catalog, editorFilter, { staleOnly = false
 
   pages.sort((a, b) => (a.lastModified || '').localeCompare(b.lastModified || ''));
   return pages;
+}
+
+/** Unique editors in the catalog whose name matches the query. */
+export function findMatchingEditors(catalog, query, { staleOnly = false, fallbackToCreator = true } = {}) {
+  if (!catalog?.spaces || !query?.trim()) return [];
+
+  const byEditor = new Map();
+
+  for (const space of catalog.spaces) {
+    for (const page of space.pages || []) {
+      if (!pageMatchesAccountableQuery(query, page, { fallbackToCreator })) continue;
+      if (staleOnly && page.recency !== 'stale' && page.recency !== 'legacy') continue;
+
+      const editor = normalizeEditorName(
+        fallbackToCreator ? accountablePerson(page) : lastEditorLabel(page),
+      );
+      if (!editor) continue;
+
+      if (!byEditor.has(editor)) {
+        byEditor.set(editor, {
+          editor,
+          slackHandle: guessSlackHandle(editor),
+          total: 0,
+          needsAttention: 0,
+        });
+      }
+      const row = byEditor.get(editor);
+      row.total += 1;
+      if (page.recency === 'stale' || page.recency === 'legacy') row.needsAttention += 1;
+    }
+  }
+
+  return [...byEditor.values()].sort(
+    (a, b) => b.needsAttention - a.needsAttention || a.editor.localeCompare(b.editor),
+  );
+}
+
+/** All distinct accountable people in the catalog (for autocomplete). */
+export function listCatalogEditors(catalog, { fallbackToCreator = true } = {}) {
+  if (!catalog?.spaces) return [];
+  const editors = new Set();
+  for (const space of catalog.spaces) {
+    for (const page of space.pages || []) {
+      const editor = normalizeEditorName(
+        fallbackToCreator ? accountablePerson(page) : lastEditorLabel(page),
+      );
+      if (editor) editors.add(editor);
+    }
+  }
+  return [...editors].sort((a, b) => a.localeCompare(b));
 }
 
 export function summarizeEditorPages(pages) {
