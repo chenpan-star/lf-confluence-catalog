@@ -1,14 +1,33 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
+import Pagination, { PaginationBar } from '../components/Pagination';
 import { searchCatalog } from '../lib/search';
 import { formatTitle } from '../lib/text';
 import { formatNumber, formatDate, DOC_TYPE_LABELS } from '../lib/labels';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
+import {
+  applyListPage,
+  clearListPage,
+  computePagination,
+  readListPage,
+  scrollToTop,
+  slicePage,
+  PAGE_SIZE,
+} from '../lib/pagination';
 
 export default function SearchPage() {
-  const [params] = useSearchParams();
-  const q = params.get('q') || '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const q = searchParams.get('q') || '';
+  const prevQ = useRef(q);
+
+  useEffect(() => {
+    if (prevQ.current !== q && searchParams.get('page')) {
+      setSearchParams(clearListPage(searchParams), { replace: true });
+    }
+    prevQ.current = q;
+  }, [q, searchParams, setSearchParams]);
+
   const { catalog, loading, error, searchIndex } = useCatalog();
 
   const results = useMemo(
@@ -16,12 +35,32 @@ export default function SearchPage() {
     [searchIndex, q],
   );
 
+  const combined = useMemo(
+    () => [
+      ...results.spaces.map((item) => ({ kind: 'space', item })),
+      ...results.pages.map((item) => ({ kind: 'page', item })),
+    ],
+    [results],
+  );
+
+  const listPage = readListPage(searchParams);
+  const { safePage } = computePagination(combined.length, listPage, PAGE_SIZE);
+  const paginated = useMemo(
+    () => slicePage(combined, safePage, PAGE_SIZE),
+    [combined, safePage],
+  );
+
+  function setListPage(page) {
+    setSearchParams(applyListPage(searchParams, page), { replace: true });
+    scrollToTop();
+  }
+
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
 
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
   const hasQuery = q.trim().length > 0;
-  const hasResults = results.spaces.length > 0 || results.pages.length > 0;
+  const hasResults = combined.length > 0;
 
   return (
     <>
@@ -33,8 +72,19 @@ export default function SearchPage() {
               <>
                 <strong>{formatNumber(results.totalMatches)}</strong> results for &ldquo;
                 <strong>{q}</strong>&rdquo;
-                {results.totalMatches > results.spaces.length + results.pages.length && (
-                  <> (showing top matches)</>
+                {results.spaces.length > 0 && (
+                  <>
+                    {' '}
+                    · {formatNumber(results.spaces.length)} space
+                    {results.spaces.length !== 1 ? 's' : ''}
+                  </>
+                )}
+                {results.pages.length > 0 && (
+                  <>
+                    {' '}
+                    · {formatNumber(results.pages.length)} page
+                    {results.pages.length !== 1 ? 's' : ''}
+                  </>
                 )}
               </>
             ) : (
@@ -71,28 +121,28 @@ export default function SearchPage() {
         </div>
       )}
 
-      {results.spaces.length > 0 && (
-        <section className="search-section">
-          <h2 className="search-section-title">Spaces ({results.spaces.length})</h2>
+      {hasResults && (
+        <PaginationBar
+          page={safePage}
+          pageSize={PAGE_SIZE}
+          total={combined.length}
+          onPageChange={setListPage}
+          itemLabel="results"
+        >
           <ul className="search-results">
-            {results.spaces.map((item) => (
-              <li key={item.key} className="search-result card">
-                <span className="search-result-type">Space</span>
-                <Link to={item.path} className="search-result-title">
-                  {item.title}
-                </Link>
-                <p className="search-result-sub">{item.subtitle}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+            {paginated.map(({ kind, item }) => {
+              if (kind === 'space') {
+                return (
+                  <li key={item.key} className="search-result card">
+                    <span className="search-result-type">Space</span>
+                    <Link to={item.path} className="search-result-title">
+                      {item.title}
+                    </Link>
+                    <p className="search-result-sub">{item.subtitle}</p>
+                  </li>
+                );
+              }
 
-      {results.pages.length > 0 && (
-        <section className="search-section">
-          <h2 className="search-section-title">Pages ({results.pages.length})</h2>
-          <ul className="search-results">
-            {results.pages.map((item) => {
               const title = formatTitle(item.title);
               const page = item.page;
               return (
@@ -126,7 +176,7 @@ export default function SearchPage() {
               );
             })}
           </ul>
-        </section>
+        </PaginationBar>
       )}
     </>
   );

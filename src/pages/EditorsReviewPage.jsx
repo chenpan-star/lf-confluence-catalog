@@ -11,6 +11,15 @@ import {
 } from '../lib/editorReview';
 import { openBundledSlackReview } from '../lib/slack';
 import { formatNumber } from '../lib/labels';
+import Pagination, { PaginationBar } from '../components/Pagination';
+import {
+  applyListPage,
+  computePagination,
+  PAGE_SIZE,
+  readListPage,
+  scrollToTop,
+  slicePage,
+} from '../lib/pagination';
 import '../components/HygieneHelp.css';
 import '../components/ReviewMessageModal.css';
 
@@ -58,6 +67,14 @@ export default function EditorsReviewPage() {
     return sortEditorGroups(applied, sortBy);
   }, [groups, pageQuery, editorQuery, recency, spaceKey, sortBy]);
 
+  const listPage = readListPage(searchParams);
+  const { safePage } = computePagination(filtered.length, listPage, PAGE_SIZE);
+
+  const paginated = useMemo(
+    () => slicePage(filtered, safePage, PAGE_SIZE),
+    [filtered, safePage],
+  );
+
   const spaceOptions = useMemo(() => {
     if (!catalog) return [];
     const keys = new Set(health?.stalePages?.map((p) => p.spaceKey) || []);
@@ -75,13 +92,20 @@ export default function EditorsReviewPage() {
     if (pageValue) next.set('q', pageValue);
     else next.delete('q');
 
+    next.delete('page');
     setSearchParams(next, { replace: true });
+  }
+
+  function setListPage(page) {
+    setSearchParams(applyListPage(searchParams, page), { replace: true });
+    scrollToTop();
   }
 
   function updateParam(key, value) {
     const next = new URLSearchParams(searchParams);
     if (!value || value === 'all') next.delete(key);
     else next.set(key, value);
+    next.delete('page');
     setSearchParams(next, { replace: true });
   }
 
@@ -260,7 +284,10 @@ export default function EditorsReviewPage() {
               <input
                 type="checkbox"
                 checked={hideBots}
-                onChange={(e) => setHideBots(e.target.checked)}
+                onChange={(e) => {
+                  setHideBots(e.target.checked);
+                  setListPage(1);
+                }}
               />
               Hide automated accounts
             </label>
@@ -294,11 +321,21 @@ export default function EditorsReviewPage() {
           </p>
         </div>
       ) : (
-        <div className="editor-review-stack">
-          {filtered.map((group) => (
-            <EditorReviewCard key={group.editor} group={group} onMessageAll={setModalGroup} />
-          ))}
-        </div>
+        <>
+          <PaginationBar
+            page={safePage}
+            pageSize={PAGE_SIZE}
+            total={filtered.length}
+            onPageChange={setListPage}
+            itemLabel={filtered.length === 1 ? 'person' : 'people'}
+          >
+            <div className="editor-review-stack">
+              {paginated.map((group) => (
+                <EditorReviewCard key={group.editor} group={group} onMessageAll={setModalGroup} />
+              ))}
+            </div>
+          </PaginationBar>
+        </>
       )}
 
       <p className="stale-footnote">

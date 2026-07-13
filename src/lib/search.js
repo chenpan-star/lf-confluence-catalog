@@ -1,9 +1,6 @@
 import { normalizeForSearch } from './text.js';
 import { personSearchHaystack } from './personSearch.js';
 
-const MAX_SPACES = 15;
-const MAX_PAGES = 100;
-
 /**
  * Pre-build a flat search index from catalog data.
  */
@@ -104,8 +101,8 @@ export function searchCatalog(index, rawQuery) {
 
   return {
     query: rawQuery.trim(),
-    spaces: matches.filter((m) => m.type === 'space').slice(0, MAX_SPACES),
-    pages: matches.filter((m) => m.type === 'page').slice(0, MAX_PAGES),
+    spaces: matches.filter((m) => m.type === 'space'),
+    pages: matches.filter((m) => m.type === 'page'),
     totalMatches: matches.length,
   };
 }

@@ -11,6 +11,16 @@ import {
 import { personMatchesQuery } from '../lib/personSearch';
 import { parseCreatorFallback, withCreatorFallback } from '../lib/reviewPaths';
 import { formatNumber } from '../lib/labels';
+import { PaginationBar } from '../components/Pagination';
+import {
+  applyListPage,
+  clearListPage,
+  computePagination,
+  readListPage,
+  scrollToTop,
+  slicePage,
+  PAGE_SIZE,
+} from '../lib/pagination';
 import '../components/HygieneHelp.css';
 
 const RECENT_KEY = 'lf-catalog-recent-person-searches';
@@ -89,9 +99,47 @@ export default function MyPagesReviewPage() {
 
   const summary = useMemo(() => summarizeEditorPages(pages), [pages]);
 
+  const listPage = readListPage(searchParams);
+  const recentListPage = Math.max(
+    1,
+    parseInt(searchParams.get('recentPage') || '1', 10) || 1,
+  );
+  const { safePage: attentionPage } = computePagination(
+    summary.attentionPages.length,
+    listPage,
+    PAGE_SIZE,
+  );
+  const pagedAttention = useMemo(
+    () => slicePage(summary.attentionPages, attentionPage, PAGE_SIZE),
+    [summary.attentionPages, attentionPage],
+  );
+  const { safePage: safeRecentPage } = computePagination(
+    summary.recentPages.length,
+    recentListPage,
+    PAGE_SIZE,
+  );
+  const pagedRecent = useMemo(
+    () => slicePage(summary.recentPages, safeRecentPage, PAGE_SIZE),
+    [summary.recentPages, safeRecentPage],
+  );
+
+  function setListPage(page) {
+    setSearchParams(applyListPage(searchParams, page), { replace: true });
+    scrollToTop();
+  }
+
+  function setRecentListPage(page) {
+    const next = new URLSearchParams(searchParams);
+    if (page <= 1) next.delete('recentPage');
+    else next.set('recentPage', String(page));
+    setSearchParams(next, { replace: true });
+    scrollToTop();
+  }
+
   function applySearch(name) {
     const value = (name ?? draft).trim();
-    const next = new URLSearchParams(searchParams);
+    const next = clearListPage(new URLSearchParams(searchParams));
+    next.delete('recentPage');
     next.delete('editor');
     next.delete('pageId');
     next.delete('pageSpace');
@@ -109,7 +157,8 @@ export default function MyPagesReviewPage() {
   function selectEditor(editor) {
     saveRecentSearch(editor);
     setRecentSearches(loadRecentSearches());
-    const next = new URLSearchParams(searchParams);
+    const next = clearListPage(new URLSearchParams(searchParams));
+    next.delete('recentPage');
     next.set('editor', editor);
     next.delete('q');
     next.delete('pageId');
@@ -228,24 +277,32 @@ export default function MyPagesReviewPage() {
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             Pick the person you meant:
           </p>
-          <ul className="person-picker-list">
-            {matchingEditors.map((row) => (
-              <li key={row.editor}>
-                <button type="button" className="person-picker-row" onClick={() => selectEditor(row.editor)}>
-                  <span className="person-picker-name">{row.editor}</span>
-                  <span className="person-picker-meta">
-                    {formatNumber(row.needsAttention)} outdated · {formatNumber(row.total)} total
-                    {row.slackHandle && (
-                      <>
-                        {' '}
-                        · <span className="mono">@{row.slackHandle}</span>
-                      </>
-                    )}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <PaginationBar
+            page={computePagination(matchingEditors.length, readListPage(searchParams), PAGE_SIZE).safePage}
+            pageSize={PAGE_SIZE}
+            total={matchingEditors.length}
+            onPageChange={setListPage}
+            itemLabel="people"
+          >
+            <ul className="person-picker-list">
+              {slicePage(matchingEditors, readListPage(searchParams), PAGE_SIZE).map((row) => (
+                <li key={row.editor}>
+                  <button type="button" className="person-picker-row" onClick={() => selectEditor(row.editor)}>
+                    <span className="person-picker-name">{row.editor}</span>
+                    <span className="person-picker-meta">
+                      {formatNumber(row.needsAttention)} outdated · {formatNumber(row.total)} total
+                      {row.slackHandle && (
+                        <>
+                          {' '}
+                          · <span className="mono">@{row.slackHandle}</span>
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </PaginationBar>
         </section>
       ) : matchingEditors.length === 0 ? (
         <div className="empty review-empty card">
@@ -297,20 +354,28 @@ export default function MyPagesReviewPage() {
               >
                 Not updated in over a year — consider updating, archiving, or deleting.
               </p>
-              <ul className="editor-review-list card" style={{ padding: '0.75rem 1rem' }}>
-                {summary.attentionPages.map((page) => (
-                  <StalePageRow
-                    key={`${page.spaceKey}-${page.id || page.url}`}
-                    page={page}
-                    compact
-                    reviewDetail
-                    selected={
-                      detailSpaceKey === page.spaceKey &&
-                      detailPageId === String(page.id || '')
-                    }
-                  />
-                ))}
-              </ul>
+              <PaginationBar
+                page={attentionPage}
+                pageSize={PAGE_SIZE}
+                total={summary.attentionPages.length}
+                onPageChange={setListPage}
+                itemLabel="pages"
+              >
+                <ul className="editor-review-list card" style={{ padding: '0.75rem 1rem' }}>
+                  {pagedAttention.map((page) => (
+                    <StalePageRow
+                      key={`${page.spaceKey}-${page.id || page.url}`}
+                      page={page}
+                      compact
+                      reviewDetail
+                      selected={
+                        detailSpaceKey === page.spaceKey &&
+                        detailPageId === String(page.id || '')
+                      }
+                    />
+                  ))}
+                </ul>
+              </PaginationBar>
             </section>
           ) : (
             <div className="card review-empty" style={{ marginBottom: '1.5rem' }}>
@@ -331,23 +396,31 @@ export default function MyPagesReviewPage() {
                 {formatNumber(summary.recentPages.length)})
               </button>
               {showRecent && (
-                <ul
-                  className="editor-review-list card"
-                  style={{ padding: '0.75rem 1rem', marginTop: '0.75rem' }}
+                <PaginationBar
+                  page={safeRecentPage}
+                  pageSize={PAGE_SIZE}
+                  total={summary.recentPages.length}
+                  onPageChange={setRecentListPage}
+                  itemLabel="pages"
                 >
-                  {summary.recentPages.slice(0, 100).map((page) => (
-                    <StalePageRow
-                      key={`${page.spaceKey}-${page.id || page.url}`}
-                      page={page}
-                      compact
-                      reviewDetail
-                      selected={
-                        detailSpaceKey === page.spaceKey &&
-                        detailPageId === String(page.id || '')
-                      }
-                    />
-                  ))}
-                </ul>
+                  <ul
+                    className="editor-review-list card"
+                    style={{ padding: '0.75rem 1rem', marginTop: '0.75rem' }}
+                  >
+                    {pagedRecent.map((page) => (
+                      <StalePageRow
+                        key={`${page.spaceKey}-${page.id || page.url}`}
+                        page={page}
+                        compact
+                        reviewDetail
+                        selected={
+                          detailSpaceKey === page.spaceKey &&
+                          detailPageId === String(page.id || '')
+                        }
+                      />
+                    ))}
+                  </ul>
+                </PaginationBar>
               )}
             </section>
           )}

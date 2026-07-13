@@ -2,8 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import StalePageRow from '../components/StalePageRow';
+import Pagination, { PaginationBar } from '../components/Pagination';
 import { CATEGORY_ORDER } from '../lib/departments';
 import { filterStalePages, groupStalePagesByCategory } from '../lib/health';
+import {
+  applyListPage,
+  clearListPage,
+  computePagination,
+  readListPage,
+  scrollToTop,
+  slicePage,
+  TABLE_PAGE_SIZE,
+} from '../lib/pagination';
 import { parseCreatorFallback, withCreatorFallback } from '../lib/reviewPaths';
 import { formatNumber } from '../lib/labels';
 
@@ -30,9 +40,12 @@ export default function StaleContentPage() {
     });
   }, [health, category, personQuery, fallbackToCreator]);
 
-  const displayLimit = 500;
-  const displayList = useMemo(() => filtered.slice(0, displayLimit), [filtered]);
-  const truncated = filtered.length > displayLimit;
+  const listPage = readListPage(searchParams);
+  const { safePage } = computePagination(filtered.length, listPage, TABLE_PAGE_SIZE);
+  const displayList = useMemo(
+    () => slicePage(filtered, safePage, TABLE_PAGE_SIZE),
+    [filtered, safePage],
+  );
 
   const groupedPages = useMemo(
     () => groupStalePagesByCategory(displayList, CATEGORY_ORDER),
@@ -40,10 +53,15 @@ export default function StaleContentPage() {
   );
 
   function updateParam(key, value) {
-    const next = new URLSearchParams(searchParams);
+    const next = clearListPage(new URLSearchParams(searchParams));
     if (value === 'all' || !value) next.delete(key);
     else next.set(key, value);
     setSearchParams(next, { replace: true });
+  }
+
+  function setListPage(page) {
+    setSearchParams(applyListPage(searchParams, page), { replace: true });
+    scrollToTop();
   }
 
   function applyPersonSearch(e) {
@@ -57,7 +75,7 @@ export default function StaleContentPage() {
   }
 
   function toggleCreatorFallback(enabled) {
-    setSearchParams(withCreatorFallback(searchParams, enabled), { replace: true });
+    setSearchParams(withCreatorFallback(clearListPage(searchParams), enabled), { replace: true });
   }
 
   if (loading) return <div className="loading">Loading…</div>;
@@ -137,7 +155,7 @@ export default function StaleContentPage() {
           type="button"
           className={grouped ? 'active' : ''}
           onClick={() => {
-            const next = new URLSearchParams(searchParams);
+            const next = clearListPage(new URLSearchParams(searchParams));
             next.delete('view');
             setSearchParams(next, { replace: true });
           }}
@@ -154,10 +172,9 @@ export default function StaleContentPage() {
       </div>
 
       <p className="result-count">
-        Showing {formatNumber(displayList.length)} of {formatNumber(filtered.length)} matching pages
+        {formatNumber(filtered.length)} matching page{filtered.length !== 1 ? 's' : ''}
         {filtered.length !== health.needsAttention &&
           ` (${formatNumber(health.needsAttention)} total outdated)`}
-        {truncated && ` · first ${displayLimit} shown`}
       </p>
 
       {filtered.length === 0 ? (
@@ -172,78 +189,101 @@ export default function StaleContentPage() {
           )}
         </div>
       ) : grouped ? (
-        <div className="stale-grouped">
-          {groupedPages.map(({ categoryId, pages }) => {
-            const cat = catalog.categories[categoryId];
-            const label = cat?.label || categoryId;
-            return (
-              <section key={categoryId} className="stale-category-section card">
-                <header className="stale-category-header">
-                  {cat && (
-                    <span
-                      className="sidebar-category-dot"
-                      style={{ background: cat.color }}
-                      aria-hidden
-                    />
-                  )}
-                  <h2>{label}</h2>
-                  <span className="stale-category-count">
-                    {formatNumber(pages.length)} page{pages.length !== 1 ? 's' : ''}
-                  </span>
-                  {cat && (
-                    <Link to={`/category/${categoryId}`} className="stale-category-link">
-                      Browse category →
-                    </Link>
-                  )}
-                </header>
-                <div className="table-wrap">
-                  <table className="stale-table">
-                    <thead>
-                      <tr>
-                        <th>Page</th>
-                        <th>Space</th>
-                        <th>Last updated</th>
-                        <th>Contact</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pages.map((page) => (
-                        <StalePageRow key={`${page.spaceKey}-${page.id || page.url}`} page={page} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            );
-          })}
-        </div>
+        <>
+          <PaginationBar
+            page={safePage}
+            pageSize={TABLE_PAGE_SIZE}
+            total={filtered.length}
+            onPageChange={setListPage}
+            itemLabel="pages"
+          >
+            <div className="stale-grouped">
+              {groupedPages.map(({ categoryId, pages }) => {
+              const cat = catalog.categories[categoryId];
+              const label = cat?.label || categoryId;
+              return (
+                <section key={categoryId} className="stale-category-section card">
+                  <header className="stale-category-header">
+                    {cat && (
+                      <span
+                        className="sidebar-category-dot"
+                        style={{ background: cat.color }}
+                        aria-hidden
+                      />
+                    )}
+                    <h2>{label}</h2>
+                    <span className="stale-category-count">
+                      {formatNumber(pages.length)} page{pages.length !== 1 ? 's' : ''}
+                    </span>
+                    {cat && (
+                      <Link to={`/category/${categoryId}`} className="stale-category-link">
+                        Browse category →
+                      </Link>
+                    )}
+                  </header>
+                  <div className="table-wrap">
+                    <table className="stale-table">
+                      <thead>
+                        <tr>
+                          <th>Page</th>
+                          <th>Space</th>
+                          <th>Last updated</th>
+                          <th>Contact</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pages.map((page) => (
+                          <StalePageRow
+                            key={`${page.spaceKey}-${page.id || page.url}`}
+                            page={page}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              );
+            })}
+            </div>
+          </PaginationBar>
+        </>
       ) : (
-        <div className="table-wrap card">
-          <table className="stale-table">
-            <thead>
-              <tr>
-                <th>Page</th>
-                <th>Space</th>
-                <th>Category</th>
-                <th>Last updated</th>
-                <th>Contact</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayList.map((page) => (
-                <StalePageRow
-                  key={`${page.spaceKey}-${page.id || page.url}`}
-                  page={page}
-                  showCategory
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <PaginationBar
+            page={safePage}
+            pageSize={TABLE_PAGE_SIZE}
+            total={filtered.length}
+            onPageChange={setListPage}
+            itemLabel="pages"
+          >
+            <div className="table-wrap card">
+            <table className="stale-table">
+              <thead>
+                <tr>
+                  <th>Page</th>
+                  <th>Space</th>
+                  <th>Category</th>
+                  <th>Last updated</th>
+                  <th>Contact</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayList.map((page) => (
+                  <StalePageRow
+                    key={`${page.spaceKey}-${page.id || page.url}`}
+                    page={page}
+                    showCategory
+                  />
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </PaginationBar>
+        </>
       )}
 
       <p className="stale-footnote">

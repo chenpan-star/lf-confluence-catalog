@@ -1,15 +1,38 @@
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
+import Pagination, { PaginationBar } from '../components/Pagination';
 import { formatNumber } from '../lib/labels';
+import {
+  applyListPage,
+  computePagination,
+  readListPage,
+  scrollToTop,
+  slicePage,
+  PAGE_SIZE,
+} from '../lib/pagination';
 
 export default function ContributorsPage() {
   const { catalog, loading, error } = useCatalog();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const contributors = catalog?.contributors || [];
+
+  const listPage = readListPage(searchParams);
+  const { safePage } = computePagination(contributors.length, listPage, PAGE_SIZE);
+  const paginated = useMemo(
+    () => slicePage(contributors, safePage, PAGE_SIZE),
+    [contributors, safePage, listPage],
+  );
+
+  function setListPage(page) {
+    setSearchParams(applyListPage(searchParams, page), { replace: true });
+    scrollToTop();
+  }
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
   if (!catalog) return <div className="empty">Unable to load catalog data.</div>;
-
-  const contributors = catalog.contributors || [];
 
   return (
     <>
@@ -46,8 +69,19 @@ export default function ContributorsPage() {
         </ol>
       </div>
 
-      <ul className="page-list">
-        {contributors.map((c) => (
+      <p className="result-count">
+        {formatNumber(contributors.length)} contributor{contributors.length !== 1 ? 's' : ''}
+      </p>
+
+      <PaginationBar
+        page={safePage}
+        pageSize={PAGE_SIZE}
+        total={contributors.length}
+        onPageChange={setListPage}
+        itemLabel={contributors.length === 1 ? 'contributor' : 'contributors'}
+      >
+        <ul className="page-list">
+          {paginated.map((c) => (
           <li key={c.name} className="page-item contributor-row">
             <div>
               <strong>{c.name}</strong>
@@ -71,7 +105,8 @@ export default function ContributorsPage() {
             </div>
           </li>
         ))}
-      </ul>
+        </ul>
+      </PaginationBar>
     </>
   );
 }

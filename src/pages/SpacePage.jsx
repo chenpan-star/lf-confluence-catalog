@@ -1,13 +1,23 @@
 import { useMemo, useState } from 'react';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import { Link, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import BarChart from '../components/BarChart';
 import PageList from '../components/PageList';
 import PageTree from '../components/PageTree';
+import Pagination, { PaginationBar } from '../components/Pagination';
 import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { formatTitle, normalizeForSearch } from '../lib/text';
 import { pageMatchesPersonQuery } from '../lib/personSearch';
 import { formatNumber, DOC_TYPE_LABELS, RECENCY_LABELS } from '../lib/labels';
+import {
+  applyListPage,
+  clearListPage,
+  computePagination,
+  readListPage,
+  scrollToTop,
+  slicePage,
+  PAGE_SIZE,
+} from '../lib/pagination';
 import '../components/PageTree.css';
 
 export default function SpacePage() {
@@ -17,6 +27,7 @@ export default function SpacePage() {
   const inShell = Boolean(categoryId);
   const routeContext = { categoryId };
   const { catalog, resolveSpace, loading, error } = useCatalog();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [docFilter, setDocFilter] = useState('all');
   const [recencyFilter, setRecencyFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -45,6 +56,22 @@ export default function SpacePage() {
   }, [space, docFilter, recencyFilter, search, viewMode]);
 
   const pageTree = useMemo(() => buildPageTree(filteredPages), [filteredPages]);
+
+  const listPage = readListPage(searchParams);
+  const { safePage } = computePagination(filteredPages.length, listPage, PAGE_SIZE);
+  const pagedFlatPages = useMemo(
+    () => slicePage(filteredPages, safePage, PAGE_SIZE),
+    [filteredPages, safePage],
+  );
+
+  function setListPage(page) {
+    setSearchParams(applyListPage(searchParams, page), { replace: true });
+    scrollToTop();
+  }
+
+  function resetListPage() {
+    setSearchParams(clearListPage(searchParams), { replace: true });
+  }
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
@@ -154,7 +181,10 @@ export default function SpacePage() {
         <button
           type="button"
           className={viewMode === 'tree' ? 'active' : ''}
-          onClick={() => setViewMode('tree')}
+          onClick={() => {
+            setViewMode('tree');
+            resetListPage();
+          }}
         >
           Tree view
         </button>
@@ -172,10 +202,19 @@ export default function SpacePage() {
           type="search"
           placeholder="Filter by title or person…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            resetListPage();
+          }}
           className="filter-search"
         />
-        <select value={docFilter} onChange={(e) => setDocFilter(e.target.value)}>
+        <select
+          value={docFilter}
+          onChange={(e) => {
+            setDocFilter(e.target.value);
+            resetListPage();
+          }}
+        >
           <option value="all">All types</option>
           {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
@@ -183,7 +222,13 @@ export default function SpacePage() {
             </option>
           ))}
         </select>
-        <select value={recencyFilter} onChange={(e) => setRecencyFilter(e.target.value)}>
+        <select
+          value={recencyFilter}
+          onChange={(e) => {
+            setRecencyFilter(e.target.value);
+            resetListPage();
+          }}
+        >
           <option value="all">All freshness</option>
           {Object.entries(RECENCY_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
@@ -196,11 +241,19 @@ export default function SpacePage() {
       {viewMode === 'tree' ? (
         <PageTree tree={pageTree} spaceKey={space.key || spaceKey} routeContext={routeContext} />
       ) : (
-        <PageList
-          pages={filteredPages}
-          spaceKey={space.key || spaceKey}
-          routeContext={routeContext}
-        />
+        <PaginationBar
+          page={safePage}
+          pageSize={PAGE_SIZE}
+          total={filteredPages.length}
+          onPageChange={setListPage}
+          itemLabel="pages"
+        >
+          <PageList
+            pages={pagedFlatPages}
+            spaceKey={space.key || spaceKey}
+            routeContext={routeContext}
+          />
+        </PaginationBar>
       )}
     </>
   );
