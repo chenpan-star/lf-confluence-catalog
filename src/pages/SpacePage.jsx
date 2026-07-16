@@ -24,7 +24,13 @@ import '../components/HygieneHelp.css';
 import './SpacePage.css';
 
 function summarizePersonInSpace(pages, person) {
-  const matched = pages.filter((p) => editorsAreSamePerson(accountablePerson(p), person));
+  const matched = pages.filter((p) => {
+    const lastEditor = (p.lastEditor || '').trim();
+    const contact = accountablePerson(p);
+    return (
+      editorsAreSamePerson(lastEditor, person) || editorsAreSamePerson(contact, person)
+    );
+  });
   const counts = { active: 0, recent: 0, stale: 0, legacy: 0, unknown: 0 };
   for (const p of matched) {
     const r = p.recency || 'unknown';
@@ -75,10 +81,18 @@ export default function SpacePage() {
     if (!space?.pages) return [];
     const byName = new Map();
     for (const page of space.pages) {
-      const person = accountablePerson(page);
+      // Prefer the real last editor so the list matches Confluence history.
+      const editor = (page.lastEditor || '').trim();
+      const person = editor || accountablePerson(page);
       if (!person) continue;
       if (!byName.has(person)) {
-        byName.set(person, { name: person, total: 0, outdated: 0, current: 0 });
+        byName.set(person, {
+          name: person,
+          total: 0,
+          outdated: 0,
+          current: 0,
+          isLastEditor: Boolean(editor),
+        });
       }
       const row = byName.get(person);
       row.total += 1;
@@ -86,14 +100,14 @@ export default function SpacePage() {
       if (page.recency === 'active' || page.recency === 'recent') row.current += 1;
     }
     return [...byName.values()].sort(
-      (a, b) => b.outdated - a.outdated || b.total - a.total || a.name.localeCompare(b.name),
+      (a, b) => a.name.localeCompare(b.name) || b.total - a.total,
     );
   }, [space]);
 
-  const personSuggestions = useMemo(() => {
+  const personList = useMemo(() => {
     const q = personDraft.trim();
-    if (q.length < 1) return peopleInSpace.filter((p) => p.outdated > 0).slice(0, 8);
-    return peopleInSpace.filter((p) => personMatchesQuery(q, p.name)).slice(0, 8);
+    if (!q) return peopleInSpace;
+    return peopleInSpace.filter((p) => personMatchesQuery(q, p.name));
   }, [peopleInSpace, personDraft]);
 
   const personSummary = useMemo(() => {
@@ -108,7 +122,13 @@ export default function SpacePage() {
       if (docFilter !== 'all' && p.docType !== docFilter) return false;
       if (!matchesRecency(p, recencyFilter)) return false;
       if (personFilter.trim()) {
-        if (!editorsAreSamePerson(accountablePerson(p), personFilter.trim())) return false;
+        const selected = personFilter.trim();
+        const lastEditor = (p.lastEditor || '').trim();
+        const contact = accountablePerson(p);
+        const matchesPerson =
+          editorsAreSamePerson(lastEditor, selected) ||
+          editorsAreSamePerson(contact, selected);
+        if (!matchesPerson) return false;
       }
       if (search) {
         const q = normalizeForSearch(search);
@@ -252,19 +272,20 @@ export default function SpacePage() {
             Find pages by person
           </label>
           <p className="space-filter-hint">
-            See how many of their pages are current vs outdated in this space.
+            All last editors in this space are listed below. Search to narrow the list, then click a
+            person to see current vs outdated pages.
           </p>
           <div className="space-filter-search-row">
             <input
               id="space-person-search"
               type="search"
-              placeholder="Type a name, e.g. Chen Pan…"
+              placeholder="Search last editors…"
               value={personDraft}
               onChange={(e) => setPersonDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  const match = personSuggestions[0];
+                  const match = personList[0];
                   setPersonFilter(match?.name || personDraft);
                 }
               }}
@@ -277,29 +298,43 @@ export default function SpacePage() {
             )}
           </div>
 
-          {!personFilter && personSuggestions.length > 0 && (
-            <ul className="space-person-chips" aria-label="People in this space">
-              {personSuggestions.map((p) => (
-                <li key={p.name}>
-                  <button
-                    type="button"
-                    className="space-person-chip"
-                    onClick={() => setPersonFilter(p.name)}
-                  >
-                    <span className="space-person-chip-name">{p.name}</span>
-                    <span className="space-person-chip-meta">
-                      {p.outdated > 0 ? (
-                        <span className="space-person-chip-outdated">
-                          {formatNumber(p.outdated)} outdated
+          {!personFilter && (
+            <>
+              <p className="space-person-list-count">
+                {formatNumber(personList.length)} of {formatNumber(peopleInSpace.length)} last editor
+                {peopleInSpace.length !== 1 ? 's' : ''}
+                {personDraft.trim() ? ' matching your search' : ''}
+              </p>
+              {personList.length === 0 ? (
+                <p className="space-person-empty">No last editors match that name.</p>
+              ) : (
+                <ul className="space-person-list" aria-label="Last editors in this space">
+                  {personList.map((p) => (
+                    <li key={p.name}>
+                      <button
+                        type="button"
+                        className="space-person-row"
+                        onClick={() => setPersonFilter(p.name)}
+                      >
+                        <span className="space-person-row-name">{p.name}</span>
+                        <span className="space-person-row-meta">
+                          {formatNumber(p.total)} page{p.total !== 1 ? 's' : ''}
+                          {p.outdated > 0 && (
+                            <>
+                              {' '}
+                              ·{' '}
+                              <span className="space-person-chip-outdated">
+                                {formatNumber(p.outdated)} outdated
+                              </span>
+                            </>
+                          )}
                         </span>
-                      ) : (
-                        <span>{formatNumber(p.total)} pages</span>
-                      )}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
 
