@@ -5,12 +5,24 @@
   background: var(--surface-3);
   display: flex;
   flex-direction: column;
-  align-self: stretch;
   overflow-y: auto;
-  position: sticky;
-  top: 0;
-  max-height: 100vh;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.04);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Fixed to viewport while scrolling main content (desktop) */
+@media (min-width: 1101px) {
+  .page-detail-rail {
+    position: fixed;
+    top: var(--app-chrome-height);
+    right: 0;
+    width: var(--detail-width);
+    height: calc(100vh - var(--app-chrome-height));
+    z-index: 40;
+  }
+
+  .layout-with-detail .main {
+    margin-right: var(--detail-width);
+  }
 }
 
 .page-detail-rail .sidebar-page-panel {
@@ -32,6 +44,7 @@
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .sidebar-page-panel-head .sidebar-section-title {
@@ -57,7 +70,9 @@
   grid-template-columns: 5.5rem 1fr;
   gap: var(--space-2) var(--space-3);
   font-size: 0.86rem;
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-4);
+  flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar-page-meta dt {
@@ -84,10 +99,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   margin-top: auto;
   padding-top: var(--space-4);
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .sidebar-page-actions .btn {
@@ -100,6 +116,7 @@
   color: var(--text-muted);
   line-height: 1.45;
   margin: 0;
+  flex-shrink: 0;
 }
 
 .page-detail-backdrop {
@@ -109,28 +126,32 @@
 @media (max-width: 1100px) {
   .page-detail-rail {
     position: fixed;
-    top: 96px;
+    top: var(--app-chrome-height);
     right: 0;
     bottom: 0;
     z-index: 95;
     width: min(var(--detail-width), 92vw);
+    height: auto;
     max-height: none;
-    min-height: auto;
     box-shadow: var(--shadow);
   }
 
   .page-detail-backdrop {
     display: block;
     position: fixed;
-    inset: 96px 0 0;
+    inset: var(--app-chrome-height) 0 0;
     z-index: 90;
     background: rgba(0, 0, 0, 0.45);
     border: none;
+  }
+
+  .layout-with-detail .main {
+    margin-right: 0;
   }
 }
 
 @media (max-width: 768px) {
   .page-detail-rail {
-    top: 96px;
+    top: var(--app-chrome-height);
   }
 }

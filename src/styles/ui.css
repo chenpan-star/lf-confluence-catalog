@@ -13,6 +13,7 @@
   --content-max: 1120px;
   --nav-width: 272px;
   --detail-width: 360px;
+  --app-chrome-height: 7.25rem;
   --surface-1: var(--bg);
   --surface-2: var(--bg-elevated);
   --surface-3: var(--bg-card);
@@ -92,6 +93,32 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
+}
+
+/* Larger stats for space page headers */
+.stat-chips-lg {
+  gap: var(--space-4);
+}
+
+.stat-chips-lg .stat-chip {
+  padding: var(--space-4) var(--space-5);
+  min-width: 7.5rem;
+  border-radius: var(--radius-lg);
+}
+
+.stat-chips-lg .stat-chip-value {
+  font-size: 2rem;
+  font-weight: 750;
+}
+
+.stat-chips-lg .stat-chip-label {
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.stat-chip-warn {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+  background: color-mix(in srgb, var(--amber) 8%, var(--surface-2));
 }
 
 /* ── Filter panel (unified across pages) ── */

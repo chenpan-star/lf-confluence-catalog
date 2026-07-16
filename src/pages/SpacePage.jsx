@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import PageHeader from '../components/PageHeader';
@@ -76,6 +76,10 @@ export default function SpacePage() {
   const personFilter = searchParams.get('person') || '';
   const recencyFilter = searchParams.get('freshness') || 'all';
   const space = resolveSpace(spaceKey);
+
+  useEffect(() => {
+    if (personFilter) setPersonPanelOpen(true);
+  }, [personFilter]);
 
   const peopleInSpace = useMemo(() => {
     if (!space?.pages) return [];
@@ -165,6 +169,7 @@ export default function SpacePage() {
   function setPersonFilter(value) {
     const name = (value || '').trim();
     setPersonDraft(name);
+    if (name) setPersonPanelOpen(true);
     updateParams((next) => {
       if (!name) next.delete('person');
       else next.set('person', name);
@@ -202,10 +207,10 @@ export default function SpacePage() {
       <PageHeader
         title={space.name}
         meta={
-          <div className="stat-chips">
+          <div className="stat-chips stat-chips-lg">
             <div className="stat-chip">
               <span className="stat-chip-value">{formatNumber(space.pageCount)}</span>
-              <span className="stat-chip-label">Pages</span>
+              <span className="stat-chip-label">Total pages</span>
             </div>
             {space.recency?.active > 0 && (
               <div className="stat-chip">
@@ -216,7 +221,7 @@ export default function SpacePage() {
               </div>
             )}
             {(space.staleCount || 0) > 0 && (
-              <div className="stat-chip">
+              <div className="stat-chip stat-chip-warn">
                 <span className="stat-chip-value" style={{ color: 'var(--amber)' }}>
                   {formatNumber(space.staleCount)}
                 </span>
@@ -251,58 +256,67 @@ export default function SpacePage() {
         </div>
       </div>
 
-      <section className="filter-panel space-person-panel">
-        <button
-          type="button"
-          className="collapsible-trigger"
-          aria-expanded={personPanelOpen}
-          onClick={() => setPersonPanelOpen((v) => !v)}
-        >
-          <span>Filter by person {personFilter ? `· ${personFilter}` : ''}</span>
-          <span className="collapsible-chevron" aria-hidden>
-            ▼
-          </span>
-        </button>
+      <section className="space-person-panel card">
+        <div className="space-person-head">
+          <div>
+            <h2 className="space-person-title">Filter by person</h2>
+            <p className="space-person-hint">
+              Find pages by last editor. Click a page title to preview on the right.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setPersonPanelOpen((v) => !v)}
+            aria-expanded={personPanelOpen}
+          >
+            {personPanelOpen ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        {personFilter && (
+          <div className="space-person-active">
+            <div className="space-person-active-info">
+              <span className="space-person-active-label">Selected editor</span>
+              <span className="space-person-active-name">{personFilter}</span>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPersonFilter('')}>
+              Clear
+            </button>
+          </div>
+        )}
 
         {personPanelOpen && (
-          <div className="collapsible-body">
-            <p className="filter-panel-hint">
-              Pick a last editor to see their pages. Click a page title to preview on the right.
-            </p>
-            <div className="filter-panel-row">
+          <div className="space-person-body">
+            <div className="space-person-search">
               <input
                 id="space-person-search"
                 type="search"
-                placeholder="Search last editors…"
+                placeholder="Search last editors by name…"
                 value={personDraft}
                 onChange={(e) => setPersonDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     const match = personList[0];
-                    setPersonFilter(match?.name || personDraft);
+                    if (match) setPersonFilter(match.name);
                   }
                 }}
                 autoComplete="off"
               />
-              {personFilter && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPersonFilter('')}>
-                  Clear person
-                </button>
-              )}
             </div>
 
             {!personFilter && (
               <>
                 <p className="space-person-list-count">
                   {formatNumber(personList.length)} editor{personList.length !== 1 ? 's' : ''}
-                  {personDraft.trim() ? ' matching search' : ' · sorted by most outdated'}
+                  {personDraft.trim() ? ' matching search' : ' · most outdated first'}
                 </p>
                 {personList.length === 0 ? (
                   <p className="space-person-empty">No editors match that name.</p>
                 ) : (
                   <ul className="space-person-list" aria-label="Last editors in this space">
-                    {personList.slice(0, 12).map((p) => (
+                    {personList.map((p) => (
                       <li key={p.name}>
                         <button
                           type="button"
@@ -311,15 +325,11 @@ export default function SpacePage() {
                         >
                           <span className="space-person-row-name">{p.name}</span>
                           <span className="space-person-row-meta">
-                            {formatNumber(p.total)} pages
+                            <span>{formatNumber(p.total)} pages</span>
                             {p.outdated > 0 && (
-                              <>
-                                {' '}
-                                ·{' '}
-                                <span className="space-person-chip-outdated">
-                                  {formatNumber(p.outdated)} outdated
-                                </span>
-                              </>
+                              <span className="space-person-outdated">
+                                {formatNumber(p.outdated)} outdated
+                              </span>
                             )}
                           </span>
                         </button>
@@ -332,6 +342,7 @@ export default function SpacePage() {
 
             {personSummary && (
               <div className="space-person-result">
+                <p className="space-person-result-label">Filter pages by freshness</p>
                 <div className="space-person-stat-grid" role="group" aria-label="Page freshness for person">
                   <button
                     type="button"

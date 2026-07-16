@@ -1,5 +1,5 @@
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { useTheme } from '../context/ThemeContext';
 import SpaceIndexNav from './SpaceIndexNav';
@@ -30,22 +30,41 @@ function matchCategoryId(pathname) {
 
 export default function Sidebar({ mobileOpen, onClose }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const params = useParams();
   const { catalog } = useCatalog();
   const { theme, setTheme, themes } = useTheme();
 
-  const activeCategoryId = matchCategoryId(pathname) || params.categoryId;
+  const routeCategoryId = matchCategoryId(pathname) || params.categoryId || null;
+  const [expandedCategoryId, setExpandedCategoryId] = useState(routeCategoryId);
 
   const [spaceSearch, setSpaceSearch] = useState('');
   const [spaceSort, setSpaceSort] = useState('name');
 
+  useEffect(() => {
+    setExpandedCategoryId(routeCategoryId);
+  }, [routeCategoryId]);
+
   const categories = catalog?.categories;
   const catList = CATEGORY_ORDER.filter((id) => categories?.[id]);
 
-  const categorySpaces = useMemo(() => {
-    if (!catalog || !activeCategoryId) return [];
-    return catalog.spaces.filter((s) => s.category === activeCategoryId);
-  }, [catalog, activeCategoryId]);
+  const expandedSpaces = useMemo(() => {
+    if (!catalog || !expandedCategoryId) return [];
+    return catalog.spaces.filter((s) => s.category === expandedCategoryId);
+  }, [catalog, expandedCategoryId]);
+
+  function handleCategoryClick(e, id) {
+    if (expandedCategoryId === id) {
+      e.preventDefault();
+      setExpandedCategoryId(null);
+      if (pathname.startsWith(`/category/${id}`)) {
+        navigate('/');
+      }
+      return;
+    }
+    setExpandedCategoryId(id);
+    onClose();
+  }
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
@@ -75,13 +94,14 @@ export default function Sidebar({ mobileOpen, onClose }) {
         <ul className="sidebar-category-list">
           {catList.map((id) => {
             const cat = categories[id];
-            const active = activeCategoryId === id;
+            const expanded = expandedCategoryId === id;
             return (
-              <li key={id} className={active ? 'sidebar-category-active' : ''}>
+              <li key={id} className={expanded ? 'sidebar-category-active' : ''}>
                 <Link
                   to={`/category/${id}`}
-                  className={`sidebar-category-link${active ? ' active' : ''}`}
-                  onClick={onClose}
+                  className={`sidebar-category-link${expanded ? ' active' : ''}`}
+                  onClick={(e) => handleCategoryClick(e, id)}
+                  aria-expanded={expanded}
                 >
                   <span
                     className="sidebar-category-dot"
@@ -90,12 +110,15 @@ export default function Sidebar({ mobileOpen, onClose }) {
                   />
                   <span className="sidebar-category-label">{cat.label}</span>
                   <span className="sidebar-category-count">{cat.spaceCount}</span>
+                  <span className="sidebar-category-chevron" aria-hidden>
+                    {expanded ? '▼' : '▶'}
+                  </span>
                 </Link>
-                {active && categorySpaces.length > 0 && (
+                {expanded && expandedSpaces.length > 0 && (
                   <div className="sidebar-space-panel">
                     <SpaceIndexNav
                       embedded
-                      spaces={categorySpaces}
+                      spaces={expandedSpaces}
                       scope={{ type: 'category', id }}
                       search={spaceSearch}
                       onSearchChange={setSpaceSearch}
