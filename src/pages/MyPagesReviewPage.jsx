@@ -201,7 +201,7 @@ export default function MyPagesReviewPage() {
       <form className="card my-pages-form" onSubmit={handleSubmit}>
         <label htmlFor="person-search">Person name</label>
         <p className="my-pages-form-hint">
-          Click a page title to preview details in the sidebar — you stay on this list. Examples:{' '}
+          Click a page title to preview details on the right — you stay on this list. Examples:{' '}
           <span className="mono">Chen Pan</span>, <span className="mono">chen.pan</span>
         </p>
         <div className="my-pages-form-row">

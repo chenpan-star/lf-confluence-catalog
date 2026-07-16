@@ -1,9 +1,8 @@
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { useTheme } from '../context/ThemeContext';
 import SpaceIndexNav from './SpaceIndexNav';
-import PageDetailPanel from './PageDetailPanel';
 import { CATEGORY_ORDER } from '../lib/departments';
 import { formatNumber } from '../lib/labels';
 import './Sidebar.css';
@@ -25,7 +24,6 @@ function matchCategoryId(pathname) {
 
 export default function Sidebar({ mobileOpen, onClose }) {
   const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
   const params = useParams();
   const { catalog } = useCatalog();
   const { theme, setTheme, themes } = useTheme();
@@ -43,24 +41,8 @@ export default function Sidebar({ mobileOpen, onClose }) {
     return catalog.spaces.filter((s) => s.category === activeCategoryId);
   }, [catalog, activeCategoryId]);
 
-  const detailSpaceKey = searchParams.get('pageSpace') || '';
-  const detailPageId = searchParams.get('pageId') || '';
-  const showPageDetail = Boolean(detailSpaceKey && detailPageId);
-  const detailRef = useRef(null);
-
-  useEffect(() => {
-    if (!showPageDetail || !detailRef.current) return;
-    detailRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [showPageDetail, detailPageId, detailSpaceKey]);
-
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
-      {showPageDetail && (
-        <div ref={detailRef} className="sidebar-section sidebar-page-detail-section sidebar-page-detail-top">
-          <PageDetailPanel spaceKey={detailSpaceKey} pageId={detailPageId} />
-        </div>
-      )}
-
       <nav className="sidebar-primary" aria-label="Quick links">
         {MAIN_NAV.map(({ to, label, icon, end }) => (
           <Link

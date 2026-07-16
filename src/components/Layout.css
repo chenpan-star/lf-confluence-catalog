@@ -127,6 +127,10 @@
   max-width: 1400px;
 }
 
+.layout-with-detail .main {
+  max-width: none;
+}
+
 .sidebar-backdrop {
   display: none;
 }

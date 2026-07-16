@@ -1,0 +1,123 @@
+.page-detail-rail {
+  width: 340px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+}
+
+.page-detail-rail .sidebar-page-panel {
+  margin: 0;
+  padding: 1.15rem 1.1rem 1.35rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  min-height: 100%;
+}
+
+.sidebar-page-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.sidebar-page-panel-head .sidebar-section-title {
+  padding: 0;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.sidebar-page-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.sidebar-page-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem 0.85rem;
+  font-size: 0.84rem;
+  margin: 0 0 1.1rem;
+}
+
+.sidebar-page-meta dt {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.sidebar-page-meta dd {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.sidebar-page-note {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.sidebar-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.sidebar-page-footnote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.page-detail-backdrop {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .page-detail-rail {
+    position: fixed;
+    top: 96px;
+    right: 0;
+    bottom: 0;
+    z-index: 95;
+    width: min(360px, 92vw);
+    max-height: none;
+    min-height: auto;
+    box-shadow: var(--shadow);
+    border-left: 1px solid var(--border);
+  }
+
+  .page-detail-backdrop {
+    display: block;
+    position: fixed;
+    inset: 96px 0 0;
+    z-index: 90;
+    background: rgba(0, 0, 0, 0.4);
+    border: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-detail-rail {
+    top: 96px;
+  }
+}

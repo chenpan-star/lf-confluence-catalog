@@ -2,16 +2,21 @@ import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-do
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ContextBar from './ContextBar';
+import PageDetailPanel from './PageDetailPanel';
+import { clearSidebarPageDetail } from '../lib/reviewPaths';
 import './Layout.css';
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isSearchRoute = location.pathname === '/search' || location.pathname.endsWith('/search');
+  const detailPageId = searchParams.get('pageId') || '';
+  const detailSpaceKey = searchParams.get('pageSpace') || '';
+  const showPageDetail = Boolean(detailPageId && detailSpaceKey);
 
   useEffect(() => {
     if (isSearchRoute) {
@@ -19,18 +24,9 @@ export default function Layout({ children }) {
     }
   }, [isSearchRoute, searchParams]);
 
-  const detailPageId = searchParams.get('pageId') || '';
-  const detailSpaceKey = searchParams.get('pageSpace') || '';
-
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    if (detailPageId && detailSpaceKey) {
-      setMenuOpen(true);
-    }
-  }, [detailPageId, detailSpaceKey]);
 
   function handleSearch(e) {
     e.preventDefault();
@@ -42,8 +38,12 @@ export default function Layout({ children }) {
     }
   }
 
+  function closePageDetail() {
+    setSearchParams(clearSidebarPageDetail(searchParams), { replace: true });
+  }
+
   return (
-    <div className="layout">
+    <div className={`layout${showPageDetail ? ' layout-with-detail' : ''}`}>
       <header className="header">
         <div className="header-bar">
           <button
@@ -94,6 +94,17 @@ export default function Layout({ children }) {
           />
         )}
         <main className="main">{children}</main>
+        {showPageDetail && (
+          <>
+            <button
+              type="button"
+              className="page-detail-backdrop"
+              aria-label="Close page detail"
+              onClick={closePageDetail}
+            />
+            <PageDetailPanel spaceKey={detailSpaceKey} pageId={detailPageId} />
+          </>
+        )}
       </div>
 
       <footer className="footer">
