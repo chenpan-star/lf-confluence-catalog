@@ -24,11 +24,11 @@ export default function Pagination({
     <nav className={`pagination${className ? ` ${className}` : ''}`} aria-label="Pagination">
       <button
         type="button"
-        className="btn btn-secondary btn-sm"
+        className="pagination-btn"
         disabled={safePage <= 1}
         onClick={() => onPageChange(safePage - 1)}
       >
-        Previous
+        ← Previous
       </button>
       <p className="pagination-meta">
         Showing {formatNumber(start)}–{formatNumber(end)} of {formatNumber(total)} {itemLabel}
@@ -39,11 +39,11 @@ export default function Pagination({
       </p>
       <button
         type="button"
-        className="btn btn-secondary btn-sm"
+        className="pagination-btn"
         disabled={safePage >= pageCount}
         onClick={() => onPageChange(safePage + 1)}
       >
-        Next
+        Next →
       </button>
     </nav>
   );

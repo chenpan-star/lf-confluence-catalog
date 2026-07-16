@@ -439,34 +439,44 @@ export default function SpacePage() {
         </div>
       )}
 
-      <div className="filter-panel-row" style={{ marginBottom: '1.25rem' }}>
-        <input
-          type="search"
-          placeholder="Search page titles…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setSearchParams(clearListPage(searchParams), { replace: true });
-          }}
-          aria-label="Search page titles"
-        />
-        <select
-          value={docFilter}
-          onChange={(e) => {
-            setDocFilter(e.target.value);
-            setSearchParams(clearListPage(searchParams), { replace: true });
-          }}
-          aria-label="Document type"
-        >
-          <option value="all">All types</option>
-          {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+      <div className="space-page-filters">
+        <label className="space-filter-field">
+          <span className="space-filter-label">Search pages</span>
+          <input
+            type="search"
+            placeholder="Filter by title…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSearchParams(clearListPage(searchParams), { replace: true });
+            }}
+            aria-label="Search page titles"
+          />
+        </label>
+        <label className="space-filter-field space-filter-field-type">
+          <span className="space-filter-label">Document type</span>
+          <select
+            value={docFilter}
+            onChange={(e) => {
+              setDocFilter(e.target.value);
+              setSearchParams(clearListPage(searchParams), { replace: true });
+            }}
+            aria-label="Document type"
+          >
+            <option value="all">All types</option>
+            {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
         {hasActiveFilters && (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={clearAllFilters}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm space-filter-reset"
+            onClick={clearAllFilters}
+          >
             Reset filters
           </button>
         )}

@@ -105,7 +105,7 @@ export default function PageDetailPanel({ spaceKey, pageId }) {
           <a href={confluenceUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
             Open in Confluence ↗
           </a>
-          {isOutdated && space && (
+          {space && (
             <SlackReviewButton
               page={page}
               spaceName={space.name}

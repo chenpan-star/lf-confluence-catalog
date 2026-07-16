@@ -13,7 +13,7 @@
   --content-max: 1120px;
   --nav-width: 272px;
   --detail-width: 360px;
-  --app-chrome-height: 7.25rem;
+  --app-chrome-height: 5.75rem;
   --surface-1: var(--bg);
   --surface-2: var(--bg-elevated);
   --surface-3: var(--bg-card);
@@ -298,7 +298,7 @@
 /* ── Pagination (unified across list pages) ── */
 .pagination {
   display: grid;
-  grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr) minmax(6.5rem, auto);
+  grid-template-columns: minmax(7.5rem, auto) minmax(0, 1fr) minmax(7.5rem, auto);
   align-items: center;
   gap: var(--space-3) var(--space-4);
   padding: var(--space-3) var(--space-4);
@@ -307,9 +307,49 @@
   background: var(--surface-2);
 }
 
-.pagination > .btn {
-  justify-self: stretch;
-  min-width: 0;
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.pagination-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-3));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.pagination-btn:not(:disabled):active {
+  transform: scale(0.97);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-3));
+}
+
+.pagination-btn:not(:disabled):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .pagination-meta {
@@ -343,11 +383,11 @@
     order: -1;
   }
 
-  .pagination > .btn:first-of-type {
+  .pagination-btn:first-of-type {
     justify-self: start;
   }
 
-  .pagination > .btn:last-of-type {
+  .pagination-btn:last-of-type {
     justify-self: end;
   }
 }

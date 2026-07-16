@@ -107,9 +107,23 @@
   border-bottom: 1px solid var(--border);
 }
 
-.detail-panel-actions .btn {
-  justify-content: center;
+.detail-panel-actions .btn,
+.detail-panel-actions .slack-review-wrap,
+.detail-panel-actions .slack-review-wrap .btn {
   width: 100%;
+}
+
+.detail-panel-actions .slack-review-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.detail-panel-actions .slack-hint {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .detail-panel-section {

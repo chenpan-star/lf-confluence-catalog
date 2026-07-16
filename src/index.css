@@ -1385,12 +1385,4 @@ code,
     width: 100%;
     justify-content: center;
   }
-
-  .search-form {
-    padding: 0.2rem 0.25rem 0.2rem 0.5rem;
-  }
-
-  .search-submit {
-    padding: 0.45rem 0.55rem;
-  }
 }

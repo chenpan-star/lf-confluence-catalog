@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
+import { getCategoryCardDescription } from '../lib/categoryMeta';
 
 export default function CategoryCard({ id, category }) {
+  const description = getCategoryCardDescription(id, category.description);
+
   return (
     <Link to={`/category/${id}`} className="card card-link category-card">
       <div
@@ -9,7 +12,7 @@ export default function CategoryCard({ id, category }) {
         style={{ background: category.color }}
       />
       <h3>{category.label}</h3>
-      <p>{category.description}</p>
+      <p>{description}</p>
       <div className="category-stats">
         <span>
           <strong>{formatNumber(category.spaceCount)}</strong> spaces

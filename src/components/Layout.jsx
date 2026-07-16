@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ContextBar from './ContextBar';
@@ -7,36 +7,17 @@ import { clearSidebarPageDetail } from '../lib/reviewPaths';
 import './Layout.css';
 
 export default function Layout({ children }) {
-  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isSearchRoute = location.pathname === '/search' || location.pathname.endsWith('/search');
   const detailPageId = searchParams.get('pageId') || '';
   const detailSpaceKey = searchParams.get('pageSpace') || '';
   const showPageDetail = Boolean(detailPageId && detailSpaceKey);
 
   useEffect(() => {
-    if (isSearchRoute) {
-      setQuery(searchParams.get('q') || '');
-    }
-  }, [isSearchRoute, searchParams]);
-
-  useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
-
-  function handleSearch(e) {
-    e.preventDefault();
-    const q = query.trim();
-    if (q) {
-      navigate(`/search?q=${encodeURIComponent(q)}`);
-    } else {
-      navigate('/search');
-    }
-  }
 
   function closePageDetail() {
     setSearchParams(clearSidebarPageDetail(searchParams), { replace: true });
@@ -62,22 +43,6 @@ export default function Layout({ children }) {
               <small>Catalog</small>
             </span>
           </Link>
-
-          <form className="search-form" onSubmit={handleSearch} role="search">
-            <span className="search-icon" aria-hidden>
-              ⌕
-            </span>
-            <input
-              type="search"
-              placeholder="Search pages, spaces, or people…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search catalog"
-            />
-            <button type="submit" className="search-submit">
-              Search
-            </button>
-          </form>
         </div>
       </header>
 
