@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { formatNumber } from '../lib/labels';
 import { normalizeForSearch } from '../lib/text';
@@ -9,9 +9,7 @@ export function filterAndSortSpaces(spaces, { search, sort }) {
   let list = [...spaces];
   const q = normalizeForSearch(search);
   if (q) {
-    list = list.filter((s) =>
-      normalizeForSearch(`${s.name} ${s.key} ${s.owner?.name || ''}`).includes(q),
-    );
+    list = list.filter((s) => normalizeForSearch(`${s.name} ${s.key}`).includes(q));
   }
   if (sort === 'pages') {
     list.sort((a, b) => b.pageCount - a.pageCount || (a.name || '').localeCompare(b.name || ''));
@@ -28,7 +26,6 @@ export default function SpaceIndexNav({
   onSearchChange,
   sort,
   onSortChange,
-  showOwner = false,
   embedded = false,
 }) {
   const filtered = useMemo(
@@ -64,7 +61,6 @@ export default function SpaceIndexNav({
         {filtered.map((space) => {
           const key = space.key || space.id;
           const to = scope ? spaceScopePath(scope, key) : `/space/${encodeURIComponent(key)}`;
-          const ownerName = space.owner?.name?.trim();
 
           return (
             <li key={key}>
@@ -74,9 +70,6 @@ export default function SpaceIndexNav({
               >
                 <span className="space-index-name">{space.name}</span>
                 <span className="mono space-index-key">{key}</span>
-                {showOwner && ownerName && (
-                  <span className="space-index-owner">👤 {ownerName}</span>
-                )}
                 {(space.staleCount || 0) > 0 && (
                   <span className="space-index-stale">{space.staleCount} stale</span>
                 )}

@@ -134,18 +134,6 @@ export default function ConfluencePageRoute() {
             </>
           )}
         </p>
-        {space?.owner?.name?.trim() && (
-          <p className="space-owner-header">
-            <strong>Space maintainer:</strong> {space.owner.name}
-            {space.owner.email && (
-              <>
-                {' '}
-                ·{' '}
-                <a href={`mailto:${space.owner.email}`}>{space.owner.email}</a>
-              </>
-            )}
-          </p>
-        )}
       </header>
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -176,7 +164,7 @@ export default function ConfluencePageRoute() {
                   >
                     {' '}
                     — Confluence returned &ldquo;Anonymous&rdquo; (no named editor on the last
-                    version). Use the creator or space maintainer as contact when this happens.
+                    version). Use the creator as contact when this happens.
                   </span>
                 )}
               </dd>

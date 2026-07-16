@@ -135,7 +135,6 @@ export default function Sidebar({ mobileOpen, onClose }) {
                       onSearchChange={setSpaceSearch}
                       sort={spaceSort}
                       onSortChange={setSpaceSort}
-                      showOwner
                     />
                   </div>
                 )}

@@ -30,7 +30,7 @@ export default function SpacesPage() {
       .filter((s) => catFilter === 'all' || s.category === catFilter)
       .filter((s) => {
         if (!q) return true;
-        const hay = normalizeForSearch(`${s.name} ${s.key} ${s.owner?.name || ''}`);
+        const hay = normalizeForSearch(`${s.name} ${s.key}`);
         return hay.includes(q);
       })
       .sort((a, b) => b.pageCount - a.pageCount);
