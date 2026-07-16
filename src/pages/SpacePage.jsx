@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
-import PageHeader from '../components/PageHeader';
 import BarChart from '../components/BarChart';
 import PageList from '../components/PageList';
 import PageTree from '../components/PageTree';
@@ -10,6 +9,7 @@ import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { normalizeForSearch } from '../lib/text';
 import { accountablePerson } from '../lib/contact';
 import { editorsAreSamePerson, personMatchesQuery } from '../lib/personSearch';
+import { docTypePillClass } from '../lib/docTypeStyles';
 import { formatNumber, DOC_TYPE_LABELS } from '../lib/labels';
 import {
   applyListPage,
@@ -188,6 +188,22 @@ export default function SpacePage() {
   const treeExpandDepth = hasActiveFilters ? 99 : 1;
   const treeRemountKey = `${personFilter}|${recencyFilter}|${docFilter}|${search}|${treeExpandDepth}`;
 
+  const docTypesInSpace = useMemo(() => {
+    if (!space?.docTypes) return [];
+    return Object.entries(space.docTypes)
+      .filter(([, count]) => count > 0)
+      .sort(
+        (a, b) =>
+          b[1] - a[1] ||
+          (DOC_TYPE_LABELS[a[0]] || a[0]).localeCompare(DOC_TYPE_LABELS[b[0]] || b[0]),
+      )
+      .map(([id, count]) => ({
+        id,
+        label: DOC_TYPE_LABELS[id] || id,
+        count,
+      }));
+  }, [space]);
+
   const pageTree = useMemo(() => buildPageTree(filteredPages), [filteredPages]);
 
   const listPage = readListPage(searchParams);
@@ -237,40 +253,55 @@ export default function SpacePage() {
   if (!space) return <div className="empty">Space not found.</div>;
 
   const category = catalog?.categories?.[space.category];
+  const categoryLink = category ? `/category/${categoryId || space.category}` : null;
 
   return (
-    <div className="page-shell">
-      <PageHeader
-        title={space.name}
-        actions={
-          <a href={space.confluenceUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
+    <div className={categoryId ? 'space-page space-page-in-category' : 'space-page page-shell'}>
+      <header className="space-hero">
+        <div className="space-hero-top">
+          {category && categoryLink ? (
+            <Link to={categoryLink} className="space-hero-category">
+              <span
+                className="space-hero-category-dot"
+                style={{ background: category.color }}
+                aria-hidden
+              />
+              <span className="space-hero-category-label">{category.label}</span>
+            </Link>
+          ) : (
+            <span className="space-hero-category-spacer" aria-hidden />
+          )}
+          <a
+            href={space.confluenceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary btn-sm space-hero-confluence"
+          >
             Open in Confluence ↗
           </a>
-        }
-      >
-        <span className="mono">{space.key}</span>
-        {category && !categoryId && (
-          <>
-            {' '}
-            · <Link to={`/category/${space.category}`}>{category.label}</Link>
-          </>
-        )}
-      </PageHeader>
+        </div>
 
-      <div className="space-stats-bar" aria-label="Space summary">
-        <div className="space-stat">
-          <span className="space-stat-value">{formatNumber(space.pageCount)}</span>
-          <span className="space-stat-label">Total pages</span>
+        <div className="space-hero-body">
+          <div className="space-hero-title-block">
+            <h1 className="space-hero-title">{space.name}</h1>
+            <p className="space-hero-key mono">{space.key}</p>
+          </div>
+          <div className="space-hero-stats" aria-label="Space summary">
+            <div className="space-hero-stat">
+              <span className="space-hero-stat-value">{formatNumber(space.pageCount)}</span>
+              <span className="space-hero-stat-label">Pages</span>
+            </div>
+            <div className="space-hero-stat space-hero-stat-ok">
+              <span className="space-hero-stat-value">{formatNumber(space.recency?.active || 0)}</span>
+              <span className="space-hero-stat-label">Active</span>
+            </div>
+            <div className={`space-hero-stat${(space.staleCount || 0) > 0 ? ' space-hero-stat-warn' : ''}`}>
+              <span className="space-hero-stat-value">{formatNumber(space.staleCount || 0)}</span>
+              <span className="space-hero-stat-label">Need review</span>
+            </div>
+          </div>
         </div>
-        <div className="space-stat space-stat-ok">
-          <span className="space-stat-value">{formatNumber(space.recency?.active || 0)}</span>
-          <span className="space-stat-label">Active</span>
-        </div>
-        <div className={`space-stat${(space.staleCount || 0) > 0 ? ' space-stat-warn' : ''}`}>
-          <span className="space-stat-value">{formatNumber(space.staleCount || 0)}</span>
-          <span className="space-stat-label">Need review</span>
-        </div>
-      </div>
+      </header>
 
       <div className="grid space-charts space-charts-compact">
         <div className="card card-compact">
@@ -440,45 +471,62 @@ export default function SpacePage() {
       )}
 
       <div className="space-page-filters">
-        <label className="space-filter-field">
-          <span className="space-filter-label">Search pages</span>
-          <input
-            type="search"
-            placeholder="Filter by title…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setSearchParams(clearListPage(searchParams), { replace: true });
-            }}
-            aria-label="Search page titles"
-          />
-        </label>
-        <label className="space-filter-field space-filter-field-type">
-          <span className="space-filter-label">Document type</span>
-          <select
-            value={docFilter}
-            onChange={(e) => {
-              setDocFilter(e.target.value);
-              setSearchParams(clearListPage(searchParams), { replace: true });
-            }}
-            aria-label="Document type"
-          >
-            <option value="all">All types</option>
-            {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
-        {hasActiveFilters && (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm space-filter-reset"
-            onClick={clearAllFilters}
-          >
-            Reset filters
-          </button>
+        <div className="space-filter-search-row">
+          <label className="space-filter-field space-filter-field-grow">
+            <span className="space-filter-label">Search pages</span>
+            <input
+              type="search"
+              placeholder="Filter by title…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSearchParams(clearListPage(searchParams), { replace: true });
+              }}
+              aria-label="Search page titles"
+            />
+          </label>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm space-filter-reset"
+              onClick={clearAllFilters}
+            >
+              Reset filters
+            </button>
+          )}
+        </div>
+
+        {docTypesInSpace.length > 0 && (
+          <div className="space-doc-type-filters">
+            <span className="space-filter-label">Document type</span>
+            <div className="doc-type-pills" role="group" aria-label="Document type">
+              <button
+                type="button"
+                className={`doc-type-pill doc-type-all${docFilter === 'all' ? ' active' : ''}`}
+                onClick={() => {
+                  setDocFilter('all');
+                  setSearchParams(clearListPage(searchParams), { replace: true });
+                }}
+              >
+                All types
+                <span className="doc-type-pill-count">{formatNumber(space.pageCount)}</span>
+              </button>
+              {docTypesInSpace.map(({ id, label, count }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`doc-type-pill ${docTypePillClass(id)}${docFilter === id ? ' active' : ''}`}
+                  onClick={() => {
+                    setDocFilter(id);
+                    setSearchParams(clearListPage(searchParams), { replace: true });
+                  }}
+                >
+                  {label}
+                  <span className="doc-type-pill-count">{formatNumber(count)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

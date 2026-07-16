@@ -7,10 +7,7 @@ import { CATEGORY_ORDER } from '../lib/departments';
 import { formatNumber } from '../lib/labels';
 import './Sidebar.css';
 
-const MAIN_NAV = [
-  { to: '/', label: 'Home', icon: '⌂', end: true },
-  { to: '/search', label: 'Search', icon: '⌕' },
-];
+const MAIN_NAV = [{ to: '/', label: 'Home', icon: '⌂', end: true }];
 
 const REVIEW_NAV = [
   { to: '/review/editors', label: 'Send reminders', icon: '✉', match: '/review/editors' },

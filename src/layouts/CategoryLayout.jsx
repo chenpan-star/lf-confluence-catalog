@@ -1,4 +1,4 @@
-import { Outlet, useParams } from 'react-router-dom';
+import { Outlet, useMatch, useParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { CATEGORY_INTRO } from '../lib/categoryMeta';
 import { formatNumber } from '../lib/labels';
@@ -11,10 +11,19 @@ export default function CategoryLayout() {
   const category = catalog?.categories?.[categoryId];
   const spaces = catalog?.spaces.filter((s) => s.category === categoryId) || [];
   const intro = CATEGORY_INTRO[categoryId];
+  const isSpaceRoute = Boolean(useMatch('/category/:categoryId/space/:spaceKey'));
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
   if (!category) return <div className="empty">Category not found.</div>;
+
+  if (isSpaceRoute) {
+    return (
+      <div className="page-shell category-layout-space">
+        <Outlet context={{ categoryId, category }} />
+      </div>
+    );
+  }
 
   return (
     <div className="page-shell">
