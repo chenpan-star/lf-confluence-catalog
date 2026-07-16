@@ -514,7 +514,13 @@ export default function SpacePage() {
           </p>
         </div>
       ) : viewMode === 'tree' ? (
-        <PageTree tree={pageTree} spaceKey={space.key || spaceKey} routeContext={routeContext} />
+        <PageTree
+          tree={pageTree}
+          spaceKey={space.key || spaceKey}
+          routeContext={routeContext}
+          sidebarDetail
+          selectedPageId={searchParams.get('pageId') || ''}
+        />
       ) : (
         <PaginationBar
           page={safePage}
@@ -527,6 +533,8 @@ export default function SpacePage() {
             pages={pagedFlatPages}
             spaceKey={space.key || spaceKey}
             routeContext={routeContext}
+            sidebarDetail
+            selectedPageId={searchParams.get('pageId') || ''}
           />
         </PaginationBar>
       )}

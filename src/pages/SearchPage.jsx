@@ -148,8 +148,15 @@ export default function SearchPage() {
               return (
                 <li key={item.key} className="search-result card">
                   <span className="search-result-type">Page</span>
-                  {item.path ? (
-                    <Link to={item.path} className="search-result-title">
+                  {item.path || (page?.id && item.spaceKey) ? (
+                    <Link
+                      to={
+                        page?.id && item.spaceKey
+                          ? `/space/${encodeURIComponent(item.spaceKey)}?pageId=${page.id}&pageSpace=${encodeURIComponent(item.spaceKey)}`
+                          : item.path
+                      }
+                      className="search-result-title"
+                    >
                       {title}
                     </Link>
                   ) : (

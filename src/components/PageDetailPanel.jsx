@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { isAnonymousEditor, lastEditorLabel, primaryContact, usesCreatorFallback } from '../lib/contact';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
-import { clearReviewPersonPageDetail } from '../lib/reviewPaths';
+import { clearSidebarPageDetail } from '../lib/reviewPaths';
 import { formatTitle } from '../lib/text';
 import { DOC_TYPE_LABELS, RECENCY_COLORS, RECENCY_LABELS, formatDate } from '../lib/labels';
 import { guessSlackHandle } from '../lib/slack';
@@ -25,7 +25,7 @@ export default function PageDetailPanel({ spaceKey, pageId }) {
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
   function closePanel() {
-    setSearchParams(clearReviewPersonPageDetail(searchParams), { replace: true });
+    setSearchParams(clearSidebarPageDetail(searchParams), { replace: true });
   }
 
   if (!page) {

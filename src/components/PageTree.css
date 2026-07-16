@@ -8,6 +8,14 @@
   list-style: none;
 }
 
+.tree-node-selected > .tree-row {
+  background: var(--accent-soft);
+  border-radius: 8px;
+  margin: 0 -0.35rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
 .tree-row {
   display: flex;
   align-items: flex-start;

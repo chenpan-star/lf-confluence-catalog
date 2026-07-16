@@ -25,6 +25,8 @@ export default function StaleContentPage() {
   const personQuery = searchParams.get('person') || '';
   const grouped = searchParams.get('view') !== 'flat';
   const fallbackToCreator = parseCreatorFallback(searchParams);
+  const detailSpaceKey = searchParams.get('pageSpace') || '';
+  const detailPageId = searchParams.get('pageId') || '';
   const [personDraft, setPersonDraft] = useState(personQuery);
 
   useEffect(() => {
@@ -238,6 +240,11 @@ export default function StaleContentPage() {
                           <StalePageRow
                             key={`${page.spaceKey}-${page.id || page.url}`}
                             page={page}
+                            reviewDetail
+                            selected={
+                              detailSpaceKey === page.spaceKey &&
+                              detailPageId === String(page.id || '')
+                            }
                           />
                         ))}
                       </tbody>
@@ -277,6 +284,11 @@ export default function StaleContentPage() {
                     key={`${page.spaceKey}-${page.id || page.url}`}
                     page={page}
                     showCategory
+                    reviewDetail
+                    selected={
+                      detailSpaceKey === page.spaceKey &&
+                      detailPageId === String(page.id || '')
+                    }
                   />
                 ))}
               </tbody>

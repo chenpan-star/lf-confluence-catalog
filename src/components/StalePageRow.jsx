@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { formatTitle } from '../lib/text';
 import { formatDate, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
@@ -6,7 +6,7 @@ import { isAnonymousEditor, lastEditorLabel, primaryContact, usesCreatorFallback
 import { guessSlackHandle } from '../lib/slack';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { pageCatalogPath } from '../lib/pageTree';
-import { buildReviewPersonPageLink } from '../lib/reviewPaths';
+import { buildSidebarPageHref } from '../lib/reviewPaths';
 import SlackReviewButton from './SlackReviewButton';
 
 export default function StalePageRow({
@@ -17,12 +17,16 @@ export default function StalePageRow({
   selected = false,
 }) {
   const { catalog } = useCatalog();
+  const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
   const title = formatTitle(page.title);
   const localPath = pageCatalogPath(page, page.spaceKey);
-  const reviewPath = reviewDetail ? buildReviewPersonPageLink(searchParams, page) : null;
-  const titleTo = reviewPath || localPath;
+  const sidebarHref =
+    reviewDetail && page.id
+      ? buildSidebarPageHref(pathname, searchParams, page, page.spaceKey)
+      : null;
+  const titleTo = sidebarHref || localPath;
   const confluenceUrl = toConfluenceUrl(page.url, site);
   const contact = primaryContact(page);
   const editorRaw = lastEditorLabel(page);

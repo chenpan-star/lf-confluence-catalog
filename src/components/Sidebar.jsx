@@ -43,9 +43,9 @@ export default function Sidebar({ mobileOpen, onClose }) {
     return catalog.spaces.filter((s) => s.category === activeCategoryId);
   }, [catalog, activeCategoryId]);
 
-  const personReviewPage = pathname.startsWith('/review/my-pages');
   const detailSpaceKey = searchParams.get('pageSpace') || '';
   const detailPageId = searchParams.get('pageId') || '';
+  const showPageDetail = Boolean(detailSpaceKey && detailPageId);
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
@@ -99,10 +99,13 @@ export default function Sidebar({ mobileOpen, onClose }) {
             All outdated pages
           </Link>
         </nav>
-        {personReviewPage && detailSpaceKey && detailPageId && (
-          <PageDetailPanel spaceKey={detailSpaceKey} pageId={detailPageId} />
-        )}
       </div>
+
+      {showPageDetail && (
+        <div className="sidebar-section sidebar-page-detail-section">
+          <PageDetailPanel spaceKey={detailSpaceKey} pageId={detailPageId} />
+        </div>
+      )}
 
       <div className="sidebar-section">
         <p className="sidebar-section-title">Browse by category</p>

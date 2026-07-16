@@ -239,6 +239,10 @@
   line-height: 1.4;
 }
 
+.sidebar-page-detail-section {
+  padding-top: 0.25rem;
+}
+
 .sidebar-page-panel {
   margin: 0.5rem 0.35rem 0;
   padding: 0.85rem;

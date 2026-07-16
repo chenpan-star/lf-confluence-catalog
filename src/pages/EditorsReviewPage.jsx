@@ -41,6 +41,8 @@ export default function EditorsReviewPage() {
   const sortBy = searchParams.get('sort') || 'most-stale';
   const editorQuery = searchParams.get('editor') || '';
   const pageQuery = searchParams.get('q') || '';
+  const detailSpaceKey = searchParams.get('pageSpace') || '';
+  const detailPageId = searchParams.get('pageId') || '';
   const [editorDraft, setEditorDraft] = useState(editorQuery);
   const [pageDraft, setPageDraft] = useState(pageQuery);
 
@@ -331,7 +333,14 @@ export default function EditorsReviewPage() {
           >
             <div className="editor-review-stack">
               {paginated.map((group) => (
-                <EditorReviewCard key={group.editor} group={group} onMessageAll={setModalGroup} />
+                <EditorReviewCard
+                  key={group.editor}
+                  group={group}
+                  onMessageAll={setModalGroup}
+                  reviewDetail
+                  detailSpaceKey={detailSpaceKey}
+                  detailPageId={detailPageId}
+                />
               ))}
             </div>
           </PaginationBar>

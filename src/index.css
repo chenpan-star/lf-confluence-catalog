@@ -280,6 +280,11 @@ code,
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
 }
 
+.page-item-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .page-item a {
   font-weight: 500;
 }

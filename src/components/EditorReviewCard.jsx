@@ -4,7 +4,13 @@ import { formatNumber } from '../lib/labels';
 import StalePageRow from './StalePageRow';
 import './HygieneHelp.css';
 
-export default function EditorReviewCard({ group, onMessageAll }) {
+export default function EditorReviewCard({
+  group,
+  onMessageAll,
+  reviewDetail = false,
+  detailSpaceKey = '',
+  detailPageId = '',
+}) {
   const [expanded, setExpanded] = useState(false);
   const bot = isBotEditor(group.editor);
 
@@ -63,6 +69,11 @@ export default function EditorReviewCard({ group, onMessageAll }) {
                 key={`${page.spaceKey}-${page.id || page.url}`}
                 page={page}
                 compact
+                reviewDetail={reviewDetail}
+                selected={
+                  detailSpaceKey === page.spaceKey &&
+                  detailPageId === String(page.id || '')
+                }
               />
             ))}
           </ul>

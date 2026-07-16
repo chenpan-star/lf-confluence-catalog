@@ -1,22 +1,39 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { formatDate, DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
 import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
 import { pageCatalogPath } from '../lib/pageTree';
+import { buildSidebarPageHref } from '../lib/reviewPaths';
 import './PageTree.css';
 
-function PageTreeNode({ node, site, spaceKey, routeContext, defaultExpandedDepth, depth = 0 }) {
+function PageTreeNode({
+  node,
+  site,
+  spaceKey,
+  routeContext,
+  defaultExpandedDepth,
+  depth = 0,
+  sidebarDetail,
+  selectedPageId,
+  pathname,
+  searchParams,
+}) {
   const { page, children } = node;
   const hasChildren = children.length > 0;
   const [expanded, setExpanded] = useState(depth < defaultExpandedDepth);
 
   const localPath = pageCatalogPath(page, spaceKey, routeContext);
   const confluenceUrl = toConfluenceUrl(page.url, site);
+  const selected = selectedPageId && String(page.id) === String(selectedPageId);
+  const sidebarHref =
+    sidebarDetail && page.id
+      ? buildSidebarPageHref(pathname, searchParams, page, spaceKey)
+      : null;
 
   return (
-    <li className="tree-node">
+    <li className={`tree-node${selected ? ' tree-node-selected' : ''}`}>
       <div className="tree-row" style={{ paddingLeft: `${depth * 1.25}rem` }}>
         {hasChildren ? (
           <button
@@ -34,7 +51,11 @@ function PageTreeNode({ node, site, spaceKey, routeContext, defaultExpandedDepth
 
         <div className="tree-content">
           <div className="tree-title-row">
-            {localPath ? (
+            {sidebarHref ? (
+              <Link to={sidebarHref} replace>
+                {formatTitle(page.title)}
+              </Link>
+            ) : localPath ? (
               <Link to={localPath}>{formatTitle(page.title)}</Link>
             ) : (
               <a href={confluenceUrl} target="_blank" rel="noreferrer">
@@ -69,6 +90,10 @@ function PageTreeNode({ node, site, spaceKey, routeContext, defaultExpandedDepth
               routeContext={routeContext}
               defaultExpandedDepth={defaultExpandedDepth}
               depth={depth + 1}
+              sidebarDetail={sidebarDetail}
+              selectedPageId={selectedPageId}
+              pathname={pathname}
+              searchParams={searchParams}
             />
           ))}
         </ul>
@@ -77,9 +102,19 @@ function PageTreeNode({ node, site, spaceKey, routeContext, defaultExpandedDepth
   );
 }
 
-export default function PageTree({ tree, spaceKey, routeContext, departmentId, emptyMessage = 'No pages match your filters.' }) {
+export default function PageTree({
+  tree,
+  spaceKey,
+  routeContext,
+  departmentId,
+  emptyMessage = 'No pages match your filters.',
+  sidebarDetail = false,
+  selectedPageId = '',
+}) {
   const ctx = routeContext || (departmentId ? { departmentId } : {});
   const { catalog } = useCatalog();
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
   if (!tree.length) {
@@ -96,6 +131,10 @@ export default function PageTree({ tree, spaceKey, routeContext, departmentId, e
           spaceKey={spaceKey}
           routeContext={ctx}
           defaultExpandedDepth={1}
+          sidebarDetail={sidebarDetail}
+          selectedPageId={selectedPageId}
+          pathname={pathname}
+          searchParams={searchParams}
         />
       ))}
     </ul>

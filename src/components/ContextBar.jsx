@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { parsePageRouteContext, spaceScopePath } from '../lib/spacePaths';
 import { formatTitle } from '../lib/text';
@@ -14,6 +14,7 @@ function findPage(space, pageId) {
 
 export default function ContextBar() {
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
   const { catalog, resolveSpace } = useCatalog();
 
   if (!catalog || pathname === '/') return null;
@@ -34,10 +35,11 @@ export default function ContextBar() {
       const space = resolveSpace(spaceKey);
       const spacePath = spaceScopePath({ type: 'category', id: categoryId }, spaceKey);
       const pageMatch = pathname.match(/\/pages\/(\d+)/);
-      if (pageMatch) {
+      const sidebarPageId = searchParams.get('pageId') || pageMatch?.[1];
+      if (sidebarPageId) {
         crumbs.push({ label: space?.name || spaceKey, to: spacePath });
-        const page = findPage(space, pageMatch[1]);
-        crumbs.push({ label: formatTitle(page?.title || `Page ${pageMatch[1]}`) });
+        const page = findPage(space, sidebarPageId);
+        crumbs.push({ label: formatTitle(page?.title || `Page ${sidebarPageId}`) });
       } else {
         crumbs.push({ label: space?.name || spaceKey });
       }
@@ -49,9 +51,10 @@ export default function ContextBar() {
     if (spaceKey) {
       const space = resolveSpace(spaceKey);
       crumbs.push({ label: space?.name || spaceKey });
-      if (parsed?.pageId) {
-        const page = findPage(space, parsed.pageId);
-        crumbs.push({ label: formatTitle(page?.title || `Page ${parsed.pageId}`) });
+      const sidebarPageId = searchParams.get('pageId') || parsed?.pageId;
+      if (sidebarPageId) {
+        const page = findPage(space, sidebarPageId);
+        crumbs.push({ label: formatTitle(page?.title || `Page ${sidebarPageId}`) });
       }
     }
   } else if (pathname.startsWith('/spaces/') && parsed?.spaceKey) {
@@ -72,10 +75,31 @@ export default function ContextBar() {
     crumbs.push({ label: 'Contributors' });
   } else if (pathname === '/stale') {
     crumbs.push({ label: 'Outdated pages' });
+    const sidebarPageId = searchParams.get('pageId');
+    const sidebarSpaceKey = searchParams.get('pageSpace');
+    if (sidebarPageId && sidebarSpaceKey) {
+      const space = resolveSpace(sidebarSpaceKey);
+      const page = findPage(space, sidebarPageId);
+      crumbs.push({ label: formatTitle(page?.title || `Page ${sidebarPageId}`) });
+    }
   } else if (pathname === '/review/editors') {
     crumbs.push({ label: 'Send reminders' });
+    const sidebarPageId = searchParams.get('pageId');
+    const sidebarSpaceKey = searchParams.get('pageSpace');
+    if (sidebarPageId && sidebarSpaceKey) {
+      const space = resolveSpace(sidebarSpaceKey);
+      const page = findPage(space, sidebarPageId);
+      crumbs.push({ label: formatTitle(page?.title || `Page ${sidebarPageId}`) });
+    }
   } else if (pathname === '/review/my-pages') {
     crumbs.push({ label: 'Filter by name' });
+    const sidebarPageId = searchParams.get('pageId');
+    const sidebarSpaceKey = searchParams.get('pageSpace');
+    if (sidebarPageId && sidebarSpaceKey) {
+      const space = resolveSpace(sidebarSpaceKey);
+      const page = findPage(space, sidebarPageId);
+      crumbs.push({ label: formatTitle(page?.title || `Page ${sidebarPageId}`) });
+    }
   }
 
   if (crumbs.length <= 1) return null;
