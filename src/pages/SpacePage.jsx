@@ -206,30 +206,6 @@ export default function SpacePage() {
     <div className="page-shell">
       <PageHeader
         title={space.name}
-        meta={
-          <div className="stat-chips stat-chips-lg">
-            <div className="stat-chip">
-              <span className="stat-chip-value">{formatNumber(space.pageCount)}</span>
-              <span className="stat-chip-label">Total pages</span>
-            </div>
-            {space.recency?.active > 0 && (
-              <div className="stat-chip">
-                <span className="stat-chip-value" style={{ color: 'var(--green)' }}>
-                  {space.recency.active}
-                </span>
-                <span className="stat-chip-label">Active</span>
-              </div>
-            )}
-            {(space.staleCount || 0) > 0 && (
-              <div className="stat-chip stat-chip-warn">
-                <span className="stat-chip-value" style={{ color: 'var(--amber)' }}>
-                  {formatNumber(space.staleCount)}
-                </span>
-                <span className="stat-chip-label">Need review</span>
-              </div>
-            )}
-          </div>
-        }
         actions={
           <a href={space.confluenceUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
             Open in Confluence ↗
@@ -244,6 +220,21 @@ export default function SpacePage() {
           </>
         )}
       </PageHeader>
+
+      <div className="space-stats-bar" aria-label="Space summary">
+        <div className="space-stat">
+          <span className="space-stat-value">{formatNumber(space.pageCount)}</span>
+          <span className="space-stat-label">Total pages</span>
+        </div>
+        <div className="space-stat space-stat-ok">
+          <span className="space-stat-value">{formatNumber(space.recency?.active || 0)}</span>
+          <span className="space-stat-label">Active</span>
+        </div>
+        <div className={`space-stat${(space.staleCount || 0) > 0 ? ' space-stat-warn' : ''}`}>
+          <span className="space-stat-value">{formatNumber(space.staleCount || 0)}</span>
+          <span className="space-stat-label">Need review</span>
+        </div>
+      </div>
 
       <div className="grid space-charts space-charts-compact">
         <div className="card card-compact">

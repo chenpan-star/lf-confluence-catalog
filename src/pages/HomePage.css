@@ -1,0 +1,96 @@
+/* Home hero attention banner */
+.home-attention-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: color-mix(in srgb, var(--amber) 10%, var(--surface-3));
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--border));
+  border-radius: var(--radius-md);
+  max-width: 100%;
+}
+
+.home-attention-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.home-attention-title {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.home-attention-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.home-attention-cta {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Quick-start cards — stable 2×2 grid */
+.home-quick-start-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.home-quick-start-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  min-height: 100%;
+  height: 100%;
+}
+
+.home-quick-start-card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.home-quick-start-card p {
+  margin: 0;
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.home-quick-start-icon {
+  font-size: 1.4rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.home-quick-start-primary {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+
+@media (max-width: 720px) {
+  .home-quick-start-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-attention-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-attention-cta {
+    width: 100%;
+    text-align: center;
+    white-space: normal;
+  }
+}
