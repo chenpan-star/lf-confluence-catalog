@@ -100,7 +100,7 @@ export default function SpacePage() {
       if (page.recency === 'active' || page.recency === 'recent') row.current += 1;
     }
     return [...byName.values()].sort(
-      (a, b) => a.name.localeCompare(b.name) || b.total - a.total,
+      (a, b) => b.outdated - a.outdated || b.total - a.total || a.name.localeCompare(b.name),
     );
   }, [space]);
 
@@ -304,6 +304,7 @@ export default function SpacePage() {
                 {formatNumber(personList.length)} of {formatNumber(peopleInSpace.length)} last editor
                 {peopleInSpace.length !== 1 ? 's' : ''}
                 {personDraft.trim() ? ' matching your search' : ''}
+                {!personDraft.trim() && ' · most outdated first'}
               </p>
               {personList.length === 0 ? (
                 <p className="space-person-empty">No last editors match that name.</p>
