@@ -8,8 +8,8 @@ import { PaginationBar } from '../components/Pagination';
 import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { normalizeForSearch } from '../lib/text';
 import { accountablePerson } from '../lib/contact';
-import { editorsAreSamePerson } from '../lib/personSearch';
-import { formatNumber, DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
+import { editorsAreSamePerson, personMatchesQuery } from '../lib/personSearch';
+import { formatNumber, DOC_TYPE_LABELS, RECENCY_COLORS } from '../lib/labels';
 import {
   applyListPage,
   clearListPage,
@@ -21,6 +21,7 @@ import {
 } from '../lib/pagination';
 import '../components/PageTree.css';
 import '../components/HygieneHelp.css';
+import './SpacePage.css';
 
 function summarizePersonInSpace(pages, person) {
   const matched = pages.filter((p) => editorsAreSamePerson(accountablePerson(p), person));
@@ -29,16 +30,28 @@ function summarizePersonInSpace(pages, person) {
     const r = p.recency || 'unknown';
     counts[r] = (counts[r] || 0) + 1;
   }
-  const current = counts.active + counts.recent;
-  const outdated = counts.stale + counts.legacy;
   return {
     total: matched.length,
-    current,
-    outdated,
+    current: counts.active + counts.recent,
+    outdated: counts.stale + counts.legacy,
     counts,
-    pages: matched,
   };
 }
+
+function matchesRecency(page, recencyFilter) {
+  if (!recencyFilter || recencyFilter === 'all') return true;
+  if (recencyFilter === 'current') return page.recency === 'active' || page.recency === 'recent';
+  if (recencyFilter === 'outdated') return page.recency === 'stale' || page.recency === 'legacy';
+  return page.recency === recencyFilter;
+}
+
+const FRESHNESS_PILLS = [
+  { id: 'all', label: 'All' },
+  { id: 'current', label: 'Current' },
+  { id: 'outdated', label: 'Outdated' },
+  { id: 'stale', label: 'Stale (1–2y)' },
+  { id: 'legacy', label: 'Legacy (2y+)' },
+];
 
 export default function SpacePage() {
   const { spaceKey } = useParams();
@@ -49,11 +62,13 @@ export default function SpacePage() {
   const { catalog, resolveSpace, loading, error } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [docFilter, setDocFilter] = useState('all');
-  const [recencyFilter, setRecencyFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState('tree');
+  const [personDraft, setPersonDraft] = useState(searchParams.get('person') || '');
+  const [viewMode, setViewMode] = useState('flat');
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   const personFilter = searchParams.get('person') || '';
+  const recencyFilter = searchParams.get('freshness') || 'all';
   const space = resolveSpace(spaceKey);
 
   const peopleInSpace = useMemo(() => {
@@ -63,16 +78,23 @@ export default function SpacePage() {
       const person = accountablePerson(page);
       if (!person) continue;
       if (!byName.has(person)) {
-        byName.set(person, { name: person, total: 0, outdated: 0 });
+        byName.set(person, { name: person, total: 0, outdated: 0, current: 0 });
       }
       const row = byName.get(person);
       row.total += 1;
       if (page.recency === 'stale' || page.recency === 'legacy') row.outdated += 1;
+      if (page.recency === 'active' || page.recency === 'recent') row.current += 1;
     }
     return [...byName.values()].sort(
       (a, b) => b.outdated - a.outdated || b.total - a.total || a.name.localeCompare(b.name),
     );
   }, [space]);
+
+  const personSuggestions = useMemo(() => {
+    const q = personDraft.trim();
+    if (q.length < 1) return peopleInSpace.filter((p) => p.outdated > 0).slice(0, 8);
+    return peopleInSpace.filter((p) => personMatchesQuery(q, p.name)).slice(0, 8);
+  }, [peopleInSpace, personDraft]);
 
   const personSummary = useMemo(() => {
     if (!space?.pages || !personFilter.trim()) return null;
@@ -84,7 +106,7 @@ export default function SpacePage() {
     const pages = space.pages || [];
     const matches = (p) => {
       if (docFilter !== 'all' && p.docType !== docFilter) return false;
-      if (recencyFilter !== 'all' && p.recency !== recencyFilter) return false;
+      if (!matchesRecency(p, recencyFilter)) return false;
       if (personFilter.trim()) {
         if (!editorsAreSamePerson(accountablePerson(p), personFilter.trim())) return false;
       }
@@ -114,16 +136,40 @@ export default function SpacePage() {
     scrollToTop();
   }
 
-  function resetListPage() {
-    setSearchParams(clearListPage(searchParams), { replace: true });
+  function updateParams(mutator) {
+    const next = clearListPage(new URLSearchParams(searchParams));
+    mutator(next);
+    setSearchParams(next, { replace: true });
   }
 
   function setPersonFilter(value) {
-    const next = clearListPage(new URLSearchParams(searchParams));
-    if (!value || value === 'all') next.delete('person');
-    else next.set('person', value);
-    setSearchParams(next, { replace: true });
+    const name = (value || '').trim();
+    setPersonDraft(name);
+    updateParams((next) => {
+      if (!name) next.delete('person');
+      else next.set('person', name);
+    });
   }
+
+  function setFreshness(value) {
+    updateParams((next) => {
+      if (!value || value === 'all') next.delete('freshness');
+      else next.set('freshness', value);
+    });
+  }
+
+  function clearAllFilters() {
+    setSearch('');
+    setDocFilter('all');
+    setPersonDraft('');
+    setSearchParams({}, { replace: true });
+  }
+
+  const hasActiveFilters =
+    Boolean(personFilter) ||
+    recencyFilter !== 'all' ||
+    Boolean(search.trim()) ||
+    docFilter !== 'all';
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
@@ -156,8 +202,7 @@ export default function SpacePage() {
           {category && !categoryId && (
             <>
               {' '}
-              ·{' '}
-              <Link to={`/category/${space.category}`}>{category.label}</Link>
+              · <Link to={`/category/${space.category}`}>{category.label}</Link>
             </>
           )}
           {' '}
@@ -179,14 +224,6 @@ export default function SpacePage() {
               <span className="stat-label">Active</span>
             </div>
           )}
-          {space.recency?.legacy > 0 && (
-            <div className="stat">
-              <span className="stat-value" style={{ color: 'var(--muted)' }}>
-                {space.recency.legacy}
-              </span>
-              <span className="stat-label">Legacy</span>
-            </div>
-          )}
           {(space.staleCount || 0) > 0 && (
             <div className="stat">
               <span className="stat-value" style={{ color: 'var(--amber)' }}>
@@ -200,149 +237,247 @@ export default function SpacePage() {
 
       <div className="grid space-charts">
         <div className="card">
-          <h2 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-            By document type
-          </h2>
+          <h2 className="space-chart-title">By document type</h2>
           <BarChart data={space.docTypes} />
         </div>
         <div className="card">
-          <h2 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-            By freshness
-          </h2>
+          <h2 className="space-chart-title">By freshness</h2>
           <BarChart data={space.recency} maxItems={5} />
         </div>
       </div>
 
-      <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
-        Pages ({formatNumber(filteredPages.length)})
-      </h2>
-
-      <div className="view-toggle">
-        <button
-          type="button"
-          className={viewMode === 'tree' ? 'active' : ''}
-          onClick={() => {
-            setViewMode('tree');
-            resetListPage();
-          }}
-        >
-          Tree view
-        </button>
-        <button
-          type="button"
-          className={viewMode === 'flat' ? 'active' : ''}
-          onClick={() => setViewMode('flat')}
-        >
-          Flat list
-        </button>
-      </div>
-
-      <div className="filters">
-        <select
-          value={personFilter || 'all'}
-          onChange={(e) => setPersonFilter(e.target.value)}
-          aria-label="Filter by person"
-          className="filter-person"
-        >
-          <option value="all">All people</option>
-          {peopleInSpace.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-              {p.outdated > 0 ? ` (${p.outdated} outdated)` : ''}
-            </option>
-          ))}
-        </select>
-        <input
-          type="search"
-          placeholder="Filter by title…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            resetListPage();
-          }}
-          className="filter-search"
-        />
-        <select
-          value={docFilter}
-          onChange={(e) => {
-            setDocFilter(e.target.value);
-            resetListPage();
-          }}
-        >
-          <option value="all">All types</option>
-          {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select
-          value={recencyFilter}
-          onChange={(e) => {
-            setRecencyFilter(e.target.value);
-            resetListPage();
-          }}
-        >
-          <option value="all">All freshness</option>
-          {Object.entries(RECENCY_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {personSummary && (
-        <div className="card person-space-summary">
-          <div className="person-space-summary-head">
-            <h3>{personFilter}</h3>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => setPersonFilter('all')}
-            >
-              Clear person filter
-            </button>
-          </div>
-          <p className="person-space-summary-lead">
-            Pages this person last edited (or created, when the last editor is unreachable) in{' '}
-            <strong>{space.name}</strong>.
+      <section className="card space-filter-panel">
+        <div className="space-filter-primary">
+          <label htmlFor="space-person-search" className="space-filter-label">
+            Find pages by person
+          </label>
+          <p className="space-filter-hint">
+            See how many of their pages are current vs outdated in this space.
           </p>
-          <div className="hygiene-stats person-space-stats">
-            <div className="hygiene-stat card">
-              <span className="hygiene-stat-value">{formatNumber(personSummary.total)}</span>
-              <span className="hygiene-stat-label">Total pages</span>
-            </div>
-            <div className="hygiene-stat card">
-              <span className="hygiene-stat-value" style={{ color: 'var(--green)' }}>
-                {formatNumber(personSummary.current)}
-              </span>
-              <span className="hygiene-stat-label">Current (active + recent)</span>
-            </div>
-            <div className="hygiene-stat card hygiene-stat-warn">
-              <span className="hygiene-stat-value">{formatNumber(personSummary.outdated)}</span>
-              <span className="hygiene-stat-label">Outdated (stale + legacy)</span>
-            </div>
+          <div className="space-filter-search-row">
+            <input
+              id="space-person-search"
+              type="search"
+              placeholder="Type a name, e.g. Chen Pan…"
+              value={personDraft}
+              onChange={(e) => setPersonDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const match = personSuggestions[0];
+                  setPersonFilter(match?.name || personDraft);
+                }
+              }}
+              autoComplete="off"
+            />
+            {personFilter && (
+              <button type="button" className="btn btn-secondary" onClick={() => setPersonFilter('')}>
+                Clear
+              </button>
+            )}
           </div>
-          <div className="person-freshness-breakdown">
-            {['active', 'recent', 'stale', 'legacy'].map((key) => (
-              <span key={key} className="person-freshness-chip">
-                <span style={{ color: RECENCY_COLORS[key] }}>{formatNumber(personSummary.counts[key] || 0)}</span>{' '}
-                {RECENCY_LABELS[key]}
-              </span>
-            ))}
-          </div>
-          {personSummary.outdated > 0 && (
-            <p className="person-space-summary-tip">
-              {formatNumber(personSummary.counts.stale)} stale (1–2 years) ·{' '}
-              {formatNumber(personSummary.counts.legacy)} legacy (2+ years). Use the freshness filter
-              below to show only outdated pages.
-            </p>
+
+          {!personFilter && personSuggestions.length > 0 && (
+            <ul className="space-person-chips" aria-label="People in this space">
+              {personSuggestions.map((p) => (
+                <li key={p.name}>
+                  <button
+                    type="button"
+                    className="space-person-chip"
+                    onClick={() => setPersonFilter(p.name)}
+                  >
+                    <span className="space-person-chip-name">{p.name}</span>
+                    <span className="space-person-chip-meta">
+                      {p.outdated > 0 ? (
+                        <span className="space-person-chip-outdated">
+                          {formatNumber(p.outdated)} outdated
+                        </span>
+                      ) : (
+                        <span>{formatNumber(p.total)} pages</span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
+        </div>
+
+        {personSummary && (
+          <div className="space-person-result">
+            <p className="space-person-result-title">
+              Showing pages for <strong>{personFilter}</strong>
+            </p>
+            <div className="space-person-stat-grid" role="group" aria-label="Page freshness for person">
+              <button
+                type="button"
+                className={`space-person-stat${recencyFilter === 'all' ? ' active' : ''}`}
+                onClick={() => setFreshness('all')}
+              >
+                <span className="space-person-stat-value">{formatNumber(personSummary.total)}</span>
+                <span className="space-person-stat-label">Total</span>
+              </button>
+              <button
+                type="button"
+                className={`space-person-stat space-person-stat-ok${recencyFilter === 'current' ? ' active' : ''}`}
+                onClick={() => setFreshness('current')}
+              >
+                <span className="space-person-stat-value">{formatNumber(personSummary.current)}</span>
+                <span className="space-person-stat-label">Current</span>
+              </button>
+              <button
+                type="button"
+                className={`space-person-stat space-person-stat-warn${recencyFilter === 'outdated' ? ' active' : ''}`}
+                onClick={() => setFreshness('outdated')}
+              >
+                <span className="space-person-stat-value">{formatNumber(personSummary.outdated)}</span>
+                <span className="space-person-stat-label">Outdated</span>
+              </button>
+            </div>
+            <div className="space-person-detail">
+              <button
+                type="button"
+                className={`space-detail-pill${recencyFilter === 'stale' ? ' active' : ''}`}
+                onClick={() => setFreshness('stale')}
+              >
+                <span style={{ color: RECENCY_COLORS.stale }}>
+                  {formatNumber(personSummary.counts.stale)}
+                </span>{' '}
+                stale (1–2 years)
+              </button>
+              <button
+                type="button"
+                className={`space-detail-pill${recencyFilter === 'legacy' ? ' active' : ''}`}
+                onClick={() => setFreshness('legacy')}
+              >
+                <span style={{ color: RECENCY_COLORS.legacy }}>
+                  {formatNumber(personSummary.counts.legacy)}
+                </span>{' '}
+                legacy (2+ years)
+              </button>
+              <button
+                type="button"
+                className={`space-detail-pill${recencyFilter === 'active' ? ' active' : ''}`}
+                onClick={() => setFreshness('active')}
+              >
+                <span style={{ color: RECENCY_COLORS.active }}>
+                  {formatNumber(personSummary.counts.active)}
+                </span>{' '}
+                active
+              </button>
+              <button
+                type="button"
+                className={`space-detail-pill${recencyFilter === 'recent' ? ' active' : ''}`}
+                onClick={() => setFreshness('recent')}
+              >
+                <span style={{ color: RECENCY_COLORS.recent }}>
+                  {formatNumber(personSummary.counts.recent)}
+                </span>{' '}
+                recent
+              </button>
+            </div>
+            <p className="space-person-tip">
+              Tip: click <strong>Outdated</strong> to list only pages that need update or archive.
+            </p>
+          </div>
+        )}
+      </section>
+
+      <div className="space-pages-toolbar">
+        <h2 className="space-pages-heading">
+          Pages <span className="space-pages-count">{formatNumber(filteredPages.length)}</span>
+        </h2>
+        <div className="view-toggle">
+          <button
+            type="button"
+            className={viewMode === 'flat' ? 'active' : ''}
+            onClick={() => setViewMode('flat')}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            className={viewMode === 'tree' ? 'active' : ''}
+            onClick={() => setViewMode('tree')}
+          >
+            Tree
+          </button>
+        </div>
+      </div>
+
+      {!personFilter && (
+        <div className="space-freshness-pills" role="group" aria-label="Freshness filter">
+          {FRESHNESS_PILLS.map((pill) => (
+            <button
+              key={pill.id}
+              type="button"
+              className={`space-freshness-pill${recencyFilter === pill.id ? ' active' : ''}`}
+              onClick={() => setFreshness(pill.id)}
+            >
+              {pill.label}
+            </button>
+          ))}
         </div>
       )}
 
-      {viewMode === 'tree' ? (
+      <div className="space-secondary-filters">
+        <input
+          type="search"
+          placeholder="Search page titles…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setSearchParams(clearListPage(searchParams), { replace: true });
+          }}
+          className="filter-search"
+          aria-label="Search page titles"
+        />
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => setShowMoreFilters((v) => !v)}
+        >
+          {showMoreFilters ? 'Hide more filters' : 'More filters'}
+        </button>
+        {hasActiveFilters && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={clearAllFilters}>
+            Reset all
+          </button>
+        )}
+      </div>
+
+      {showMoreFilters && (
+        <div className="space-more-filters">
+          <label className="space-more-filter">
+            <span>Document type</span>
+            <select
+              value={docFilter}
+              onChange={(e) => {
+                setDocFilter(e.target.value);
+                setSearchParams(clearListPage(searchParams), { replace: true });
+              }}
+            >
+              <option value="all">All types</option>
+              {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {filteredPages.length === 0 ? (
+        <div className="empty review-empty card">
+          <p>
+            <strong>No pages match these filters.</strong>
+          </p>
+          <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
+            Try clearing the person filter or choosing <strong>All</strong> freshness.
+          </p>
+        </div>
+      ) : viewMode === 'tree' ? (
         <PageTree tree={pageTree} spaceKey={space.key || spaceKey} routeContext={routeContext} />
       ) : (
         <PaginationBar
