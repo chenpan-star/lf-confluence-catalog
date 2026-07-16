@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import PageHeader from '../components/PageHeader';
 import { useCatalog } from '../context/CatalogContext';
 import Pagination, { PaginationBar } from '../components/Pagination';
 import { searchCatalog } from '../lib/search';
@@ -63,40 +64,20 @@ export default function SearchPage() {
   const hasResults = combined.length > 0;
 
   return (
-    <>
-      <header className="page-header">
-        <h1>Search</h1>
+    <div className="page-shell">
+      <PageHeader title="Search">
         {hasQuery ? (
-          <p>
-            {hasResults ? (
-              <>
-                <strong>{formatNumber(results.totalMatches)}</strong> results for &ldquo;
-                <strong>{q}</strong>&rdquo;
-                {results.spaces.length > 0 && (
-                  <>
-                    {' '}
-                    · {formatNumber(results.spaces.length)} space
-                    {results.spaces.length !== 1 ? 's' : ''}
-                  </>
-                )}
-                {results.pages.length > 0 && (
-                  <>
-                    {' '}
-                    · {formatNumber(results.pages.length)} page
-                    {results.pages.length !== 1 ? 's' : ''}
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                No results for &ldquo;<strong>{q}</strong>&rdquo;
-              </>
-            )}
-          </p>
+          hasResults ? (
+            <>
+              {formatNumber(results.totalMatches)} results for &ldquo;{q}&rdquo;
+            </>
+          ) : (
+            <>No results for &ldquo;{q}&rdquo;</>
+          )
         ) : (
-          <p>Use the search bar at the top of the page — press Enter or click Search.</p>
+          <>Search pages, spaces, or people using the bar at the top.</>
         )}
-      </header>
+      </PageHeader>
 
       {!hasQuery && (
         <div className="search-tips card">
@@ -185,6 +166,6 @@ export default function SearchPage() {
           </ul>
         </PaginationBar>
       )}
-    </>
+    </div>
   );
 }

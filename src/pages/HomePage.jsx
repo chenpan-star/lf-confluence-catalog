@@ -17,27 +17,28 @@ export default function HomePage() {
   const catList = CATEGORY_ORDER.filter((id) => categories?.[id]);
 
   return (
-    <div className="home-layout">
+    <div className="page-shell home-layout">
       <section className="hero hero-home">
-        <h1>LotusFlare documentation</h1>
+        <h1>LotusFlare documentation catalog</h1>
         <p className="hero-lead">
-          Browse by <strong>category</strong> or search by page, space, or person. Use{' '}
-          <strong>Review by person</strong> to find outdated pages and send reminders to last editors.
+          Find outdated pages, browse by topic, or look up anyone&apos;s Confluence pages — all in
+          one place.
         </p>
         {meta.refreshedAt && (
           <p className="hero-meta">
-            {formatNumber(meta.totalSpaces)} spaces · {formatNumber(meta.totalPages)} pages · updated{' '}
-            <strong>{formatDate(meta.refreshedAt)}</strong>
+            {formatNumber(meta.totalSpaces)} spaces · {formatNumber(meta.totalPages)} pages ·
+            updated <strong>{formatDate(meta.refreshedAt)}</strong>
           </p>
         )}
         {health && health.needsAttention > 0 && (
           <div className="hygiene-banner">
             <p className="hygiene-banner-title">
-              {formatNumber(health.needsAttention)} pages may be outdated
+              {formatNumber(health.needsAttention)} pages may need attention
             </p>
             <p>
-              Send a friendly reminder to the people who last edited them —{' '}
-              <Link to="/review/editors">Start here</Link>
+              <Link to="/review/editors" className="btn btn-primary btn-sm">
+                Review & send reminders
+              </Link>
             </p>
           </div>
         )}
@@ -46,38 +47,38 @@ export default function HomePage() {
       <section className="home-section">
         <div className="section-head">
           <div>
-            <h2 className="home-section-title">Review by person</h2>
-            <p className="section-desc">
-              Find outdated pages by last editor — search anyone by name or send reminders in bulk.
-            </p>
+            <h2 className="home-section-title">Start here</h2>
+            <p className="section-desc">Two ways to work — pick what fits your task.</p>
           </div>
         </div>
         <div className="quick-start-grid">
-          <Link to="/review/editors" className="card card-link quick-start-card quick-start-primary">
+          <Link to="/categories" className="card card-link quick-start-card">
+            <span className="quick-start-icon" aria-hidden>
+              ◫
+            </span>
+            <h3>Browse by category</h3>
+            <p>Explore spaces grouped by topic. Spaces appear in the left panel when you pick one.</p>
+          </Link>
+          <Link to="/review/my-pages" className="card card-link quick-start-card quick-start-primary">
+            <span className="quick-start-icon" aria-hidden>
+              👤
+            </span>
+            <h3>Filter by name</h3>
+            <p>Search any person to see pages they last edited — current and outdated.</p>
+          </Link>
+          <Link to="/review/editors" className="card card-link quick-start-card">
             <span className="quick-start-icon" aria-hidden>
               ✉
             </span>
             <h3>Send reminders</h3>
-            <p>
-              Pages grouped by last editor — copy a Slack message and nudge people to update or
-              archive outdated docs.
-            </p>
-          </Link>
-          <Link to="/review/my-pages" className="card card-link quick-start-card">
-            <span className="quick-start-icon" aria-hidden>
-              ⌕
-            </span>
-            <h3>Filter by name</h3>
-            <p>Search any person by Confluence name, Slack handle, or email to see their pages.</p>
+            <p>Outdated pages grouped by editor — copy a Slack message and nudge owners.</p>
           </Link>
           <Link to="/stale" className="card card-link quick-start-card">
             <span className="quick-start-icon" aria-hidden>
               ⏱
             </span>
             <h3>All outdated pages</h3>
-            <p>
-              Full list of pages not updated in over a year — filter by category, space, or person.
-            </p>
+            <p>Full list of pages not updated in over a year — filter by category or person.</p>
           </Link>
         </div>
       </section>
@@ -85,11 +86,11 @@ export default function HomePage() {
       <section className="home-section">
         <div className="section-head">
           <div>
-            <h2 className="home-section-title">Browse by category</h2>
-            <p className="section-desc">Pick a topic area — spaces appear in the left panel.</p>
+            <h2 className="home-section-title">Categories</h2>
+            <p className="section-desc">Jump into a topic area.</p>
           </div>
           <Link to="/categories" className="section-link">
-            View all categories →
+            View all →
           </Link>
         </div>
         <div className="grid grid-2 category-grid-home">
@@ -101,9 +102,9 @@ export default function HomePage() {
 
       <section className="home-section home-section-muted">
         <p className="home-alt-path">
-          Know the space name already? <Link to="/spaces">Browse all spaces</Link>
-          {' · '}
           <Link to="/search">Search the catalog</Link>
+          {' · '}
+          <Link to="/spaces">Browse all spaces</Link>
         </p>
       </section>
     </div>

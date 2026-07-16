@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
+import PageHeader from '../components/PageHeader';
 import StalePageRow from '../components/StalePageRow';
 import Pagination, { PaginationBar } from '../components/Pagination';
 import { CATEGORY_ORDER } from '../lib/departments';
@@ -87,28 +88,30 @@ export default function StaleContentPage() {
   const { counts } = health;
 
   return (
-    <>
-      <header className="page-header">
-        <h1>All outdated pages</h1>
-        <p>
-          Pages not updated in over a year. Filter by <strong>category</strong> or{' '}
-          <strong>person</strong> (last editor). For bulk reminders, try{' '}
-          <Link to="/review/editors">Send reminders</Link>.
-        </p>
-      </header>
+    <div className="page-shell">
+      <PageHeader title="All outdated pages">
+        Pages not updated in over a year. For bulk reminders, try{' '}
+        <Link to="/review/editors">Send reminders</Link>.
+      </PageHeader>
 
-      <div className="health-summary grid grid-2">
-        <div className="health-stat card health-stat-warn">
-          <span className="health-stat-value">{formatNumber(counts.stale)}</span>
-          <span className="health-stat-label">Outdated (1–2 years)</span>
+      <div className="stat-chips" style={{ marginBottom: '1.5rem' }}>
+        <div className="stat-chip">
+          <span className="stat-chip-value" style={{ color: 'var(--amber)' }}>
+            {formatNumber(counts.stale)}
+          </span>
+          <span className="stat-chip-label">1–2 years</span>
         </div>
-        <div className="health-stat card health-stat-danger">
-          <span className="health-stat-value">{formatNumber(counts.legacy)}</span>
-          <span className="health-stat-label">Very old (&gt;2 years)</span>
+        <div className="stat-chip">
+          <span className="stat-chip-value" style={{ color: '#f87171' }}>
+            {formatNumber(counts.legacy)}
+          </span>
+          <span className="stat-chip-label">2+ years</span>
         </div>
       </div>
 
-      <form className="filters toolbar stale-filters" onSubmit={applyPersonSearch}>
+      <form className="filter-panel" onSubmit={applyPersonSearch}>
+        <p className="filter-panel-title">Filters</p>
+        <div className="filter-panel-row">
         <select
           value={category}
           onChange={(e) => updateParam('category', e.target.value)}
@@ -150,9 +153,14 @@ export default function StaleContentPage() {
           />
           Use creator if last editor unreachable
         </label>
+        </div>
       </form>
 
-      <div className="view-toggle stale-view-toggle">
+      <div className="content-toolbar">
+        <p className="result-count" style={{ margin: 0 }}>
+          {formatNumber(filtered.length)} matching page{filtered.length !== 1 ? 's' : ''}
+        </p>
+        <div className="segmented" role="group" aria-label="View mode">
         <button
           type="button"
           className={grouped ? 'active' : ''}
@@ -171,13 +179,8 @@ export default function StaleContentPage() {
         >
           Flat list
         </button>
+        </div>
       </div>
-
-      <p className="result-count">
-        {formatNumber(filtered.length)} matching page{filtered.length !== 1 ? 's' : ''}
-        {filtered.length !== health.needsAttention &&
-          ` (${formatNumber(health.needsAttention)} total outdated)`}
-      </p>
 
       {filtered.length === 0 ? (
         <div className="empty review-empty card">
@@ -302,6 +305,6 @@ export default function StaleContentPage() {
         Click <strong>Remind</strong> to copy a message and open Slack. Paste it into a direct
         message to the last editor.
       </p>
-    </>
+    </div>
   );
 }

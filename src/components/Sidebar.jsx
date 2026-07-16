@@ -12,6 +12,12 @@ const MAIN_NAV = [
   { to: '/search', label: 'Search', icon: '⌕' },
 ];
 
+const REVIEW_NAV = [
+  { to: '/review/editors', label: 'Send reminders', icon: '✉', match: '/review/editors' },
+  { to: '/review/my-pages', label: 'Filter by name', icon: '👤', match: '/review/my-pages' },
+  { to: '/stale', label: 'Outdated pages', icon: '⏱', match: '/stale' },
+];
+
 function isActive(pathname, to, end) {
   if (end) return pathname === to || pathname === '';
   return pathname === to || pathname.startsWith(`${to}/`);
@@ -43,6 +49,11 @@ export default function Sidebar({ mobileOpen, onClose }) {
 
   return (
     <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Main navigation">
+      <div className="sidebar-brand">
+        <p className="sidebar-brand-label">Navigate</p>
+        <p className="sidebar-brand-hint">Browse by topic or review by person</p>
+      </div>
+
       <nav className="sidebar-primary" aria-label="Quick links">
         {MAIN_NAV.map(({ to, label, icon, end }) => (
           <Link
@@ -58,42 +69,6 @@ export default function Sidebar({ mobileOpen, onClose }) {
           </Link>
         ))}
       </nav>
-
-      <div className="sidebar-section">
-        <p className="sidebar-section-title">Review by person</p>
-        <nav className="sidebar-primary sidebar-hygiene" aria-label="Review by person">
-          <Link
-            to="/review/editors"
-            className={pathname.startsWith('/review/editors') ? 'active' : ''}
-            onClick={onClose}
-          >
-            <span className="sidebar-icon" aria-hidden>
-              ✉
-            </span>
-            Send reminders
-          </Link>
-          <Link
-            to="/review/my-pages"
-            className={pathname.startsWith('/review/my-pages') ? 'active' : ''}
-            onClick={onClose}
-          >
-            <span className="sidebar-icon" aria-hidden>
-              ⌕
-            </span>
-            Filter by name
-          </Link>
-          <Link
-            to="/stale"
-            className={pathname === '/stale' ? 'active' : ''}
-            onClick={onClose}
-          >
-            <span className="sidebar-icon" aria-hidden>
-              ⏱
-            </span>
-            All outdated pages
-          </Link>
-        </nav>
-      </div>
 
       <div className="sidebar-section">
         <p className="sidebar-section-title">Browse by category</p>
@@ -133,6 +108,25 @@ export default function Sidebar({ mobileOpen, onClose }) {
             );
           })}
         </ul>
+      </div>
+
+      <div className="sidebar-section">
+        <p className="sidebar-section-title">Review by person</p>
+        <nav className="sidebar-primary" aria-label="Review by person">
+          {REVIEW_NAV.map(({ to, label, icon, match }) => (
+            <Link
+              key={to}
+              to={to}
+              className={pathname.startsWith(match) || pathname === match ? 'active' : ''}
+              onClick={onClose}
+            >
+              <span className="sidebar-icon" aria-hidden>
+                {icon}
+              </span>
+              {label}
+            </Link>
+          ))}
+        </nav>
       </div>
 
       <div className="sidebar-footer">

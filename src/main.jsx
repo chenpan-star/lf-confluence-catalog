@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import AccessGate from './components/AccessGate';
 import './index.css';
+import './styles/ui.css';
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined;
 

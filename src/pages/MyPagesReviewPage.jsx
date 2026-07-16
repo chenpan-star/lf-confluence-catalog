@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import PageHeader from '../components/PageHeader';
 import { useCatalog } from '../context/CatalogContext';
 import StalePageRow from '../components/StalePageRow';
 import {
@@ -183,28 +184,17 @@ export default function MyPagesReviewPage() {
   const showPicker = hasQuery && !activeEditor && matchingEditors.length > 1;
 
   return (
-    <>
-      <nav className="breadcrumb">
-        <Link to="/">Home</Link>
-        <span>/</span>
-        <span>Filter by name</span>
-      </nav>
+    <div className="page-shell">
+      <PageHeader title="Filter by name">
+        Search any person by Confluence name, Slack handle, or email. Click a page title to preview
+        details on the right.
+      </PageHeader>
 
-      <header className="page-header">
-        <h1>Filter by name</h1>
-        <p>
-          Look up outdated Confluence pages by <strong>last editor</strong>. Search any person — not
-          just yourself — by Confluence name, Slack handle, or email.
-        </p>
-      </header>
-
-      <form className="card my-pages-form" onSubmit={handleSubmit}>
-        <label htmlFor="person-search">Person name</label>
-        <p className="my-pages-form-hint">
-          Click a page title to preview details on the right — you stay on this list. Examples:{' '}
-          <span className="mono">Chen Pan</span>, <span className="mono">chen.pan</span>
-        </p>
-        <div className="my-pages-form-row">
+      <form className="filter-panel my-pages-form" onSubmit={handleSubmit}>
+        <label htmlFor="person-search" className="filter-panel-title">
+          Person name
+        </label>
+        <div className="filter-panel-row">
           <input
             id="person-search"
             type="search"
@@ -431,6 +421,6 @@ export default function MyPagesReviewPage() {
         Need to nudge many people? Use <Link to="/review/editors">Send reminders</Link> to message
         editors in bulk.
       </p>
-    </>
+    </div>
   );
 }

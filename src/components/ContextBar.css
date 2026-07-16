@@ -1,7 +1,7 @@
 .context-bar {
-  background: var(--bg-elevated);
+  background: var(--surface-2);
   border-bottom: 1px solid var(--border);
-  padding: 0.55rem 1.5rem;
+  padding: 0.5rem var(--space-5);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -10,34 +10,37 @@
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   flex-wrap: nowrap;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   min-width: min-content;
 }
 
 .context-trail li {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   white-space: nowrap;
   color: var(--text-muted);
 }
 
 .context-trail li:not(:last-child)::after {
-  content: '›';
+  content: '/';
   color: var(--text-muted);
-  opacity: 0.7;
-  margin-left: 0.1rem;
+  opacity: 0.5;
+  margin-left: 0.15rem;
 }
 
 .context-trail a {
   color: var(--text-secondary);
   text-decoration: none;
+  padding: 0.15rem 0.25rem;
+  border-radius: 4px;
 }
 
 .context-trail a:hover {
   color: var(--accent);
+  background: var(--accent-soft);
   text-decoration: none;
 }
 
@@ -48,10 +51,10 @@
 
 @media (max-width: 768px) {
   .context-bar {
-    padding: 0.5rem 1rem;
+    padding: 0.45rem var(--space-4);
   }
 
   .context-trail {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 }

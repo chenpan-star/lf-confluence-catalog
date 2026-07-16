@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
+import PageHeader from '../components/PageHeader';
 import EditorReviewCard from '../components/EditorReviewCard';
 import ReviewMessageModal from '../components/ReviewMessageModal';
 import HygieneHelpCard, { HygieneStat, HygieneStatGrid } from '../components/HygieneHelp';
@@ -135,20 +136,11 @@ export default function EditorsReviewPage() {
   const hasExtraFilters = pageQuery || recency !== 'all' || spaceKey !== 'all';
 
   return (
-    <>
-      <nav className="breadcrumb">
-        <Link to="/">Home</Link>
-        <span>/</span>
-        <span>Send reminders</span>
-      </nav>
-
-      <header className="page-header">
-        <h1>Send reminders to last editors</h1>
-        <p>
-          These Confluence pages have not been updated in over a year. Each page is grouped under
-          whoever edited it last — send them a friendly reminder to clean it up.
-        </p>
-      </header>
+    <div className="page-shell">
+      <PageHeader title="Send reminders">
+        Outdated pages grouped by last editor — copy a Slack message and nudge people to update or
+        archive docs.
+      </PageHeader>
 
       <HygieneHelpCard />
 
@@ -361,6 +353,6 @@ export default function EditorsReviewPage() {
           onSendSlack={() => handleSendSlack(modalGroup)}
         />
       )}
-    </>
+    </div>
   );
 }
