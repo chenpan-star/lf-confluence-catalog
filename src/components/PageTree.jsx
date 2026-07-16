@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { formatDate, DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
 import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
 import { pageCatalogPath } from '../lib/pageTree';
-import { buildSidebarPageHref } from '../lib/reviewPaths';
+import SidebarPageLink from './SidebarPageLink';
 import './PageTree.css';
 
 function PageTreeNode({
@@ -17,8 +17,6 @@ function PageTreeNode({
   depth = 0,
   sidebarDetail,
   selectedPageId,
-  pathname,
-  searchParams,
 }) {
   const { page, children } = node;
   const hasChildren = children.length > 0;
@@ -27,10 +25,7 @@ function PageTreeNode({
   const localPath = pageCatalogPath(page, spaceKey, routeContext);
   const confluenceUrl = toConfluenceUrl(page.url, site);
   const selected = selectedPageId && String(page.id) === String(selectedPageId);
-  const sidebarHref =
-    sidebarDetail && page.id
-      ? buildSidebarPageHref(pathname, searchParams, page, spaceKey)
-      : null;
+  const useSidebar = sidebarDetail && page.id;
 
   return (
     <li className={`tree-node${selected ? ' tree-node-selected' : ''}`}>
@@ -51,10 +46,10 @@ function PageTreeNode({
 
         <div className="tree-content">
           <div className="tree-title-row">
-            {sidebarHref ? (
-              <Link to={sidebarHref} replace>
+            {useSidebar ? (
+              <SidebarPageLink page={page} spaceKey={spaceKey}>
                 {formatTitle(page.title)}
-              </Link>
+              </SidebarPageLink>
             ) : localPath ? (
               <Link to={localPath}>{formatTitle(page.title)}</Link>
             ) : (
@@ -92,8 +87,6 @@ function PageTreeNode({
               depth={depth + 1}
               sidebarDetail={sidebarDetail}
               selectedPageId={selectedPageId}
-              pathname={pathname}
-              searchParams={searchParams}
             />
           ))}
         </ul>
@@ -113,8 +106,6 @@ export default function PageTree({
 }) {
   const ctx = routeContext || (departmentId ? { departmentId } : {});
   const { catalog } = useCatalog();
-  const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
   if (!tree.length) {
@@ -133,8 +124,6 @@ export default function PageTree({
           defaultExpandedDepth={1}
           sidebarDetail={sidebarDetail}
           selectedPageId={selectedPageId}
-          pathname={pathname}
-          searchParams={searchParams}
         />
       ))}
     </ul>

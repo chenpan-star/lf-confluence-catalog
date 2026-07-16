@@ -19,9 +19,18 @@ export default function Layout({ children }) {
     }
   }, [isSearchRoute, searchParams]);
 
+  const detailPageId = searchParams.get('pageId') || '';
+  const detailSpaceKey = searchParams.get('pageSpace') || '';
+
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (detailPageId && detailSpaceKey) {
+      setMenuOpen(true);
+    }
+  }, [detailPageId, detailSpaceKey]);
 
   function handleSearch(e) {
     e.preventDefault();

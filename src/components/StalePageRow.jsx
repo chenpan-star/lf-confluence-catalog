@@ -1,4 +1,4 @@
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import { formatTitle } from '../lib/text';
 import { formatDate, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
@@ -6,7 +6,7 @@ import { isAnonymousEditor, lastEditorLabel, primaryContact, usesCreatorFallback
 import { guessSlackHandle } from '../lib/slack';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { pageCatalogPath } from '../lib/pageTree';
-import { buildSidebarPageHref } from '../lib/reviewPaths';
+import SidebarPageLink from './SidebarPageLink';
 import SlackReviewButton from './SlackReviewButton';
 
 export default function StalePageRow({
@@ -17,16 +17,11 @@ export default function StalePageRow({
   selected = false,
 }) {
   const { catalog } = useCatalog();
-  const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
   const title = formatTitle(page.title);
   const localPath = pageCatalogPath(page, page.spaceKey);
-  const sidebarHref =
-    reviewDetail && page.id
-      ? buildSidebarPageHref(pathname, searchParams, page, page.spaceKey)
-      : null;
-  const titleTo = sidebarHref || localPath;
+  const useSidebar = reviewDetail && page.id;
+  const titleTo = useSidebar ? null : localPath;
   const confluenceUrl = toConfluenceUrl(page.url, site);
   const contact = primaryContact(page);
   const editorRaw = lastEditorLabel(page);
@@ -41,16 +36,15 @@ export default function StalePageRow({
   const catLabel = catalog?.categories?.[page.spaceCategory]?.label;
   const rowClass = `stale-row${compact ? ' compact' : ''}${selected ? ' stale-row-selected' : ''}`;
 
-  const titleLink =
-    titleTo && !reviewDetail ? (
-      <Link to={titleTo} className="stale-title">
-        {title}
-      </Link>
-    ) : titleTo && reviewDetail ? (
-      <Link to={titleTo} className="stale-title" replace>
-        {title}
-      </Link>
-    ) : (
+  const titleLink = useSidebar ? (
+    <SidebarPageLink page={page} spaceKey={page.spaceKey} className="stale-title">
+      {title}
+    </SidebarPageLink>
+  ) : titleTo ? (
+    <Link to={titleTo} className="stale-title">
+      {title}
+    </Link>
+  ) : (
       <a href={confluenceUrl} target="_blank" rel="noreferrer" className="stale-title">
         {title} ↗
       </a>
@@ -100,14 +94,10 @@ export default function StalePageRow({
   return (
     <tr className={`stale-table-row${selected ? ' stale-row-selected' : ''}`}>
       <td className="stale-cell-title">
-        {titleTo ? (
-          reviewDetail ? (
-            <Link to={titleTo} replace>
-              {title}
-            </Link>
-          ) : (
-            <Link to={titleTo}>{title}</Link>
-          )
+        {useSidebar ? (
+          <SidebarPageLink page={page} spaceKey={page.spaceKey}>{title}</SidebarPageLink>
+        ) : titleTo ? (
+          <Link to={titleTo}>{title}</Link>
         ) : (
           <a href={confluenceUrl} target="_blank" rel="noreferrer">
             {title} ↗

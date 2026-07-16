@@ -1,10 +1,10 @@
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS, formatDate } from '../lib/labels';
 import { formatTitle } from '../lib/text';
 import { toConfluenceUrl } from '../lib/confluenceUrl';
 import { useCatalog } from '../context/CatalogContext';
 import { pageCatalogPath } from '../lib/pageTree';
-import { buildSidebarPageHref } from '../lib/reviewPaths';
+import SidebarPageLink from './SidebarPageLink';
 
 export default function PageList({
   pages,
@@ -17,8 +17,6 @@ export default function PageList({
 }) {
   const ctx = routeContext || (departmentId ? { departmentId } : {});
   const { catalog } = useCatalog();
-  const { pathname } = useLocation();
-  const [searchParams] = useSearchParams();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
 
   if (!pages.length) {
@@ -33,10 +31,7 @@ export default function PageList({
         const confluenceUrl = toConfluenceUrl(page.url, site);
         const title = formatTitle(page.title);
         const selected = selectedPageId && String(page.id) === String(selectedPageId);
-        const sidebarHref =
-          sidebarDetail && page.id
-            ? buildSidebarPageHref(pathname, searchParams, page, key)
-            : null;
+        const useSidebar = sidebarDetail && page.id;
 
         return (
           <li
@@ -44,10 +39,10 @@ export default function PageList({
             className={`page-item${selected ? ' page-item-selected' : ''}`}
           >
             <div>
-              {sidebarHref ? (
-                <Link to={sidebarHref} replace className="page-title-link">
+              {useSidebar ? (
+                <SidebarPageLink page={page} spaceKey={key} className="page-title-link">
                   {title}
-                </Link>
+                </SidebarPageLink>
               ) : localPath ? (
                 <Link to={localPath} className="page-title-link">
                   {title}
