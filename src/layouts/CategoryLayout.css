@@ -1,0 +1,105 @@
+.category-layout-header {
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.category-layout-header-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.category-layout-accent {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 999px;
+  flex-shrink: 0;
+  min-height: 3.5rem;
+}
+
+.category-layout-heading h1 {
+  font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 var(--space-2);
+  line-height: 1.2;
+}
+
+.category-layout-tagline {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+.category-layout-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--border);
+  max-width: 28rem;
+}
+
+.category-layout-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: var(--space-3) var(--space-2);
+  background: var(--surface-2);
+  text-align: center;
+}
+
+.category-layout-stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.category-layout-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.category-layout-stat-warn .category-layout-stat-value {
+  color: var(--amber);
+}
+
+@media (max-width: 520px) {
+  .category-layout-stats {
+    max-width: none;
+  }
+}
+
+.category-home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.category-intro {
+  padding: var(--space-5);
+}
+
+.category-intro-summary {
+  margin: 0 0 var(--space-3);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.category-intro-examples {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

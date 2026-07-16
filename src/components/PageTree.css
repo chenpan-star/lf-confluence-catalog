@@ -16,6 +16,22 @@
   padding-right: 0.35rem;
 }
 
+.tree-node-context > .tree-row .tree-title-row a,
+.tree-node-context > .tree-row .tree-title-row button {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.tree-node-match > .tree-row .tree-title-row a,
+.tree-node-match > .tree-row .tree-title-row button {
+  font-weight: 650;
+}
+
+.tree-node-context > .tree-row .page-subline,
+.tree-node-context > .tree-row .tree-badges {
+  opacity: 0.75;
+}
+
 .tree-row {
   display: flex;
   align-items: flex-start;

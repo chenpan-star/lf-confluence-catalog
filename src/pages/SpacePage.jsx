@@ -146,6 +146,48 @@ export default function SpacePage() {
     return pages.filter(matches);
   }, [space, docFilter, recencyFilter, search, viewMode, personFilter]);
 
+  const directMatches = useMemo(() => {
+    if (!space?.pages) return [];
+    const pages = space.pages || [];
+    return pages.filter((p) => {
+      if (docFilter !== 'all' && p.docType !== docFilter) return false;
+      if (!matchesRecency(p, recencyFilter)) return false;
+      if (personFilter.trim()) {
+        const selected = personFilter.trim();
+        const lastEditor = (p.lastEditor || '').trim();
+        const contact = accountablePerson(p);
+        if (
+          !editorsAreSamePerson(lastEditor, selected) &&
+          !editorsAreSamePerson(contact, selected)
+        ) {
+          return false;
+        }
+      }
+      if (search) {
+        const q = normalizeForSearch(search);
+        if (!normalizeForSearch(p.title || '').includes(q)) return false;
+      }
+      return true;
+    });
+  }, [space, docFilter, recencyFilter, search, personFilter]);
+
+  const highlightPageIds = useMemo(
+    () => new Set(directMatches.map((p) => p.id).filter(Boolean)),
+    [directMatches],
+  );
+
+  const hasActiveFilters =
+    Boolean(personFilter) ||
+    recencyFilter !== 'all' ||
+    Boolean(search.trim()) ||
+    docFilter !== 'all';
+
+  const displayedPageCount =
+    viewMode === 'tree' && hasActiveFilters ? directMatches.length : filteredPages.length;
+
+  const treeExpandDepth = hasActiveFilters ? 99 : 1;
+  const treeRemountKey = `${personFilter}|${recencyFilter}|${docFilter}|${search}|${treeExpandDepth}`;
+
   const pageTree = useMemo(() => buildPageTree(filteredPages), [filteredPages]);
 
   const listPage = readListPage(searchParams);
@@ -189,12 +231,6 @@ export default function SpacePage() {
     setPersonDraft('');
     setSearchParams({}, { replace: true });
   }
-
-  const hasActiveFilters =
-    Boolean(personFilter) ||
-    recencyFilter !== 'all' ||
-    Boolean(search.trim()) ||
-    docFilter !== 'all';
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="empty">Error: {error}</div>;
@@ -368,7 +404,7 @@ export default function SpacePage() {
 
       <div className="content-toolbar">
         <h2>
-          Pages <span className="content-toolbar-count">{formatNumber(filteredPages.length)}</span>
+          Pages <span className="content-toolbar-count">{formatNumber(displayedPageCount)}</span>
         </h2>
         <div className="segmented" role="group" aria-label="View mode">
           <button
@@ -446,13 +482,24 @@ export default function SpacePage() {
           </p>
         </div>
       ) : viewMode === 'tree' ? (
-        <PageTree
-          tree={pageTree}
-          spaceKey={space.key || spaceKey}
-          routeContext={routeContext}
-          sidebarDetail
-          selectedPageId={searchParams.get('pageId') || ''}
-        />
+        <>
+          {hasActiveFilters && (
+            <p className="space-tree-filter-hint">
+              Showing {formatNumber(directMatches.length)} matching page
+              {directMatches.length !== 1 ? 's' : ''} in tree context — ancestor folders are dimmed.
+            </p>
+          )}
+          <PageTree
+            key={treeRemountKey}
+            tree={pageTree}
+            spaceKey={space.key || spaceKey}
+            routeContext={routeContext}
+            sidebarDetail
+            selectedPageId={searchParams.get('pageId') || ''}
+            defaultExpandedDepth={treeExpandDepth}
+            highlightPageIds={hasActiveFilters ? highlightPageIds : null}
+          />
+        </>
       ) : (
         <PaginationBar
           page={safePage}

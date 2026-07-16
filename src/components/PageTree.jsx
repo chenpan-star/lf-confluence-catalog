@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDate, DOC_TYPE_LABELS, RECENCY_LABELS, RECENCY_COLORS } from '../lib/labels';
 import { formatTitle } from '../lib/text';
@@ -17,10 +17,17 @@ function PageTreeNode({
   depth = 0,
   sidebarDetail,
   selectedPageId,
+  highlightPageIds,
 }) {
   const { page, children } = node;
   const hasChildren = children.length > 0;
   const [expanded, setExpanded] = useState(depth < defaultExpandedDepth);
+  const isMatch = highlightPageIds ? highlightPageIds.has(page.id) : true;
+  const isContextOnly = highlightPageIds && !isMatch;
+
+  useEffect(() => {
+    if (depth < defaultExpandedDepth) setExpanded(true);
+  }, [defaultExpandedDepth, depth]);
 
   const localPath = pageCatalogPath(page, spaceKey, routeContext);
   const confluenceUrl = toConfluenceUrl(page.url, site);
@@ -28,7 +35,9 @@ function PageTreeNode({
   const useSidebar = sidebarDetail && page.id;
 
   return (
-    <li className={`tree-node${selected ? ' tree-node-selected' : ''}`}>
+    <li
+      className={`tree-node${selected ? ' tree-node-selected' : ''}${isContextOnly ? ' tree-node-context' : ''}${isMatch && highlightPageIds ? ' tree-node-match' : ''}`}
+    >
       <div className="tree-row" style={{ paddingLeft: `${depth * 1.25}rem` }}>
         {hasChildren ? (
           <button
@@ -87,6 +96,7 @@ function PageTreeNode({
               depth={depth + 1}
               sidebarDetail={sidebarDetail}
               selectedPageId={selectedPageId}
+              highlightPageIds={highlightPageIds}
             />
           ))}
         </ul>
@@ -103,6 +113,8 @@ export default function PageTree({
   emptyMessage = 'No pages match your filters.',
   sidebarDetail = false,
   selectedPageId = '',
+  defaultExpandedDepth = 1,
+  highlightPageIds = null,
 }) {
   const ctx = routeContext || (departmentId ? { departmentId } : {});
   const { catalog } = useCatalog();
@@ -121,9 +133,10 @@ export default function PageTree({
           site={site}
           spaceKey={spaceKey}
           routeContext={ctx}
-          defaultExpandedDepth={1}
+          defaultExpandedDepth={defaultExpandedDepth}
           sidebarDetail={sidebarDetail}
           selectedPageId={selectedPageId}
+          highlightPageIds={highlightPageIds}
         />
       ))}
     </ul>
