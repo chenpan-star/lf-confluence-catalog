@@ -39,24 +39,26 @@ export default function CategoryLayout() {
             <p className="category-layout-tagline">
               {intro?.summary || category.description}
             </p>
-          </div>
-        </div>
-        <div className="category-layout-stats" aria-label="Category summary">
-          <div className="category-layout-stat">
-            <span className="category-layout-stat-value">{formatNumber(spaces.length)}</span>
-            <span className="category-layout-stat-label">Spaces</span>
-          </div>
-          <div className="category-layout-stat">
-            <span className="category-layout-stat-value">{formatNumber(category.pageCount)}</span>
-            <span className="category-layout-stat-label">Pages</span>
-          </div>
-          <div
-            className={`category-layout-stat${(category.staleCount || 0) > 0 ? ' category-layout-stat-warn' : ''}`}
-          >
-            <span className="category-layout-stat-value">
-              {formatNumber(category.staleCount || 0)}
-            </span>
-            <span className="category-layout-stat-label">Need review</span>
+            <ul className="category-layout-meta" aria-label="Category summary">
+              <li>
+                <span className="category-layout-meta-value">{formatNumber(spaces.length)}</span>
+                <span className="category-layout-meta-label">spaces</span>
+              </li>
+              <li>
+                <span className="category-layout-meta-value">{formatNumber(category.pageCount)}</span>
+                <span className="category-layout-meta-label">pages</span>
+              </li>
+              <li
+                className={
+                  (category.staleCount || 0) > 0 ? 'category-layout-meta-warn' : undefined
+                }
+              >
+                <span className="category-layout-meta-value">
+                  {formatNumber(category.staleCount || 0)}
+                </span>
+                <span className="category-layout-meta-label">need review</span>
+              </li>
+            </ul>
           </div>
         </div>
       </header>
