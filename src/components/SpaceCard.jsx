@@ -16,7 +16,7 @@ export default function SpaceCard({ space, categoryColor, to }) {
         {active > 0 && <span className="badge active">{active} active</span>}
         {(space.staleCount || 0) > 0 && (
           <span className="badge" style={{ color: 'var(--amber)' }}>
-            {space.staleCount} stale
+            {space.staleCount} need review
           </span>
         )}
       </div>

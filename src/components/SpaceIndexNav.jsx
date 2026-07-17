@@ -71,13 +71,26 @@ export default function SpaceIndexNav({
                 <span className="space-index-name">{space.name}</span>
                 <span className="mono space-index-key">{key}</span>
                 {(space.staleCount || 0) > 0 && (
-                  <span className="space-index-stale">{space.staleCount} stale</span>
+                  <span className="space-index-stale">{space.staleCount} need review</span>
                 )}
               </NavLink>
             </li>
           );
         })}
       </ul>
+
+      {filtered.length === 0 && (
+        <div className="space-index-empty">
+          <p>
+            No spaces match{search.trim() ? ` “${search.trim()}”` : ''}.
+          </p>
+          {search.trim() && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSearchChange('')}>
+              Clear filter
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

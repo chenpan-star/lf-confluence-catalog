@@ -455,20 +455,7 @@ export default function SpacePage() {
         </div>
       </div>
 
-      {!personFilter && (
-        <div className="pill-group" role="group" aria-label="Freshness filter">
-          {FRESHNESS_PILLS.map((pill) => (
-            <button
-              key={pill.id}
-              type="button"
-              className={`pill${recencyFilter === pill.id ? ' active' : ''}`}
-              onClick={() => setFreshness(pill.id)}
-            >
-              {pill.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <p className="space-preview-hint">Click a page title to preview details on the right.</p>
 
       <div className="space-page-filters">
         <div className="space-filter-search-row">
@@ -495,6 +482,30 @@ export default function SpacePage() {
             </button>
           )}
         </div>
+
+        {!personFilter && (
+          <div className="space-filter-freshness">
+            <span className="space-filter-label">Freshness</span>
+            <div className="pill-group" role="group" aria-label="Freshness filter">
+              {FRESHNESS_PILLS.map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  className={`pill${recencyFilter === pill.id ? ' active' : ''}`}
+                  onClick={() => setFreshness(pill.id)}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {personFilter && (
+          <p className="space-filter-person-note">
+            Freshness filters above apply to <strong>{personFilter}</strong>&apos;s pages.
+          </p>
+        )}
 
         {docTypesInSpace.length > 0 && (
           <div className="space-doc-type-filters">

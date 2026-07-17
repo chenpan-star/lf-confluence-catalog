@@ -245,3 +245,17 @@
     width: 100%;
   }
 }
+
+.space-index-empty {
+  padding: 0.75rem 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.space-index-empty p {
+  margin: 0;
+}

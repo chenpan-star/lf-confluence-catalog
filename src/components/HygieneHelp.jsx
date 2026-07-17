@@ -6,9 +6,9 @@ const STEPS = [
   'The Slack bot DMs them (or copy & open Slack if the bot is not set up yet).',
 ];
 
-export default function HygieneHelpCard({ title = 'How this works' }) {
+export default function HygieneHelpCard({ title = 'How this works', compact = false }) {
   return (
-    <aside className="hygiene-help card">
+    <aside className={`hygiene-help card${compact ? ' hygiene-help-compact' : ''}`}>
       <h2 className="hygiene-help-title">{title}</h2>
       <ol className="hygiene-help-steps">
         {STEPS.map((step, index) => (
@@ -18,10 +18,12 @@ export default function HygieneHelpCard({ title = 'How this works' }) {
           </li>
         ))}
       </ol>
-      <p className="hygiene-help-tip">
-        Ask them to <strong>update</strong>, <strong>archive</strong>, or <strong>delete</strong> pages
-        that are no longer needed.
-      </p>
+      {!compact && (
+        <p className="hygiene-help-tip">
+          Ask them to <strong>update</strong>, <strong>archive</strong>, or <strong>delete</strong>{' '}
+          pages that are no longer needed.
+        </p>
+      )}
     </aside>
   );
 }

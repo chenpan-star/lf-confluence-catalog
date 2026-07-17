@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import EditorReviewCard from '../components/EditorReviewCard';
 import ReviewMessageModal from '../components/ReviewMessageModal';
 import HygieneHelpCard, { HygieneStat, HygieneStatGrid } from '../components/HygieneHelp';
+import RemindStatusBanner from '../components/RemindStatusBanner';
 import {
   applyEditorGroupFilters,
   groupStalePagesByEditor,
@@ -142,6 +143,7 @@ export default function EditorsReviewPage() {
         paste manually.
       </PageHeader>
 
+      <RemindStatusBanner />
       <HygieneHelpCard />
 
       <HygieneStatGrid>
@@ -307,12 +309,28 @@ export default function EditorsReviewPage() {
           <div className="review-empty-icon" aria-hidden>
             ✓
           </div>
-          <p>
-            <strong>No matches.</strong>{' '}
-            {editorQuery
-              ? 'Try a different spelling, Slack handle, or partial name.'
-              : 'Try searching for a person above.'}
-          </p>
+          {groups.length === 0 && hideBots && botPageCount > 0 ? (
+            <p>
+              <strong>Only automated accounts left.</strong> {formatNumber(botPageCount)} outdated
+              pages are hidden. Show automated accounts, or leave them for a separate cleanup.
+            </p>
+          ) : groups.length === 0 ? (
+            <p>
+              <strong>Nothing to remind right now.</strong> There are no outdated pages with a
+              reachable editor in this snapshot.
+            </p>
+          ) : editorQuery || hasExtraFilters ? (
+            <p>
+              <strong>No matches for your filters.</strong>{' '}
+              {editorQuery
+                ? 'Try a different spelling, Slack handle, or clear filters.'
+                : 'Clear space, freshness, or page filters to see more people.'}
+            </p>
+          ) : (
+            <p>
+              <strong>No matches.</strong> Try searching for a person above.
+            </p>
+          )}
         </div>
       ) : (
         <>

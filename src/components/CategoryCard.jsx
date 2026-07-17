@@ -22,7 +22,7 @@ export default function CategoryCard({ id, category }) {
         </span>
         {(category.staleCount || 0) > 0 && (
           <span className="dept-stale-count">
-            <strong>{formatNumber(category.staleCount)}</strong> stale
+            <strong>{formatNumber(category.staleCount)}</strong> need review
           </span>
         )}
       </div>

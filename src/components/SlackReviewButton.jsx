@@ -17,7 +17,7 @@ export default function SlackReviewButton({
   spaceKey,
   catalogPageUrl = '',
   className = 'btn btn-sm btn-primary',
-  children = 'Message on Slack',
+  children = 'Send reminder',
 }) {
   const { catalog, slackConfig } = useCatalog();
   const [hint, setHint] = useState('');
@@ -74,7 +74,11 @@ export default function SlackReviewButton({
 
     if (result.fallback) {
       await fallbackOpenSlack();
-      return { ok: true, openedSlackManually: true };
+      return {
+        ok: false,
+        error: `${result.error || 'Couldn’t send via bot'}. Opened Slack so you can paste manually.`,
+        openedSlackManually: true,
+      };
     }
 
     return result;

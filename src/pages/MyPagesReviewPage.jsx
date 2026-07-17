@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useCatalog } from '../context/CatalogContext';
 import StalePageRow from '../components/StalePageRow';
+import HygieneHelpCard from '../components/HygieneHelp';
+import RemindStatusBanner from '../components/RemindStatusBanner';
 import {
   collectPagesForEditor,
   findMatchingEditors,
@@ -189,6 +191,9 @@ export default function MyPagesReviewPage() {
         Search any person by Confluence name, Slack handle, or email. Click a page title to preview
         details on the right.
       </PageHeader>
+
+      <RemindStatusBanner />
+      <HygieneHelpCard compact title="Find someone, then remind" />
 
       <form className="filter-panel my-pages-form" onSubmit={handleSubmit}>
         <label htmlFor="person-search" className="filter-panel-title">

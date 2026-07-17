@@ -56,5 +56,23 @@
 
   .context-trail {
     font-size: 0.78rem;
+    width: 100%;
+  }
+
+  .context-trail li:not(.context-current) {
+    flex-shrink: 0;
+  }
+
+  .context-trail .context-current {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .context-trail .context-current span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

@@ -48,6 +48,34 @@
   margin: 0;
 }
 
+.hygiene-help-compact {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem;
+}
+
+.hygiene-help-compact .hygiene-help-steps {
+  margin-bottom: 0;
+}
+
+.remind-status-banner {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1.1rem;
+  background: color-mix(in srgb, var(--amber) 10%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--border));
+}
+
+.remind-status-banner p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.remind-status-banner-ok {
+  background: color-mix(in srgb, var(--green, #10b981) 8%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--green, #10b981) 30%, var(--border));
+}
+
 .hygiene-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

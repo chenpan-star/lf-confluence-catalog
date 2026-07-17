@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
 import {
   buildBundledReviewMessage,
@@ -22,6 +22,7 @@ export default function ReviewMessageModal({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showMore, setShowMore] = useState(false);
 
   const message =
     editor && pages?.length
@@ -34,22 +35,6 @@ export default function ReviewMessageModal({
       ? buildBundledReviewMailto({ editor, pages, site })
       : '#';
   const botConfigured = isBotRemindConfigured(slackConfig);
-
-  useEffect(() => {
-    if (!message) return undefined;
-    let active = true;
-    (async () => {
-      try {
-        await navigator.clipboard.writeText(message);
-        if (active) setCopied(true);
-      } catch {
-        /* clipboard may be blocked */
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [message]);
 
   if (!editor || !pages?.length) return null;
 
@@ -87,14 +72,17 @@ export default function ReviewMessageModal({
             ? `DM sent to ${handle ? `@${handle}` : editor} (${result.email}).`
             : `DM sent to ${handle ? `@${handle}` : editor}.`,
         );
-        setTimeout(() => onClose?.(), 1600);
+        setTimeout(() => onClose?.(), 1800);
         return;
       }
 
       if (result.fallback) {
+        setError(
+          `${result.error || 'Couldn’t send via bot'}. Opening Slack so you can paste manually.`,
+        );
+        await copyMessage();
         await (onSendSlack?.() ??
           openBundledSlackReview({ editor, pages, site, slackConfig }));
-        onClose?.();
         return;
       }
 
@@ -109,10 +97,13 @@ export default function ReviewMessageModal({
   async function handleOpenSlack() {
     if (sending) return;
     setSending(true);
+    setError('');
     try {
+      await copyMessage();
       if (onSendSlack) await onSendSlack();
       else await openBundledSlackReview({ editor, pages, site, slackConfig });
-      onClose?.();
+      setSuccess(`Copied — paste in Slack to ${handle ? `@${handle}` : editor}.`);
+      setTimeout(() => onClose?.(), 1400);
     } catch (err) {
       setError(err?.message || 'Could not open Slack');
       setSending(false);
@@ -129,18 +120,18 @@ export default function ReviewMessageModal({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="review-modal-header">
-          <h2 id="review-modal-title">Reminder for {editor}</h2>
+          <h2 id="review-modal-title">Send reminder to {editor}?</h2>
           <button type="button" className="review-modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
         </header>
 
         <p className="review-modal-sub">
-          {pages.length} outdated page{pages.length === 1 ? '' : 's'} included
+          {pages.length} outdated page{pages.length === 1 ? '' : 's'}
           {handle ? (
             <>
               {' '}
-              · Slack <span className="mono">@{handle}</span>
+              · <span className="mono">@{handle}</span>
             </>
           ) : null}
           {email ? (
@@ -153,18 +144,18 @@ export default function ReviewMessageModal({
 
         {botConfigured ? (
           <p className="remind-confirm-mode">
-            Confirm to have the Slack bot <strong>DM them directly</strong>, or open Slack to paste
-            manually.
+            Confirm to have the Slack bot <strong>DM them directly</strong>.
           </p>
         ) : (
           <p className="remind-confirm-mode remind-confirm-mode-warn">
-            Bot API is not configured — use <strong>Open Slack</strong> and paste the message.
+            Bot not set up — confirm will <strong>copy the message</strong> and open Slack for you
+            to paste.
           </p>
         )}
 
-        {copied && !success && (
+        {copied && !success && !error && (
           <p className="review-modal-copied" role="status">
-            ✓ Message copied — ready to paste in Slack
+            ✓ Message copied
           </p>
         )}
         {success && (
@@ -178,10 +169,11 @@ export default function ReviewMessageModal({
           </p>
         )}
 
+        <p className="review-modal-preview-label">Message preview</p>
         <pre className="review-modal-body">{message}</pre>
 
         <div className="review-modal-actions">
-          {botConfigured && (
+          {botConfigured ? (
             <button
               type="button"
               className="btn btn-primary"
@@ -190,25 +182,38 @@ export default function ReviewMessageModal({
             >
               {sending ? 'Sending…' : 'Send DM'}
             </button>
-          )}
+          ) : null}
           <button
             type="button"
             className={botConfigured ? 'btn btn-secondary' : 'btn btn-primary'}
             disabled={sending || Boolean(success)}
             onClick={handleOpenSlack}
           >
-            {botConfigured ? 'Copy & open Slack' : 'Open Slack'}
+            {sending && !botConfigured ? 'Opening…' : 'Copy & open Slack'}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={copyMessage} disabled={sending}>
-            Copy again
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={sending}
+            onClick={() => setShowMore((v) => !v)}
+          >
+            {showMore ? 'Hide options' : 'More options'}
           </button>
-          <a className="btn btn-secondary" href={mailto}>
-            Use email instead
-          </a>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={sending}>
             Cancel
           </button>
         </div>
+
+        {showMore && (
+          <div className="review-modal-more">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={copyMessage} disabled={sending}>
+              Copy again
+            </button>
+            <a className="btn btn-secondary btn-sm" href={mailto}>
+              Use email instead
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

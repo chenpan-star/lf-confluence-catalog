@@ -4,6 +4,8 @@ import { useCatalog } from '../context/CatalogContext';
 import PageHeader from '../components/PageHeader';
 import StalePageRow from '../components/StalePageRow';
 import Pagination, { PaginationBar } from '../components/Pagination';
+import HygieneHelpCard from '../components/HygieneHelp';
+import RemindStatusBanner from '../components/RemindStatusBanner';
 import { CATEGORY_ORDER } from '../lib/departments';
 import { filterStalePages, groupStalePagesByCategory } from '../lib/health';
 import {
@@ -17,6 +19,7 @@ import {
 } from '../lib/pagination';
 import { parseCreatorFallback, withCreatorFallback } from '../lib/reviewPaths';
 import { formatNumber } from '../lib/labels';
+import '../components/HygieneHelp.css';
 
 export default function StaleContentPage() {
   const { catalog, loading, error, health } = useCatalog();
@@ -93,6 +96,9 @@ export default function StaleContentPage() {
         Pages not updated in over a year. For bulk reminders, try{' '}
         <Link to="/review/editors">Send reminders</Link>.
       </PageHeader>
+
+      <RemindStatusBanner />
+      <HygieneHelpCard compact title="Remind from this list" />
 
       <div className="stat-chips" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-chip">
@@ -302,8 +308,8 @@ export default function StaleContentPage() {
       )}
 
       <p className="stale-footnote">
-        Click <strong>Remind</strong>, confirm the recipient, then send a Slack DM via the bot (or
-        copy &amp; open Slack if the bot is not configured yet).
+        Click <strong>Send reminder</strong>, confirm the recipient, then send a Slack DM via the
+        bot (or copy &amp; open Slack if the bot is not set up yet).
       </p>
     </div>
   );

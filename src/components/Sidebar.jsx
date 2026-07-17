@@ -1,4 +1,4 @@
-import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { useTheme } from '../context/ThemeContext';
@@ -27,7 +27,6 @@ function matchCategoryId(pathname) {
 
 export default function Sidebar({ mobileOpen, onClose }) {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const params = useParams();
   const { catalog } = useCatalog();
   const { theme, setTheme, themes } = useTheme();
@@ -54,9 +53,6 @@ export default function Sidebar({ mobileOpen, onClose }) {
     if (expandedCategoryId === id) {
       e.preventDefault();
       setExpandedCategoryId(null);
-      if (pathname.startsWith(`/category/${id}`)) {
-        navigate('/');
-      }
       return;
     }
     setExpandedCategoryId(id);
@@ -106,7 +102,13 @@ export default function Sidebar({ mobileOpen, onClose }) {
                     aria-hidden
                   />
                   <span className="sidebar-category-label">{cat.label}</span>
-                  <span className="sidebar-category-count">{cat.spaceCount}</span>
+                  <span
+                    className="sidebar-category-count"
+                    title={`${formatNumber(cat.spaceCount)} spaces`}
+                    aria-label={`${formatNumber(cat.spaceCount)} spaces`}
+                  >
+                    {cat.spaceCount}
+                  </span>
                   <span className="sidebar-category-chevron" aria-hidden>
                     {expanded ? '▼' : '▶'}
                   </span>

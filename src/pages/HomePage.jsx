@@ -21,8 +21,7 @@ export default function HomePage() {
       <section className="hero hero-home">
         <h1>LotusFlare documentation catalog</h1>
         <p className="hero-lead">
-          Find outdated pages, browse by topic, or look up anyone&apos;s Confluence pages — all in
-          one place.
+          Browse spaces by topic, or find outdated pages and remind the people who own them.
         </p>
         {meta.refreshedAt && (
           <p className="hero-meta">
@@ -41,7 +40,7 @@ export default function HomePage() {
               </p>
             </div>
             <Link to="/review/editors" className="btn btn-primary btn-sm home-attention-cta">
-              Review &amp; send reminders
+              Send reminders
             </Link>
           </div>
         )}
@@ -50,38 +49,56 @@ export default function HomePage() {
       <section className="home-section">
         <div className="section-head">
           <div>
-            <h2 className="home-section-title">Start here</h2>
-            <p className="section-desc">Two ways to work — pick what fits your task.</p>
+            <h2 className="home-section-title">Browse</h2>
+            <p className="section-desc">Explore documentation by topic or search the catalog.</p>
           </div>
         </div>
-        <div className="home-quick-start-grid">
-          <Link to="/categories" className="card card-link home-quick-start-card">
+        <div className="home-quick-start-grid home-quick-start-grid-2">
+          <Link to="/categories" className="card card-link home-quick-start-card home-quick-start-primary">
             <span className="home-quick-start-icon" aria-hidden>
               ◫
             </span>
             <h3>Browse by category</h3>
-            <p>Explore spaces grouped by topic. Spaces appear in the left panel when you pick one.</p>
+            <p>Spaces grouped by topic — pick a category, then open a space.</p>
           </Link>
-          <Link to="/review/my-pages" className="card card-link home-quick-start-card home-quick-start-primary">
+          <Link to="/search" className="card card-link home-quick-start-card">
+            <span className="home-quick-start-icon" aria-hidden>
+              ⌕
+            </span>
+            <h3>Search the catalog</h3>
+            <p>Find pages, spaces, or people by keyword.</p>
+          </Link>
+        </div>
+      </section>
+
+      <section className="home-section">
+        <div className="section-head">
+          <div>
+            <h2 className="home-section-title">Review &amp; remind</h2>
+            <p className="section-desc">Find outdated pages and nudge the last editors.</p>
+          </div>
+        </div>
+        <div className="home-quick-start-grid">
+          <Link to="/review/my-pages" className="card card-link home-quick-start-card">
             <span className="home-quick-start-icon" aria-hidden>
               👤
             </span>
             <h3>Filter by name</h3>
-            <p>Search any person to see pages they last edited — current and outdated.</p>
+            <p>See pages someone last edited — current and outdated.</p>
           </Link>
           <Link to="/review/editors" className="card card-link home-quick-start-card">
             <span className="home-quick-start-icon" aria-hidden>
               ✉
             </span>
             <h3>Send reminders</h3>
-            <p>Outdated pages grouped by editor — copy a Slack message and nudge owners.</p>
+            <p>Outdated pages grouped by editor — confirm and remind on Slack.</p>
           </Link>
           <Link to="/stale" className="card card-link home-quick-start-card">
             <span className="home-quick-start-icon" aria-hidden>
               ⏱
             </span>
             <h3>All outdated pages</h3>
-            <p>Full list of pages not updated in over a year — filter by category or person.</p>
+            <p>Full list not updated in over a year — filter by category or person.</p>
           </Link>
         </div>
       </section>
@@ -105,8 +122,6 @@ export default function HomePage() {
 
       <section className="home-section home-section-muted">
         <p className="home-alt-path">
-          <Link to="/search">Search the catalog</Link>
-          {' · '}
           <Link to="/spaces">Browse all spaces</Link>
         </p>
       </section>

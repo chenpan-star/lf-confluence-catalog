@@ -85,7 +85,7 @@ export default function StalePageRow({
           catalogPageUrl={catalogPageUrl}
           className="btn btn-sm btn-secondary"
         >
-          Remind
+          Send reminder
         </SlackReviewButton>
       </li>
     );
@@ -147,7 +147,7 @@ export default function StalePageRow({
           catalogPageUrl={catalogPageUrl}
           className="btn btn-sm btn-primary"
         >
-          Remind
+          Send reminder
         </SlackReviewButton>
         <a
           href={confluenceUrl}

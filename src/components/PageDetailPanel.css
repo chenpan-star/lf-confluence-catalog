@@ -126,6 +126,17 @@
   line-height: 1.4;
 }
 
+.detail-remind-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.detail-remind-meta-warn {
+  color: var(--amber);
+}
+
 .detail-panel-section {
   display: flex;
   flex-direction: column;

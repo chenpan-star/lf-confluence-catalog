@@ -119,6 +119,14 @@
   align-items: center;
 }
 
+.editor-review-bot-note {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 .editor-review-expand {
   margin-top: 0.85rem;
   padding-top: 0.85rem;
@@ -210,4 +218,20 @@
   background: color-mix(in srgb, #ef4444 10%, var(--bg-elevated));
   border-radius: 8px;
   line-height: 1.4;
+}
+
+.review-modal-preview-label {
+  margin: 0.75rem 1.25rem 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.review-modal-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0 1.25rem 1rem;
 }

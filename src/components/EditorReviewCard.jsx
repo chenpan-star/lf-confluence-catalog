@@ -55,9 +55,14 @@ export default function EditorReviewCard({
             type="button"
             className="btn btn-sm btn-primary"
             onClick={() => onMessageAll(group)}
+            disabled={bot}
+            title={bot ? 'Automated accounts usually should not be messaged' : undefined}
           >
             Send reminder
           </button>
+          {bot && (
+            <p className="editor-review-bot-note">Usually skip — automated account.</p>
+          )}
         </div>
       </div>
 

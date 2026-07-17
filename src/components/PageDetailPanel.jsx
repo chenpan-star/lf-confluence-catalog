@@ -105,16 +105,39 @@ export default function PageDetailPanel({ spaceKey, pageId }) {
           <a href={confluenceUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
             Open in Confluence ↗
           </a>
-          {space && (
-            <SlackReviewButton
-              page={page}
-              spaceName={space.name}
-              spaceKey={space.key || spaceKey}
-              catalogPageUrl={catalogPageUrl}
-              className="btn btn-sm btn-secondary"
-            >
-              Send reminder
-            </SlackReviewButton>
+          {space && contact && (
+            <>
+              <SlackReviewButton
+                page={page}
+                spaceName={space.name}
+                spaceKey={space.key || spaceKey}
+                catalogPageUrl={catalogPageUrl}
+                className={`btn btn-sm${isOutdated ? ' btn-primary' : ' btn-secondary'}`}
+              >
+                Send reminder
+              </SlackReviewButton>
+              <p className={`detail-remind-meta${viaCreator ? ' detail-remind-meta-warn' : ''}`}>
+                {isOutdated ? (
+                  <>
+                    Will message <strong>{contact}</strong>
+                    {handle ? (
+                      <>
+                        {' '}
+                        (<span className="mono">@{handle}</span>)
+                      </>
+                    ) : null}
+                    {viaCreator ? ' — using creator because last editor was unreachable.' : '.'}
+                  </>
+                ) : (
+                  <>This page looks current — a reminder is usually not needed.</>
+                )}
+              </p>
+            </>
+          )}
+          {space && !contact && (
+            <p className="detail-remind-meta detail-remind-meta-warn">
+              No reachable contact for a reminder.
+            </p>
           )}
         </div>
 

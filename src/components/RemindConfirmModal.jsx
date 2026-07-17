@@ -41,6 +41,8 @@ export default function RemindConfirmModal({
             : `DM sent to ${label}.`,
         );
         setTimeout(() => onClose?.(), 1600);
+      } else if (result?.openedSlackManually) {
+        setError(result.error || 'Opened Slack for manual paste.');
       } else {
         setError(result?.error || 'Failed to send DM');
       }
