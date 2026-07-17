@@ -1,10 +1,10 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import BarChart from '../components/BarChart';
 import PageList from '../components/PageList';
 import PageTree from '../components/PageTree';
-import { PaginationBar } from '../components/Pagination';
+import { PaginationBar, paginationMeta } from '../components/Pagination';
 import { buildPageTree, filterPagesWithAncestors } from '../lib/pageTree';
 import { normalizeForSearch } from '../lib/text';
 import { accountablePerson } from '../lib/contact';
@@ -16,7 +16,6 @@ import {
   clearListPage,
   computePagination,
   readListPage,
-  scrollToTop,
   slicePage,
   PAGE_SIZE,
 } from '../lib/pagination';
@@ -72,6 +71,7 @@ export default function SpacePage() {
   const [personDraft, setPersonDraft] = useState(searchParams.get('person') || '');
   const [viewMode, setViewMode] = useState('flat');
   const [personPanelOpen, setPersonPanelOpen] = useState(Boolean(searchParams.get('person')));
+  const pagesSectionRef = useRef(null);
 
   const personFilter = searchParams.get('person') || '';
   const recencyFilter = searchParams.get('freshness') || 'all';
@@ -206,16 +206,31 @@ export default function SpacePage() {
 
   const pageTree = useMemo(() => buildPageTree(filteredPages), [filteredPages]);
 
+  const paginationTotal = viewMode === 'tree' ? pageTree.length : filteredPages.length;
   const listPage = readListPage(searchParams);
-  const { safePage } = computePagination(filteredPages.length, listPage, PAGE_SIZE);
+  const { safePage } = computePagination(paginationTotal, listPage, PAGE_SIZE);
+  const pageMeta = paginationMeta(safePage, PAGE_SIZE, paginationTotal);
   const pagedFlatPages = useMemo(
     () => slicePage(filteredPages, safePage, PAGE_SIZE),
     [filteredPages, safePage],
   );
+  const pagedTree = useMemo(
+    () => slicePage(pageTree, safePage, PAGE_SIZE),
+    [pageTree, safePage],
+  );
+
+  function scrollToPages() {
+    pagesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function setListPage(page) {
     setSearchParams(applyListPage(searchParams, page), { replace: true });
-    scrollToTop();
+    requestAnimationFrame(scrollToPages);
+  }
+
+  function setViewModeAndReset(mode) {
+    setViewMode(mode);
+    setSearchParams(clearListPage(searchParams), { replace: true });
   }
 
   function updateParams(mutator) {
@@ -433,7 +448,7 @@ export default function SpacePage() {
         )}
       </section>
 
-      <div className="content-toolbar">
+      <div className="content-toolbar" id="space-pages" ref={pagesSectionRef}>
         <h2>
           Pages <span className="content-toolbar-count">{formatNumber(displayedPageCount)}</span>
         </h2>
@@ -441,14 +456,14 @@ export default function SpacePage() {
           <button
             type="button"
             className={viewMode === 'flat' ? 'active' : ''}
-            onClick={() => setViewMode('flat')}
+            onClick={() => setViewModeAndReset('flat')}
           >
             List
           </button>
           <button
             type="button"
             className={viewMode === 'tree' ? 'active' : ''}
-            onClick={() => setViewMode('tree')}
+            onClick={() => setViewModeAndReset('tree')}
           >
             Tree
           </button>
@@ -550,41 +565,63 @@ export default function SpacePage() {
             Try clearing the person filter or choosing <strong>All</strong> freshness.
           </p>
         </div>
-      ) : viewMode === 'tree' ? (
+      ) : (
         <>
-          {hasActiveFilters && (
-            <p className="space-tree-filter-hint">
-              Showing {formatNumber(directMatches.length)} matching page
-              {directMatches.length !== 1 ? 's' : ''} in tree context — ancestor folders are dimmed.
+          {paginationTotal > PAGE_SIZE && (
+            <p className="space-page-range" aria-live="polite">
+              Showing {formatNumber(pageMeta.start)}–{formatNumber(pageMeta.end)} of{' '}
+              {formatNumber(paginationTotal)}{' '}
+              {viewMode === 'tree' ? 'top-level pages' : 'pages'}
+              <span className="space-page-range-pages">
+                {' '}
+                · Page {pageMeta.safePage} of {pageMeta.pageCount}
+              </span>
             </p>
           )}
-          <PageTree
-            key={treeRemountKey}
-            tree={pageTree}
-            spaceKey={space.key || spaceKey}
-            routeContext={routeContext}
-            sidebarDetail
-            selectedPageId={searchParams.get('pageId') || ''}
-            defaultExpandedDepth={treeExpandDepth}
-            highlightPageIds={hasActiveFilters ? highlightPageIds : null}
-          />
+          <PaginationBar
+            page={safePage}
+            pageSize={PAGE_SIZE}
+            total={paginationTotal}
+            onPageChange={setListPage}
+            itemLabel={viewMode === 'tree' ? 'top-level pages' : 'pages'}
+          >
+            {viewMode === 'tree' ? (
+              <>
+                {hasActiveFilters && (
+                  <p className="space-tree-filter-hint">
+                    Showing {formatNumber(directMatches.length)} matching page
+                    {directMatches.length !== 1 ? 's' : ''} in tree context — ancestor folders are
+                    dimmed.
+                  </p>
+                )}
+                {paginationTotal > PAGE_SIZE && (
+                  <p className="space-tree-page-hint">
+                    Tree view is paginated by top-level pages ({PAGE_SIZE} per page). Switch to List
+                    for a flat paginated list of every page.
+                  </p>
+                )}
+                <PageTree
+                  key={treeRemountKey}
+                  tree={pagedTree}
+                  spaceKey={space.key || spaceKey}
+                  routeContext={routeContext}
+                  sidebarDetail
+                  selectedPageId={searchParams.get('pageId') || ''}
+                  defaultExpandedDepth={treeExpandDepth}
+                  highlightPageIds={hasActiveFilters ? highlightPageIds : null}
+                />
+              </>
+            ) : (
+              <PageList
+                pages={pagedFlatPages}
+                spaceKey={space.key || spaceKey}
+                routeContext={routeContext}
+                sidebarDetail
+                selectedPageId={searchParams.get('pageId') || ''}
+              />
+            )}
+          </PaginationBar>
         </>
-      ) : (
-        <PaginationBar
-          page={safePage}
-          pageSize={PAGE_SIZE}
-          total={filteredPages.length}
-          onPageChange={setListPage}
-          itemLabel="pages"
-        >
-          <PageList
-            pages={pagedFlatPages}
-            spaceKey={space.key || spaceKey}
-            routeContext={routeContext}
-            sidebarDetail
-            selectedPageId={searchParams.get('pageId') || ''}
-          />
-        </PaginationBar>
       )}
     </div>
   );
