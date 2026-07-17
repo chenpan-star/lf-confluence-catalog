@@ -138,8 +138,8 @@ export default function EditorsReviewPage() {
   return (
     <div className="page-shell">
       <PageHeader title="Send reminders">
-        Outdated pages grouped by last editor — copy a Slack message and nudge people to update or
-        archive docs.
+        Outdated pages grouped by last editor — confirm to DM them on Slack, or copy a message to
+        paste manually.
       </PageHeader>
 
       <HygieneHelpCard />
@@ -340,8 +340,9 @@ export default function EditorsReviewPage() {
       )}
 
       <p className="stale-footnote">
-        Tip: after clicking <strong>Send reminder</strong>, paste the message into a Slack DM. One
-        message can list all outdated pages for that person.
+        Tip: after confirming <strong>Send DM</strong>, the Slack bot messages the editor. If the
+        bot is not set up yet, use <strong>Copy &amp; open Slack</strong> and paste into their DM.
+        One message can list all outdated pages for that person.
       </p>
 
       {modalGroup && (
@@ -349,6 +350,7 @@ export default function EditorsReviewPage() {
           editor={modalGroup.editor}
           pages={modalGroup.pages}
           site={catalog.meta?.source}
+          slackConfig={slackConfig}
           onClose={() => setModalGroup(null)}
           onSendSlack={() => handleSendSlack(modalGroup)}
         />

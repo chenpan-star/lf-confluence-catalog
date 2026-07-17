@@ -3,5 +3,6 @@
   "teamId": "",
   "fallbackChannelId": "",
   "users": {},
-  "_comment": "Add Slack member IDs to users, e.g. \"Linus Chui\": \"U01234567\". Find teamId in Slack URL: app.slack.com/client/TEAM_ID/..."
+  "remindApiUrl": "",
+  "_comment": "Set remindApiUrl to your Cloudflare Worker URL (no trailing slash). Put REMIND_API_KEY in VITE_REMIND_API_KEY (never commit). Optional: map Confluence names to Slack member IDs in users for deep-link fallback. teamId from app.slack.com/client/TEAM_ID/…"
 }

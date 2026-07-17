@@ -302,8 +302,8 @@ export default function StaleContentPage() {
       )}
 
       <p className="stale-footnote">
-        Click <strong>Remind</strong> to copy a message and open Slack. Paste it into a direct
-        message to the last editor.
+        Click <strong>Remind</strong>, confirm the recipient, then send a Slack DM via the bot (or
+        copy &amp; open Slack if the bot is not configured yet).
       </p>
     </div>
   );

@@ -7,7 +7,25 @@ export const DEFAULT_SLACK_CONFIG = {
   teamId: '',
   fallbackChannelId: '',
   users: {},
+  /** Cloudflare Worker URL for bot DMs, e.g. https://lf-confluence-slack-remind….workers.dev */
+  remindApiUrl: '',
 };
+
+/** Resolve remind API URL: Vite env wins, then slack.json. */
+export function getRemindApiUrl(slackConfig = DEFAULT_SLACK_CONFIG) {
+  const fromEnv = (import.meta.env.VITE_REMIND_API_URL || '').trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  return (slackConfig.remindApiUrl || '').trim().replace(/\/$/, '');
+}
+
+/** Shared key sent as X-Remind-Key — never commit the real value. */
+export function getRemindApiKey() {
+  return (import.meta.env.VITE_REMIND_API_KEY || '').trim();
+}
+
+export function isBotRemindConfigured(slackConfig = DEFAULT_SLACK_CONFIG) {
+  return Boolean(getRemindApiUrl(slackConfig) && getRemindApiKey());
+}
 
 export function guessSlackHandle(name) {
   const email = guessEmail(name);
@@ -76,6 +94,77 @@ export function buildSlackUrl(contact, config = DEFAULT_SLACK_CONFIG) {
   return config.workspaceUrl || DEFAULT_SLACK_CONFIG.workspaceUrl;
 }
 
+/**
+ * Send a reminder DM via the Cloudflare Worker (Slack bot).
+ * @returns {{ ok: true, email?: string } | { ok: false, error: string, fallback?: boolean }}
+ */
+export async function sendSlackReminderViaBot({
+  contactName,
+  message,
+  pageTitle = '',
+  spaceName = '',
+  spaceKey = '',
+  confluenceUrl = '',
+  catalogPageUrl = '',
+  email = '',
+  slackConfig = DEFAULT_SLACK_CONFIG,
+}) {
+  const apiUrl = getRemindApiUrl(slackConfig);
+  const apiKey = getRemindApiKey();
+
+  if (!apiUrl || !apiKey) {
+    return { ok: false, error: 'Remind API not configured', fallback: true };
+  }
+
+  const name = (contactName || '').trim();
+  if (!name) {
+    return { ok: false, error: 'No recipient for this reminder' };
+  }
+
+  try {
+    const res = await fetch(`${apiUrl}/api/slack/remind`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Remind-Key': apiKey,
+      },
+      body: JSON.stringify({
+        contactName: name,
+        email: email || guessEmail(name) || '',
+        message,
+        pageTitle,
+        spaceName,
+        spaceKey,
+        confluenceUrl,
+        catalogPageUrl,
+      }),
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok || !data?.ok) {
+      return {
+        ok: false,
+        error: data?.error || `Remind API error (${res.status})`,
+        fallback: res.status === 404 || res.status >= 500,
+      };
+    }
+
+    return { ok: true, email: data.email };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err?.message || 'Network error talking to remind API',
+      fallback: true,
+    };
+  }
+}
+
 export async function openSlackReview({
   page,
   spaceName,
@@ -107,6 +196,7 @@ export async function openSlackReview({
     contact,
     handle,
     url,
+    message,
     copied: true,
   };
 }

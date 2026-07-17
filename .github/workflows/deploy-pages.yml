@@ -42,6 +42,9 @@ jobs:
           # Default: project site at https://<user>.github.io/<repo>/
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
           SITE_ACCESS_PASSWORD: ${{ secrets.SITE_ACCESS_PASSWORD }}
+          # Slack remind Worker (optional) — secret VITE_REMIND_API_KEY + variable VITE_REMIND_API_URL
+          VITE_REMIND_API_URL: ${{ vars.VITE_REMIND_API_URL }}
+          VITE_REMIND_API_KEY: ${{ secrets.VITE_REMIND_API_KEY }}
         run: |
           npm ci
           if [ -n "$SITE_ACCESS_PASSWORD" ]; then

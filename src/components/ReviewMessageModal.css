@@ -186,3 +186,28 @@
 .hygiene-banner a {
   font-weight: 600;
 }
+
+.remind-confirm-modal .review-modal-body {
+  max-height: 280px;
+}
+
+.remind-confirm-mode {
+  margin: 0.5rem 1.25rem 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.remind-confirm-mode-warn {
+  color: var(--amber, #d97706);
+}
+
+.remind-confirm-error {
+  margin: 0.5rem 1.25rem 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.88rem;
+  color: #b91c1c;
+  background: color-mix(in srgb, #ef4444 10%, var(--bg-elevated));
+  border-radius: 8px;
+  line-height: 1.4;
+}
