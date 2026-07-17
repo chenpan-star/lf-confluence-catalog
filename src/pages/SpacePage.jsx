@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '../context/CatalogContext';
 import BarChart from '../components/BarChart';
@@ -71,7 +71,6 @@ export default function SpacePage() {
   const [personDraft, setPersonDraft] = useState(searchParams.get('person') || '');
   const [viewMode, setViewMode] = useState('flat');
   const [personPanelOpen, setPersonPanelOpen] = useState(Boolean(searchParams.get('person')));
-  const pagesSectionRef = useRef(null);
 
   const personFilter = searchParams.get('person') || '';
   const recencyFilter = searchParams.get('freshness') || 'all';
@@ -219,13 +218,8 @@ export default function SpacePage() {
     [pageTree, safePage],
   );
 
-  function scrollToPages() {
-    pagesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   function setListPage(page) {
     setSearchParams(applyListPage(searchParams, page), { replace: true });
-    requestAnimationFrame(scrollToPages);
   }
 
   function setViewModeAndReset(mode) {
@@ -448,7 +442,7 @@ export default function SpacePage() {
         )}
       </section>
 
-      <div className="content-toolbar" id="space-pages" ref={pagesSectionRef}>
+      <div className="content-toolbar">
         <h2>
           Pages <span className="content-toolbar-count">{formatNumber(displayedPageCount)}</span>
         </h2>

@@ -177,10 +177,6 @@
   font-weight: 400;
 }
 
-#space-pages {
-  scroll-margin-top: 5rem;
-}
-
 .space-tree-filter-hint,
 .space-tree-page-hint {
   margin: 0 0 var(--space-3);
