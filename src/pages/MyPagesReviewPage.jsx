@@ -20,7 +20,6 @@ import {
   clearListPage,
   computePagination,
   readListPage,
-  scrollToTop,
   slicePage,
   PAGE_SIZE,
 } from '../lib/pagination';
@@ -128,7 +127,6 @@ export default function MyPagesReviewPage() {
 
   function setListPage(page) {
     setSearchParams(applyListPage(searchParams, page), { replace: true });
-    scrollToTop();
   }
 
   function setRecentListPage(page) {
@@ -136,7 +134,6 @@ export default function MyPagesReviewPage() {
     if (page <= 1) next.delete('recentPage');
     else next.set('recentPage', String(page));
     setSearchParams(next, { replace: true });
-    scrollToTop();
   }
 
   function applySearch(name) {
