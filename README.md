@@ -87,9 +87,10 @@ Summary:
 
 Optional: add `ATLASSIAN_EMAIL` + `ATLASSIAN_API_TOKEN` secrets for daily catalog refresh via Actions.
 
-### Slack bot DMs (optional)
+### Slack reminders
 
-To have **Send reminder** DM the page owner after a confirm dialog, deploy the Worker in `workers/slack-remind/` and set `VITE_REMIND_API_URL` + `VITE_REMIND_API_KEY`. Full steps: **[DEPLOY.md](./DEPLOY.md)#slack-bot-dms-confirm--send**.
+**Send reminder** copies a message and opens Slack so you can paste it into the owner’s DM.  
+Optional: map Slack member IDs in `public/config/slack.json` (monthly Action — see [DEPLOY.md](./DEPLOY.md)).
 
 ### Simple password (no IT)
 
@@ -108,16 +109,7 @@ Note: `catalog.json` is still a public static file for technical users; this blo
 | `npm run generate` | Build catalog.json from `data/raw-pages.json` |
 | `npm run refresh` | Fetch + generate (full pipeline) |
 | `npm run build` | Production build → `dist/` |
-
-## Slack bot Worker
-
-| Command | Description |
-|---------|-------------|
-| `cd workers/slack-remind && npm install` | Install Wrangler |
-| `npm run deploy` (in that folder) | Deploy remind API |
-| `npm run secret:slack` / `secret:key` | Set Worker secrets |
-
-See [DEPLOY.md](./DEPLOY.md)#slack-bot-dms-confirm--send.
+| `npm run slack:export-users` | Export Slack user IDs into `slack.json` |
 
 ## Data flow
 

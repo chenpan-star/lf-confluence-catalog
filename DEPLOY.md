@@ -181,76 +181,9 @@ After refresh commits new `catalog.json`, push triggers **Deploy to GitHub Pages
 
 ---
 
-## Slack bot DMs (confirm → send)
+## Slack reminders (copy & open)
 
-The catalog UI stays on GitHub Pages. A **Cloudflare Worker** holds the Slack bot token and sends DMs after the user confirms in the browser.
-
-### 1. Create a Slack app
-
-1. Open [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → From scratch
-2. Name e.g. `LF Confluence Catalog` → pick the LotusFlare workspace
-3. **OAuth & Permissions** → Bot Token Scopes:
-   - `users:read.email` — look up people by email
-   - `im:write` — open a DM
-   - `chat:write` — send the message
-4. **Install to Workspace** → copy the **Bot User OAuth Token** (`xoxb-…`)
-
-### 2. Deploy the Worker
-
-```bash
-cd workers/slack-remind
-npm install
-npx wrangler login
-npm run secret:slack    # paste xoxb-…
-npm run secret:key      # paste a long random shared key (same as VITE_REMIND_API_KEY)
-npm run deploy
-```
-
-Note the Worker URL (e.g. `https://lf-confluence-slack-remind.<account>.workers.dev`).
-
-Optional CORS origins (custom domain):
-
-```toml
-# workers/slack-remind/wrangler.toml
-[vars]
-ALLOWED_ORIGINS = "https://chenpan-star.github.io,https://confluence-catalog.lotusflare.com,http://localhost:5173"
-```
-
-Redeploy after changing vars.
-
-### 3. Wire the catalog build
-
-**Local `.env`:**
-
-```env
-VITE_REMIND_API_URL=https://lf-confluence-slack-remind.<account>.workers.dev
-VITE_REMIND_API_KEY=<same-key-as-Worker-REMIND_API_KEY>
-```
-
-You can also set `remindApiUrl` in `public/config/slack.json` (URL only — never put the key in that file).
-
-**GitHub Pages:**
-
-| Type | Name | Value |
-|------|------|--------|
-| Actions **variable** | `VITE_REMIND_API_URL` | Worker URL (no trailing slash) |
-| Actions **secret** | `VITE_REMIND_API_KEY` | Same as Worker `REMIND_API_KEY` |
-
-Redeploy **Deploy to GitHub Pages** after setting these.
-
-### 4. Test
-
-1. Open the catalog → open an outdated page → **Send reminder** / **Remind**
-2. Confirm dialog → **Send DM**
-3. Check Slack: the page owner should receive a bot DM
-
-If lookup fails (`No Slack user found for …`), the UI can fall back to **Copy & open Slack**. Emails are guessed as `first.last@lotusflare.com` from Confluence display names.
-
-### Security
-
-- Never commit `SLACK_BOT_TOKEN` or `VITE_REMIND_API_KEY`
-- The Worker rejects requests without a matching `X-Remind-Key`
-- Prefer sharing the Cloudflare Access–protected custom domain, not the public `github.io` URL
+**Send reminder** on the catalog copies a message and opens Slack so you can paste it into the owner’s DM.
 
 ### Slack user ID map (optional)
 
@@ -273,8 +206,6 @@ Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Sl
 1. Repo **Settings → Secrets and variables → Actions** → secret **`SLACK_BOT_TOKEN`** (`xoxb-…`, scope `users:read`)
 2. First run: **Actions → Refresh Slack user map → Run workflow**
 3. On change it commits `public/config/slack.json`; push to `main` triggers Pages deploy
-
-This does **not** replace the Cloudflare Worker for auto DMs — it only helps open the right person in Slack.
 
 ---
 

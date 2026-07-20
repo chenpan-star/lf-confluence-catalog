@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { guessEmail, primaryContact } from '../lib/contact';
-import { formatTitle } from '../lib/text';
-import {
-  buildReviewMessage,
-  guessSlackHandle,
-  isBotRemindConfigured,
-  openSlackReview,
-  sendSlackReminderViaBot,
-} from '../lib/slack';
+import { buildReviewMessage, guessSlackHandle, openSlackReview } from '../lib/slack';
 import RemindConfirmModal from './RemindConfirmModal';
 
 export default function SlackReviewButton({
@@ -26,7 +19,6 @@ export default function SlackReviewButton({
   const handle = guessSlackHandle(contact);
   const email = guessEmail(contact);
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
-  const botConfigured = isBotRemindConfigured(slackConfig);
 
   const message = buildReviewMessage({
     page,
@@ -36,10 +28,7 @@ export default function SlackReviewButton({
     catalogPageUrl,
   });
 
-  const confluenceUrl =
-    page?.url || `https://${site}/wiki/spaces/${spaceKey}`;
-
-  async function fallbackOpenSlack() {
+  async function openSlack() {
     await openSlackReview({
       page,
       spaceName,
@@ -51,37 +40,6 @@ export default function SlackReviewButton({
     const label = handle ? `@${handle}` : contact || 'editor';
     setHint(`Message copied — paste in Slack to ${label}`);
     setTimeout(() => setHint(''), 5000);
-  }
-
-  async function confirmSendDm() {
-    const result = await sendSlackReminderViaBot({
-      contactName: contact,
-      email: email || '',
-      message,
-      pageTitle: formatTitle(page?.title),
-      spaceName,
-      spaceKey,
-      confluenceUrl,
-      catalogPageUrl,
-      slackConfig,
-    });
-
-    if (result.ok) {
-      setHint(`DM sent to ${handle ? `@${handle}` : contact}`);
-      setTimeout(() => setHint(''), 5000);
-      return result;
-    }
-
-    if (result.fallback) {
-      await fallbackOpenSlack();
-      return {
-        ok: false,
-        error: `${result.error || 'Couldn’t send via bot'}. Opened Slack so you can paste manually.`,
-        openedSlackManually: true,
-      };
-    }
-
-    return result;
   }
 
   return (
@@ -97,9 +55,7 @@ export default function SlackReviewButton({
           recipientHandle={handle}
           recipientEmail={email}
           messagePreview={message}
-          botConfigured={botConfigured}
-          onConfirmSend={confirmSendDm}
-          onFallbackOpenSlack={fallbackOpenSlack}
+          onOpenSlack={openSlack}
           onClose={() => setConfirmOpen(false)}
         />
       )}

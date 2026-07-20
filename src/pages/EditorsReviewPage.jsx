@@ -139,8 +139,7 @@ export default function EditorsReviewPage() {
   return (
     <div className="page-shell">
       <PageHeader title="Send reminders">
-        Outdated pages grouped by last editor — confirm to DM them on Slack, or copy a message to
-        paste manually.
+        Outdated pages grouped by last editor — confirm to copy a message and open Slack to paste.
       </PageHeader>
 
       <RemindStatusBanner />
@@ -358,8 +357,8 @@ export default function EditorsReviewPage() {
       )}
 
       <p className="stale-footnote">
-        Tip: after confirming <strong>Send DM</strong>, the Slack bot messages the editor. If the
-        bot is not set up yet, use <strong>Copy &amp; open Slack</strong> and paste into their DM.
+        Tip: after confirming <strong>Copy &amp; open Slack</strong>, paste the message into their
+        DM. Use <strong>More options</strong> for email if needed.
         One message can list all outdated pages for that person.
       </p>
 

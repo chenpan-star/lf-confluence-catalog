@@ -1,64 +1,25 @@
 import { useState } from 'react';
 import './ReviewMessageModal.css';
 
-/**
- * Confirm before sending a Slack DM via the bot (or fallback to clipboard + open Slack).
- */
+/** Confirm before copying a reminder and opening Slack. */
 export default function RemindConfirmModal({
   title = 'Send Slack reminder?',
   recipientName,
   recipientHandle,
   recipientEmail,
   messagePreview,
-  botConfigured,
-  onConfirmSend,
-  onFallbackOpenSlack,
+  onOpenSlack,
   onClose,
 }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  const label = recipientHandle
-    ? `@${recipientHandle}`
-    : recipientName || 'this person';
-
-  async function handleSendDm() {
-    if (!onConfirmSend || sending) return;
-    setSending(true);
-    setError('');
-    setSuccess('');
-    try {
-      const result = await onConfirmSend();
-      if (result?.ok) {
-        if (result.openedSlackManually) {
-          onClose?.();
-          return;
-        }
-        setSuccess(
-          result.email
-            ? `DM sent to ${label} (${result.email}).`
-            : `DM sent to ${label}.`,
-        );
-        setTimeout(() => onClose?.(), 1600);
-      } else if (result?.openedSlackManually) {
-        setError(result.error || 'Opened Slack for manual paste.');
-      } else {
-        setError(result?.error || 'Failed to send DM');
-      }
-    } catch (err) {
-      setError(err?.message || 'Failed to send DM');
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function handleFallback() {
-    if (!onFallbackOpenSlack || sending) return;
+  async function handleOpenSlack() {
+    if (!onOpenSlack || sending) return;
     setSending(true);
     setError('');
     try {
-      await onFallbackOpenSlack();
+      await onOpenSlack();
       onClose?.();
     } catch (err) {
       setError(err?.message || 'Could not open Slack');
@@ -98,22 +59,11 @@ export default function RemindConfirmModal({
           ) : null}
         </p>
 
-        {botConfigured ? (
-          <p className="remind-confirm-mode">
-            After you confirm, the Slack bot will <strong>DM them directly</strong>.
-          </p>
-        ) : (
-          <p className="remind-confirm-mode remind-confirm-mode-warn">
-            Bot API is not configured — confirm will <strong>copy the message</strong> and open
-            Slack for you to paste.
-          </p>
-        )}
+        <p className="remind-confirm-mode">
+          Confirm will <strong>copy the message</strong> and open Slack so you can paste it into
+          their DM.
+        </p>
 
-        {success && (
-          <p className="review-modal-copied" role="status">
-            ✓ {success}
-          </p>
-        )}
         {error && (
           <p className="remind-confirm-error" role="alert">
             {error}
@@ -123,37 +73,14 @@ export default function RemindConfirmModal({
         <pre className="review-modal-body">{messagePreview}</pre>
 
         <div className="review-modal-actions">
-          {botConfigured ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={sending || Boolean(success)}
-                onClick={handleSendDm}
-              >
-                {sending ? 'Sending…' : 'Send DM'}
-              </button>
-              {onFallbackOpenSlack && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={sending || Boolean(success)}
-                  onClick={handleFallback}
-                >
-                  Copy &amp; open Slack instead
-                </button>
-              )}
-            </>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={sending}
-              onClick={handleFallback}
-            >
-              {sending ? 'Opening…' : 'Copy & open Slack'}
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={sending}
+            onClick={handleOpenSlack}
+          >
+            {sending ? 'Opening…' : 'Copy & open Slack'}
+          </button>
           <button type="button" className="btn btn-ghost" disabled={sending} onClick={onClose}>
             Cancel
           </button>

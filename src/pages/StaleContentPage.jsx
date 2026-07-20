@@ -308,8 +308,8 @@ export default function StaleContentPage() {
       )}
 
       <p className="stale-footnote">
-        Click <strong>Send reminder</strong>, confirm the recipient, then send a Slack DM via the
-        bot (or copy &amp; open Slack if the bot is not set up yet).
+        Click <strong>Send reminder</strong>, confirm the recipient, then copy &amp; open Slack and
+        paste the message into their DM.
       </p>
     </div>
   );

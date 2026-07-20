@@ -3,9 +3,7 @@ import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
-  isBotRemindConfigured,
   openBundledSlackReview,
-  sendSlackReminderViaBot,
 } from '../lib/slack';
 import './ReviewMessageModal.css';
 import './HygieneHelp.css';
@@ -34,7 +32,6 @@ export default function ReviewMessageModal({
     editor && pages?.length
       ? buildBundledReviewMailto({ editor, pages, site })
       : '#';
-  const botConfigured = isBotRemindConfigured(slackConfig);
 
   if (!editor || !pages?.length) return null;
 
@@ -44,53 +41,6 @@ export default function ReviewMessageModal({
       setCopied(true);
     } catch {
       setCopied(false);
-    }
-  }
-
-  async function handleSendDm() {
-    if (sending) return;
-    setSending(true);
-    setError('');
-    setSuccess('');
-    try {
-      const first = pages[0];
-      const result = await sendSlackReminderViaBot({
-        contactName: editor,
-        email: email || '',
-        message,
-        pageTitle: `${pages.length} outdated page(s)`,
-        spaceName: first?.spaceName || '',
-        spaceKey: first?.spaceKey || '',
-        confluenceUrl: first?.url || '',
-        catalogPageUrl: '',
-        slackConfig,
-      });
-
-      if (result.ok) {
-        setSuccess(
-          result.email
-            ? `DM sent to ${handle ? `@${handle}` : editor} (${result.email}).`
-            : `DM sent to ${handle ? `@${handle}` : editor}.`,
-        );
-        setTimeout(() => onClose?.(), 1800);
-        return;
-      }
-
-      if (result.fallback) {
-        setError(
-          `${result.error || 'Couldn’t send via bot'}. Opening Slack so you can paste manually.`,
-        );
-        await copyMessage();
-        await (onSendSlack?.() ??
-          openBundledSlackReview({ editor, pages, site, slackConfig }));
-        return;
-      }
-
-      setError(result.error || 'Failed to send DM');
-    } catch (err) {
-      setError(err?.message || 'Failed to send DM');
-    } finally {
-      setSending(false);
     }
   }
 
@@ -142,16 +92,10 @@ export default function ReviewMessageModal({
           ) : null}
         </p>
 
-        {botConfigured ? (
-          <p className="remind-confirm-mode">
-            Confirm to have the Slack bot <strong>DM them directly</strong>.
-          </p>
-        ) : (
-          <p className="remind-confirm-mode remind-confirm-mode-warn">
-            Bot not set up — confirm will <strong>copy the message</strong> and open Slack for you
-            to paste.
-          </p>
-        )}
+        <p className="remind-confirm-mode">
+          Confirm will <strong>copy the message</strong> and open Slack so you can paste it into
+          their DM.
+        </p>
 
         {copied && !success && !error && (
           <p className="review-modal-copied" role="status">
@@ -173,23 +117,13 @@ export default function ReviewMessageModal({
         <pre className="review-modal-body">{message}</pre>
 
         <div className="review-modal-actions">
-          {botConfigured ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={sending || Boolean(success)}
-              onClick={handleSendDm}
-            >
-              {sending ? 'Sending…' : 'Send DM'}
-            </button>
-          ) : null}
           <button
             type="button"
-            className={botConfigured ? 'btn btn-secondary' : 'btn btn-primary'}
+            className="btn btn-primary"
             disabled={sending || Boolean(success)}
             onClick={handleOpenSlack}
           >
-            {sending && !botConfigured ? 'Opening…' : 'Copy & open Slack'}
+            {sending ? 'Opening…' : 'Copy & open Slack'}
           </button>
           <button
             type="button"

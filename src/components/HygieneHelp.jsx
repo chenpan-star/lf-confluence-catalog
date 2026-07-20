@@ -3,7 +3,7 @@ import './HygieneHelp.css';
 const STEPS = [
   'Pick someone who last edited outdated pages.',
   'Click Send reminder and confirm who will be messaged.',
-  'The Slack bot DMs them (or copy & open Slack if the bot is not set up yet).',
+  'Copy & open Slack, then paste the message into their DM.',
 ];
 
 export default function HygieneHelpCard({ title = 'How this works', compact = false }) {

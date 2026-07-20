@@ -1,8 +1,0 @@
-name = "lf-confluence-slack-remind"
-main = "src/index.js"
-compatibility_date = "2026-04-01"
-workers_dev = true
-
-# Optional: comma-separated browser origins allowed for CORS
-# [vars]
-# ALLOWED_ORIGINS = "https://chenpan-star.github.io,https://confluence-catalog.lotusflare.com,http://localhost:5173"

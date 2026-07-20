@@ -5,6 +5,4 @@ dist
 data/raw-pages.json
 data/zoho-employees.json
 data/slack-users-export.json
-workers/slack-remind/node_modules
-workers/slack-remind/.wrangler
 
