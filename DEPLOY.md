@@ -252,6 +252,30 @@ If lookup fails (`No Slack user found for …`), the UI can fall back to **Copy 
 - The Worker rejects requests without a matching `X-Remind-Key`
 - Prefer sharing the Cloudflare Access–protected custom domain, not the public `github.io` URL
 
+### Slack user ID map (optional)
+
+Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Slack member IDs).
+
+1. Slack app → **OAuth & Permissions** → add Bot scope **`users:read`** → **Reinstall**
+2. Put token in `.env` (never commit):
+   ```env
+   SLACK_BOT_TOKEN=xoxb-…
+   ```
+3. Export:
+   ```bash
+   npm run slack:export-users              # writes data/slack-users-export.json
+   npm run slack:export-users -- --apply   # also merges into public/config/slack.json
+   ```
+4. Commit `public/config/slack.json` if you want the map on the live site.
+
+**Monthly GitHub Action:** workflow `Refresh Slack user map` runs on the 1st of each month (and via **Actions → Run workflow**).
+
+1. Repo **Settings → Secrets and variables → Actions** → secret **`SLACK_BOT_TOKEN`** (`xoxb-…`, scope `users:read`)
+2. First run: **Actions → Refresh Slack user map → Run workflow**
+3. On change it commits `public/config/slack.json`; push to `main` triggers Pages deploy
+
+This does **not** replace the Cloudflare Worker for auto DMs — it only helps open the right person in Slack.
+
 ---
 
 ## If you use a different repo name

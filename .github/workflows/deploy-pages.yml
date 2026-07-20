@@ -4,9 +4,11 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
-  # Auto-deploy after daily Confluence refresh (bot pushes don't trigger `on: push`)
+  # Auto-deploy after catalog / Slack map refreshes (bot pushes don't trigger `on: push`)
   workflow_run:
-    workflows: [Refresh Confluence catalog]
+    workflows:
+      - Refresh Confluence catalog
+      - Refresh Slack user map
     types: [completed]
     branches: [main]
 

@@ -17,7 +17,8 @@
     "access:hash": "node scripts/hash-access-password.js",
     "zoho:auth": "node scripts/zoho-oauth-setup.js",
     "zoho:test": "node scripts/test-zoho.js",
-    "zoho:fetch": "node scripts/fetch-zoho-people.js"
+    "zoho:fetch": "node scripts/fetch-zoho-people.js",
+    "slack:export-users": "node scripts/export-slack-users.js"
   },
   "dependencies": {
     "react": "^19.1.0",

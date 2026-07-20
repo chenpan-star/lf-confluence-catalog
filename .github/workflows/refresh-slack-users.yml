@@ -1,0 +1,59 @@
+name: Refresh Slack user map
+
+on:
+  schedule:
+    # 1st of each month at 07:00 UTC
+    - cron: '0 7 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: slack-user-map
+  cancel-in-progress: false
+
+jobs:
+  refresh-slack-users:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Verify Slack bot token
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: |
+          if [ -z "$SLACK_BOT_TOKEN" ]; then
+            echo "::error::Missing repository secret SLACK_BOT_TOKEN"
+            echo "Add it under Settings → Secrets and variables → Actions."
+            echo "Bot needs OAuth scope: users:read"
+            exit 1
+          fi
+          echo "SLACK_BOT_TOKEN is set (length ${#SLACK_BOT_TOKEN})."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export Slack users into slack.json
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: npm run slack:export-users -- --apply --replace
+
+      - name: Commit updated Slack user map
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/config/slack.json
+          if git diff --staged --quiet; then
+            echo "No slack.json changes to commit."
+          else
+            git commit -m "chore: refresh Slack user ID map"
+            git push
+          fi
