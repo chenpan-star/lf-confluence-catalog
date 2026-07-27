@@ -105,11 +105,38 @@ async function jiraFetch(env, path, init = {}) {
   return data;
 }
 
+function calendarDateInTimeZone(timeZone, date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const d = parts.find((p) => p.type === 'day')?.value;
+  return `${y}-${m}-${d}`;
+}
+
+/** Add N Mon–Fri days after `isoDate` (YYYY-MM-DD); does not count `isoDate` as a working day. */
+function addWorkingDays(isoDate, workingDays) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  let added = 0;
+  while (added < workingDays) {
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    const dow = dt.getUTCDay();
+    if (dow !== 0 && dow !== 6) added += 1;
+  }
+  return dt.toISOString().slice(0, 10);
+}
+
 function defaultRequestedDueDate(env) {
-  const days = Number(env.JIRA_DUE_DATE_DAYS) || 14;
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+  const workingDays =
+    Number(env.JIRA_DUE_DATE_WORKING_DAYS) || Number(env.JIRA_DUE_DATE_DAYS) || 14;
+  const tz = (env.JIRA_DUE_DATE_TIMEZONE || 'Asia/Singapore').trim();
+  const today = calendarDateInTimeZone(tz);
+  return addWorkingDays(today, workingDays);
 }
 
 /** Fill required Jira fields (e.g. PROT "Requested Due Date") from create metadata. */
