@@ -243,17 +243,32 @@ async function createRemindIssue(env, body) {
   };
 }
 
-async function slackApi(env, method, body) {
+async function slackApi(env, method, params = {}) {
   const token = env.SLACK_BOT_TOKEN?.trim();
   if (!token) throw new Error('SLACK_BOT_TOKEN is not configured on the worker');
-  const res = await fetch(`https://slack.com/api/${method}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+
+  const search = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null && v !== '') search.set(k, String(v));
+  }
+
+  const getMethods = new Set(['users.info', 'users.lookupByEmail', 'auth.test']);
+  let res;
+  if (getMethods.has(method)) {
+    const url = new URL(`https://slack.com/api/${method}`);
+    for (const [k, v] of search) url.searchParams.set(k, v);
+    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } else {
+    res = await fetch(`https://slack.com/api/${method}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+      },
+      body: search.toString(),
+    });
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!data.ok) {
     const err = data.error || `${method} failed`;
@@ -264,8 +279,10 @@ async function slackApi(env, method, body) {
     } else if (err === 'user_not_found') {
       hint =
         ' (stale slack.json id or wrong workspace — use the same SLACK_BOT_TOKEN for export and the Worker, or re-run slack:export-users --apply)';
+    } else if (err === 'invalid_arguments') {
+      hint = ' (Slack rejected request parameters — check bot scopes and user id)';
     }
-    const e = new Error(err + hint);
+    const e = new Error(`${err} (${method})${hint}`);
     e.slackError = err;
     throw e;
   }
@@ -354,7 +371,7 @@ async function assertSlackUserMatchesEditor(user, editor, editorEmail) {
   const profileEmail = profile.email?.toLowerCase();
   if (profileEmail && emails.includes(profileEmail)) return;
 
-  const who = profile.real_name || profile.display_name || user.name || slackUserId;
+  const who = profile.real_name || profile.display_name || user.name || user.id;
   throw new Error(
     `Slack recipient mismatch: catalog editor is "${editor}" but Slack user is "${who}". Update slack.json or contact Infra.`,
   );
