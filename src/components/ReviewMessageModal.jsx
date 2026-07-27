@@ -5,6 +5,7 @@ import {
   canAutoSendSlack,
   dispatchRemind,
   isRemindTrackConfigured,
+  lookupRemindJira,
   readRemindJiraPartLock,
   rememberRemindJiraSuccess,
   slackRemindAccepted,
@@ -55,22 +56,59 @@ export default function ReviewMessageModal({
   const partTotal = chunks.length;
 
   useEffect(() => {
-    const fromSession = {};
-    for (let idx = 0; idx < chunks.length; idx += 1) {
-      const chunk = chunks[idx] || [];
-      const key = buildRemindJiraPartKey({
-        editor,
-        partIndex: idx + 1,
-        partTotal: chunks.length,
-        pageIds: chunk.map((p) => p.id),
-      });
-      const lock = readRemindJiraPartLock(key);
-      if (lock?.issueKey) fromSession[idx] = lock;
-    }
-    if (Object.keys(fromSession).length) {
-      setJiraByPart((prev) => ({ ...fromSession, ...prev }));
-    }
-  }, [editor, chunks, partTotal]);
+    if (!workerOn || !editor || !chunks.length) return;
+
+    let cancelled = false;
+
+    (async () => {
+      for (let idx = 0; idx < chunks.length; idx += 1) {
+        if (cancelled) return;
+        const chunk = chunks[idx] || [];
+        const key = buildRemindJiraPartKey({
+          editor,
+          partIndex: idx + 1,
+          partTotal: chunks.length,
+          pageIds: chunk.map((p) => p.id),
+        });
+        const cached = readRemindJiraPartLock(key);
+        if (cached?.issueKey) {
+          setJiraByPart((prev) => (prev[idx]?.issueKey ? prev : { ...prev, [idx]: cached }));
+          continue;
+        }
+
+        const bundledMessage = buildBundledReviewMessage({
+          editor,
+          pages: chunk,
+          site,
+          partIndex: idx + 1,
+          partTotal: chunks.length,
+          globalOffset: idx * REMIND_PAGES_PER_MESSAGE,
+        });
+
+        const lookup = await lookupRemindJira({
+          editor,
+          editorEmail: guessEmail(editor),
+          message: bundledMessage,
+          pagesCount: chunk.length,
+          partIndex: idx + 1,
+          partTotal: chunks.length,
+          remindTrackConfig,
+        });
+
+        if (cancelled) return;
+        if (lookup.found && lookup.jira?.issueKey) {
+          const entry = rememberRemindJiraSuccess(key, lookup.jira);
+          if (entry) {
+            setJiraByPart((prev) => ({ ...prev, [idx]: entry }));
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editor, chunks, workerOn, site, remindTrackConfig]);
 
   const safePreview = Math.min(previewIndex, Math.max(0, partTotal - 1));
   const previewChunk = chunks[safePreview] || [];

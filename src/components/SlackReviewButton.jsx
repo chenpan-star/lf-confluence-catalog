@@ -13,6 +13,7 @@ import {
   dispatchRemind,
   isRemindTrackConfigured,
   normalizeRemindJiraLock,
+  lookupRemindJira,
   readRemindJiraPartLock,
   rememberRemindJiraSuccess,
   slackRemindAccepted,
@@ -58,10 +59,58 @@ export default function SlackReviewButton({
   });
 
   useEffect(() => {
-    if (!confirmOpen) return;
-    const fromSession = readRemindJiraPartLock(jiraPartKey);
-    if (fromSession?.issueKey) setJiraCreated(fromSession);
-  }, [confirmOpen, jiraPartKey]);
+    if (!confirmOpen || !workerOn) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const cached = readRemindJiraPartLock(jiraPartKey);
+      if (cached?.issueKey) {
+        setJiraCreated(cached);
+        return;
+      }
+
+      const lookupMessage = buildReviewMessage({
+        page,
+        spaceName,
+        spaceKey,
+        site,
+        catalogPageUrl,
+      });
+
+      const lookup = await lookupRemindJira({
+        editor: contact || 'Unknown',
+        editorEmail: email,
+        message: lookupMessage,
+        pagesCount: 1,
+        partIndex: 1,
+        partTotal: 1,
+        remindTrackConfig,
+      });
+
+      if (cancelled) return;
+      if (lookup.found && lookup.jira?.issueKey) {
+        const entry = rememberRemindJiraSuccess(jiraPartKey, lookup.jira);
+        if (entry) setJiraCreated(normalizeRemindJiraLock(entry) || entry);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    confirmOpen,
+    workerOn,
+    jiraPartKey,
+    page,
+    spaceName,
+    spaceKey,
+    site,
+    catalogPageUrl,
+    contact,
+    email,
+    remindTrackConfig,
+  ]);
 
   const jiraReady = Boolean(jiraCreated?.issueKey);
 

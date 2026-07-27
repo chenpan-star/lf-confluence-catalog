@@ -833,17 +833,15 @@ async function findExistingOpenRemindIssue(
   return null;
 }
 
-async function createRemindIssue(env, body) {
+async function buildRemindDedupContext(env, body) {
   const projectKey = (body.projectKey || env.JIRA_PROJECT_KEY || '').trim();
   if (!projectKey) throw new Error('JIRA_PROJECT_KEY is not configured');
 
-  const issueType = (body.issueType || env.JIRA_ISSUE_TYPE || 'Task').trim();
   const editor = (body.editor || '').trim() || 'Unknown editor';
   const partIndex = Number(body.partIndex) || 1;
   const partTotal = Number(body.partTotal) || 1;
   const pagesCount = Number(body.pagesCount) || 0;
   const message = String(body.message || '').trim();
-  const catalogUrl = String(body.catalogUrl || '').trim();
 
   const partLabel = partTotal > 1 ? ` (part ${partIndex}/${partTotal})` : '';
   const summary = truncate(
@@ -857,6 +855,58 @@ async function createRemindIssue(env, body) {
         .split(',')
         .map((l) => l.trim())
         .filter(Boolean);
+
+  const assigneeId = await findAssigneeAccountId(
+    env,
+    projectKey,
+    editor,
+    body.editorEmail?.trim(),
+  );
+
+  return { projectKey, summary, assigneeId, labels, message };
+}
+
+async function lookupOpenRemindIssue(env, body) {
+  const ctx = await buildRemindDedupContext(env, body);
+  return findExistingOpenRemindIssue(env, {
+    ...ctx,
+    forceRemind: body.forceRemind === true,
+  });
+}
+
+async function handleRemindLookup(env, body) {
+  try {
+    const existing = await lookupOpenRemindIssue(env, body);
+    if (!existing) {
+      return { ok: true, found: false, jira: null };
+    }
+    return {
+      ok: true,
+      found: true,
+      jira: {
+        ok: true,
+        issueKey: existing.key,
+        issueUrl: existing.issueUrl,
+        duplicate: true,
+      },
+    };
+  } catch (err) {
+    return { ok: false, found: false, error: err?.message || 'Jira lookup failed' };
+  }
+}
+
+async function createRemindIssue(env, body) {
+  const { projectKey, summary, assigneeId, labels, message } = await buildRemindDedupContext(
+    env,
+    body,
+  );
+
+  const issueType = (body.issueType || env.JIRA_ISSUE_TYPE || 'Task').trim();
+  const editor = (body.editor || '').trim() || 'Unknown editor';
+  const partIndex = Number(body.partIndex) || 1;
+  const partTotal = Number(body.partTotal) || 1;
+  const pagesCount = Number(body.pagesCount) || 0;
+  const catalogUrl = String(body.catalogUrl || '').trim();
 
   const priorityName = (body.priorityName || env.JIRA_PRIORITY_NAME || 'Major').trim();
 
@@ -872,13 +922,6 @@ async function createRemindIssue(env, body) {
     labels,
     priority: { name: priorityName },
   };
-
-  const assigneeId = await findAssigneeAccountId(
-    env,
-    projectKey,
-    editor,
-    body.editorEmail?.trim(),
-  );
 
   if (assigneeId) {
     fields.assignee = { accountId: assigneeId };
@@ -1228,7 +1271,7 @@ function appendJiraTicketToSlackMessage(message, jira, env) {
   if (base.includes(ref.issueUrl)) return base;
   const footer = `
 
-📌 *Jira task:* <${ref.issueUrl}|${ref.issueKey}>
+📌 Jira task: ${ref.issueKey}
 ${ref.issueUrl}
 When you're done reviewing, please comment on or close this task in Jira. 🙏`;
   const combined = `${base}${footer}`.trim();
@@ -1380,6 +1423,27 @@ export default {
     if (request.method === 'GET' && url.pathname === '/v1/auth-check') {
       if (!authorize(request, env)) return unauthorized(request, env);
       return jsonResponse({ ok: true, authorized: true }, 200, request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/remind/lookup') {
+      if (!authorize(request, env)) return unauthorized(request, env);
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return jsonResponse({ error: 'Invalid JSON body' }, 400, request, env);
+      }
+      try {
+        const result = await handleRemindLookup(env, body);
+        return jsonResponse(result, result.ok ? 200 : 502, request, env);
+      } catch (err) {
+        return jsonResponse(
+          { ok: false, error: err?.message || 'Jira lookup failed' },
+          502,
+          request,
+          env,
+        );
+      }
     }
 
     if (request.method !== 'POST' || url.pathname !== '/v1/remind') {
