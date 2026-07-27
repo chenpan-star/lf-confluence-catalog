@@ -2,6 +2,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "lf-catalog-remind-track",
   "main": "src/index.js",
+  "account_id": "196fdadeccfdb8f96edc2444bf08c33b",
   "compatibility_date": "2025-07-01",
   "observability": {
     "enabled": true

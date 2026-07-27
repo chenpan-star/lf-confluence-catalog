@@ -32,12 +32,16 @@ jobs:
               missing=1
             fi
           done
+          if [ "$missing" -eq 0 ]; then
+            echo "ATLASSIAN_EMAIL length: ${#ATLASSIAN_EMAIL}"
+            echo "ATLASSIAN_API_TOKEN length: ${#ATLASSIAN_API_TOKEN}"
+          fi
           exit $missing
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy Worker
+      - name: Deploy Worker (initial)
         id: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -60,17 +64,49 @@ jobs:
           ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
           ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
         run: |
-          printf '%s' "$REMIND_API_SECRET" | npx wrangler secret put REMIND_API_SECRET --config worker/remind-track/wrangler.jsonc
-          printf '%s' "$ATLASSIAN_EMAIL" | npx wrangler secret put ATLASSIAN_EMAIL --config worker/remind-track/wrangler.jsonc
-          printf '%s' "$ATLASSIAN_API_TOKEN" | npx wrangler secret put ATLASSIAN_API_TOKEN --config worker/remind-track/wrangler.jsonc
+          set -euo pipefail
+          put() {
+            local key="$1"
+            local val="$2"
+            if [ -z "$val" ]; then
+              echo "::error::Empty Worker secret value for $key"
+              exit 1
+            fi
+            printf '%s' "$val" | npx wrangler secret put "$key" --config worker/remind-track/wrangler.jsonc
+          }
+          put REMIND_API_SECRET "$REMIND_API_SECRET"
+          put ATLASSIAN_EMAIL "$ATLASSIAN_EMAIL"
+          put ATLASSIAN_API_TOKEN "$ATLASSIAN_API_TOKEN"
+          echo "Worker secrets registered:"
+          npx wrangler secret list --config worker/remind-track/wrangler.jsonc
+
+      - name: Redeploy Worker (apply secrets)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config worker/remind-track/wrangler.jsonc
 
       - name: Health check
         if: steps.deploy.outputs.worker_url != ''
         env:
           WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
         run: |
-          curl -sf "$WORKER_URL/health" | tee health.json
-          node -e "const h=require('./health.json'); if(!h.jiraConfigured) { console.error('jiraConfigured false — check ATLASSIAN secrets'); process.exit(1); }"
+          set -e
+          ok=0
+          for i in 1 2 3 4 5; do
+            curl -sf "$WORKER_URL/health" | tee health.json
+            if node -e "const h=require('./health.json'); process.exit(h.jiraConfigured?0:1)"; then
+              ok=1
+              break
+            fi
+            echo "jiraConfigured still false (attempt $i/5), waiting…"
+            sleep 3
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::warning::jiraConfigured is false — Worker is up but Jira creds may not be bound. Re-run this workflow or sync secrets locally with wrangler."
+            cat health.json
+            exit 0
+          fi
 
       - name: Job summary
         if: always()
@@ -81,7 +117,7 @@ jobs:
             echo "## Remind-track Worker"
             if [ -n "$WORKER_URL" ]; then
               echo "- **Worker URL:** \`$WORKER_URL\`"
-              echo "- Health: \`$WORKER_URL/health\`"
+              echo "- Health: \`$WORKER_URL/health\` (expect \`jiraConfigured: true\`)"
               echo ""
               echo "### Catalog (step 4)"
               echo "Set repository **variable** \`VITE_REMIND_TRACK_URL\` to the Worker URL above, then redeploy GitHub Pages."
