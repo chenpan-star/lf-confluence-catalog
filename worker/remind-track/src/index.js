@@ -249,7 +249,9 @@ async function slackApi(env, method, params = {}) {
 
   const search = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v != null && v !== '') search.set(k, String(v));
+    if (v == null || v === '') continue;
+    if (typeof v === 'boolean') search.set(k, v ? 'true' : 'false');
+    else search.set(k, String(v));
   }
 
   const getMethods = new Set(['users.info', 'users.lookupByEmail', 'auth.test']);
@@ -272,6 +274,8 @@ async function slackApi(env, method, params = {}) {
   const data = await res.json().catch(() => ({}));
   if (!data.ok) {
     const err = data.error || `${method} failed`;
+    const meta = data.response_metadata?.messages?.filter(Boolean).join('; ');
+    const detail = meta ? ` — ${meta}` : '';
     let hint = '';
     if (err === 'missing_scope') {
       hint =
@@ -281,8 +285,10 @@ async function slackApi(env, method, params = {}) {
         ' (stale slack.json id or wrong workspace — use the same SLACK_BOT_TOKEN for export and the Worker, or re-run slack:export-users --apply)';
     } else if (err === 'invalid_arguments') {
       hint = ' (Slack rejected request parameters — check bot scopes and user id)';
+    } else if (err === 'cannot_dm_user') {
+      hint = ' (recipient has DMs from apps disabled or bot is not allowed to DM them)';
     }
-    const e = new Error(`${err} (${method})${hint}`);
+    const e = new Error(`${err} (${method})${detail}${hint}`);
     e.slackError = err;
     throw e;
   }
@@ -314,14 +320,19 @@ async function slackGetUser(env, slackUserId) {
 }
 
 async function resolveSlackUserForRemind(env, { slackUserId, editor, editorEmail }) {
-  let user = await slackGetUser(env, slackUserId);
-  if (user?.id) return user;
+  const emails = [...new Set(
+    [editorEmail, guessEmailFromEditor(editor)]
+      .filter(Boolean)
+      .map((e) => String(e).trim().toLowerCase()),
+  )];
 
-  const emails = [editorEmail, guessEmailFromEditor(editor)].filter(Boolean);
   for (const email of emails) {
-    user = await slackLookupUserByEmail(env, email);
-    if (user?.id) return user;
+    const user = await slackLookupUserByEmail(env, email);
+    if (user?.id) return { user, resolvedVia: 'email' };
   }
+
+  const user = await slackGetUser(env, slackUserId);
+  if (user?.id) return { user, resolvedVia: 'id' };
 
   throw new Error(
     `Slack user not found for "${editor}"` +
@@ -349,21 +360,32 @@ function guessEmailFromEditor(editor) {
   return `${local}@lotusflare.com`;
 }
 
+function editorNameMatchesSlackUser(editor, user) {
+  const profile = user.profile || {};
+  const editorNorm = normalizePersonName(editor);
+  const nameCandidates = [profile.real_name, profile.display_name, user.name].filter(Boolean);
+
+  for (const name of nameCandidates) {
+    if (normalizePersonName(name) === editorNorm) return true;
+  }
+
+  const parts = editorNorm.split(/\s+/).filter((p) => p.length > 1);
+  if (parts.length >= 2) {
+    for (const name of nameCandidates) {
+      const sNorm = normalizePersonName(name);
+      if (parts.every((p) => sNorm.includes(p))) return true;
+    }
+  }
+
+  return false;
+}
+
 async function assertSlackUserMatchesEditor(user, editor, editorEmail) {
   if (!user || user.deleted) {
     throw new Error('Slack user not found or deactivated');
   }
   const profile = user.profile || {};
-  const editorNorm = normalizePersonName(editor);
-  const nameCandidates = [
-    profile.real_name,
-    profile.display_name,
-    user.name,
-  ].filter(Boolean);
-
-  for (const name of nameCandidates) {
-    if (normalizePersonName(name) === editorNorm) return;
-  }
+  if (editorNameMatchesSlackUser(editor, user)) return;
 
   const emails = [editorEmail, guessEmailFromEditor(editor), profile.email]
     .filter(Boolean)
@@ -379,10 +401,21 @@ async function assertSlackUserMatchesEditor(user, editor, editorEmail) {
 
 async function openSlackDmChannel(env, slackUserId) {
   const user = String(slackUserId || '').trim();
-  const data = await slackApi(env, 'conversations.open', { users: user });
-  const channelId = data.channel?.id;
+  const data = await slackApi(env, 'conversations.open', {
+    users: user,
+    return_im: true,
+  });
+  const channel = data.channel;
+  const channelId = typeof channel === 'string' ? channel : channel?.id;
   if (!channelId) throw new Error('Slack did not return a DM channel id');
   return channelId;
+}
+
+async function postSlackDmText(env, channelId, text) {
+  return slackApi(env, 'chat.postMessage', {
+    channel: channelId,
+    text,
+  });
 }
 
 async function sendSlackDirectMessage(env, { slackUserId, message, editor, editorEmail }) {
@@ -391,22 +424,34 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
   if (text.length > 3900) {
     throw new Error('Message is too long for Slack — send a smaller part');
   }
-  const user = await resolveSlackUserForRemind(env, { slackUserId, editor, editorEmail });
-  await assertSlackUserMatchesEditor(user, editor, editorEmail);
+  const { user, resolvedVia } = await resolveSlackUserForRemind(env, {
+    slackUserId,
+    editor,
+    editorEmail,
+  });
+  if (resolvedVia !== 'email') {
+    await assertSlackUserMatchesEditor(user, editor, editorEmail);
+  }
   const resolvedUserId = user.id;
   const channel = await openSlackDmChannel(env, resolvedUserId);
-  const data = await slackApi(env, 'chat.postMessage', {
-    channel,
-    text,
-    mrkdwn: true,
-    unfurl_links: false,
-  });
+  let data;
+  try {
+    data = await postSlackDmText(env, channel, text);
+  } catch (err) {
+    if (err.slackError !== 'invalid_arguments') throw err;
+    data = await slackApi(env, 'chat.postMessage', {
+      channel: resolvedUserId,
+      text,
+    });
+  }
   return { channel: data.channel, ts: data.ts, slackUserId: resolvedUserId };
 }
 
 async function handleRemindRequest(env, body) {
   const slackUserId = String(body.slackUserId || '').trim();
-  const wantsSlack = body.sendSlack === true && Boolean(slackUserId);
+  const wantsSlack =
+    body.sendSlack === true &&
+    Boolean(slackUserId || body.editorEmail?.trim() || body.editor?.trim());
   const wantsJira = body.createJira !== false;
 
   const out = { ok: false, slack: null, jira: null };

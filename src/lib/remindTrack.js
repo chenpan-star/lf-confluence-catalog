@@ -4,6 +4,7 @@
  */
 
 import { resolveSlackRecipient } from './slack.js';
+import { guessEmail } from './contact.js';
 
 export function isRemindTrackConfigured() {
   const url = import.meta.env.VITE_REMIND_TRACK_URL?.trim();
@@ -11,10 +12,11 @@ export function isRemindTrackConfigured() {
   return Boolean(url && key);
 }
 
-/** @param {boolean} sendSlack */
+/** True when Worker can DM this person (slack.json id or lotusflare email guess). */
 export function canAutoSendSlack(contact, slackConfig) {
   if (!isRemindTrackConfigured()) return false;
-  return Boolean(resolveSlackRecipient(contact, slackConfig)?.userId);
+  if (resolveSlackRecipient(contact, slackConfig)?.userId) return true;
+  return Boolean(guessEmail(contact));
 }
 
 export async function dispatchRemind({
@@ -50,7 +52,7 @@ export async function dispatchRemind({
     catalogUrl,
     issueType: remindTrackConfig?.issueTypeName,
     labels: remindTrackConfig?.labels,
-    sendSlack: Boolean(sendSlack && slackUserId),
+    sendSlack: Boolean(sendSlack),
     slackUserId: slackUserId || undefined,
     createJira,
   };
