@@ -189,9 +189,12 @@ Optional: **Jira tracking** — when the remind-track Worker is configured, each
 
 ### Slack user ID map (optional)
 
-Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Slack member IDs).
+Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Slack member IDs). **Required for auto Slack DMs** via the remind Worker.
 
-1. Slack app → **OAuth & Permissions** → add Bot scope **`users:read`** → **Reinstall**
+1. Slack app → **OAuth & Permissions** → add Bot scopes:
+   - **`users:read`** (user map export)
+   - **`chat:write`**, **`im:write`** (bot DMs via remind Worker)
+   → **Reinstall to workspace**
 2. Put token in `.env` (never commit):
    ```env
    SLACK_BOT_TOKEN=xoxb-…
@@ -208,6 +211,8 @@ Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Sl
 1. Repo **Settings → Secrets and variables → Actions** → secret **`SLACK_BOT_TOKEN`** (`xoxb-…`, scope `users:read`)
 2. First run: **Actions → Refresh Slack user map → Run workflow**
 3. On change it commits `public/config/slack.json`; push to `main` triggers Pages deploy
+
+**Auto Slack DMs:** the same **`SLACK_BOT_TOKEN`** must be on the remind Worker (GitHub secret → **Deploy remind-track Worker** syncs it). Bot posts `chat.postMessage` to the member id from `slack.json`.
 
 ---
 
@@ -286,6 +291,35 @@ Run `npm run worker:remind:dev` in one terminal and `npm run dev` in another to 
 - **Labels:** from `public/config/remind-track.json` (defaults: `confluence-catalog`, `doc-review`).
 
 If Jira fails, Slack copy still succeeds; the modal shows a warning with the error.
+
+### 4. Cannot open `*.workers.dev` (office DNS)
+
+The Worker can be **healthy** (GitHub Actions / Cloudflare dashboard) while your **browser or office network blocks** `https://….workers.dev` — same as before with other Workers.
+
+- You **do not** need to open the Worker URL in a browser for day-to-day use; the **catalog** calls it when you click **Copy & open Slack**.
+- If that call is blocked too, Jira tracking will fail on office Wi‑Fi with a timeout — Slack copy still works.
+
+**Fix (recommended for LotusFlare):** put the Worker on a **company hostname** on Cloudflare, e.g. `confluence-catalog-remind.lotusflare.com`:
+
+1. Ensure **`lotusflare.com`** is on the **same Cloudflare account** as the Worker (or ask Infra).
+2. In `worker/remind-track/wrangler.jsonc`, add (example):
+
+   ```jsonc
+   "routes": [
+     {
+       "pattern": "confluence-catalog-remind.lotusflare.com",
+       "custom_domain": true
+     }
+   ]
+   ```
+
+3. Redeploy the Worker (`Deploy remind-track Worker` workflow). Cloudflare creates DNS for the custom domain when the zone is on that account.
+4. Add that hostname to `ALLOWED_ORIGINS` in the same file (comma-separated).
+5. Update GitHub variable **`VITE_REMIND_TRACK_URL`** to `https://confluence-catalog-remind.lotusflare.com` and redeploy Pages.
+
+**Quick test:** phone on cellular → open `…/health` — if it loads, the Worker is fine and the block is corporate DNS only.
+
+**Dashboard check:** Cloudflare → **Workers & Pages** → **lf-catalog-remind-track** → metrics / **Visit** (may work from Cloudflare UI even when `workers.dev` is blocked locally).
 
 ---
 

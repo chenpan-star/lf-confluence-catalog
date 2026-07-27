@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
-import { trackRemindInJira, isRemindTrackConfigured } from '../lib/remindTrack';
+import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured } from '../lib/remindTrack';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
   openBundledSlackReview,
   REMIND_PAGES_PER_MESSAGE,
+  resolveSlackUserId,
   splitReminderPageChunks,
 } from '../lib/slack';
 import './ReviewMessageModal.css';
@@ -25,8 +26,11 @@ export default function ReviewMessageModal({
   const [error, setError] = useState('');
   const [showMore, setShowMore] = useState(false);
   const [jiraTrack, setJiraTrack] = useState(null);
+  const [slackTrack, setSlackTrack] = useState(null);
   const { remindTrackConfig } = useCatalog();
-  const jiraTrackingOn = isRemindTrackConfigured();
+  const workerOn = isRemindTrackConfigured();
+  const autoSlack = canAutoSendSlack(editor, slackConfig);
+  const slackUserId = resolveSlackUserId(editor, slackConfig);
 
   const chunks = useMemo(
     () => splitReminderPageChunks(pages, REMIND_PAGES_PER_MESSAGE),
@@ -83,7 +87,62 @@ export default function ReviewMessageModal({
     setSendingPart(partIdx);
     setError('');
     setJiraTrack(null);
+    setSlackTrack(null);
     try {
+      const slackMessage = buildBundledReviewMessage({
+        editor,
+        pages: chunk,
+        site,
+        partIndex: partIdx + 1,
+        partTotal,
+        globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
+      });
+
+      if (workerOn) {
+        const result = await dispatchRemind({
+          editor,
+          editorEmail: guessEmail(editor),
+          message: slackMessage,
+          pagesCount: chunk.length,
+          partIndex: partIdx + 1,
+          partTotal,
+          remindTrackConfig,
+          slackUserId,
+          sendSlack: autoSlack,
+          createJira: true,
+        });
+
+        if (result.slack) setSlackTrack(result.slack);
+        if (result.jira) setJiraTrack(result.jira);
+
+        if (result.slack?.ok) {
+          setCopiedPart(partIdx);
+          if (partTotal === 1) {
+            setTimeout(() => onClose?.(), 1800);
+          }
+          return;
+        }
+
+        if (autoSlack) {
+          await openBundledSlackReview({
+            editor,
+            pages: chunk,
+            site,
+            slackConfig,
+            partIndex: partIdx + 1,
+            partTotal,
+            globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
+          });
+          setCopiedPart(partIdx);
+          return;
+        }
+
+        if (result.ok && !autoSlack) {
+          setCopiedPart(partIdx);
+          return;
+        }
+      }
+
       await openBundledSlackReview({
         editor,
         pages: chunk,
@@ -95,16 +154,8 @@ export default function ReviewMessageModal({
       });
       setCopiedPart(partIdx);
 
-      if (jiraTrackingOn) {
-        const slackMessage = buildBundledReviewMessage({
-          editor,
-          pages: chunk,
-          site,
-          partIndex: partIdx + 1,
-          partTotal,
-          globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
-        });
-        const jiraResult = await trackRemindInJira({
+      if (workerOn && !autoSlack) {
+        const jiraOnly = await dispatchRemind({
           editor,
           editorEmail: guessEmail(editor),
           message: slackMessage,
@@ -112,11 +163,13 @@ export default function ReviewMessageModal({
           partIndex: partIdx + 1,
           partTotal,
           remindTrackConfig,
+          sendSlack: false,
+          createJira: true,
         });
-        setJiraTrack(jiraResult);
+        if (jiraOnly.jira) setJiraTrack(jiraOnly.jira);
       }
 
-      if (partTotal === 1 && !jiraTrackingOn) {
+      if (partTotal === 1 && !workerOn) {
         setTimeout(() => onClose?.(), 1400);
       }
     } catch (err) {
@@ -162,30 +215,73 @@ export default function ReviewMessageModal({
         <p className="remind-confirm-mode">
           {partTotal > 1 ? (
             <>
-              Select a <strong>Part</strong> tab to preview it, then{' '}
-              <strong>copy &amp; open Slack</strong> for that message only ({partTotal} messages, same
-              DM).
-              {jiraTrackingOn ? (
+              Select a <strong>Part</strong> tab, then send.
+              {autoSlack ? (
                 <>
                   {' '}
-                  Each send also creates a matching <strong>Jira task</strong>.
+                  The catalog will <strong>DM them on Slack</strong> automatically
+                  {workerOn ? (
+                    <>
+                      {' '}
+                      and create a <strong>Jira task</strong>.
+                    </>
+                  ) : (
+                    '.'
+                  )}
                 </>
-              ) : null}
+              ) : (
+                <>
+                  {' '}
+                  <strong>Copy &amp; open Slack</strong> for that message ({partTotal} messages, same DM).
+                  {workerOn ? ' Creates a ' : null}
+                  {workerOn ? <strong>Jira task</strong> : null}
+                  {workerOn ? ' when the remind service is reachable.' : null}
+                  {!slackUserId && workerOn ? (
+                    <>
+                      {' '}
+                      (No Slack user id in <span className="mono">slack.json</span> — paste manually.)
+                    </>
+                  ) : null}
+                </>
+              )}
             </>
           ) : (
             <>
-              Confirm will <strong>copy the message</strong> and open Slack — paste into their DM.
-              {jiraTrackingOn ? (
+              {autoSlack ? (
                 <>
-                  {' '}
-                  A <strong>Jira task</strong> is created for the same reminder.
+                  Sends a <strong>Slack DM</strong> automatically
+                  {workerOn ? (
+                    <>
+                      {' '}
+                      and creates a <strong>Jira task</strong>.
+                    </>
+                  ) : (
+                    '.'
+                  )}
                 </>
-              ) : null}
+              ) : (
+                <>
+                  Confirm will <strong>copy the message</strong> and open Slack — paste into their DM.
+                  {workerOn ? ' Creates a ' : null}
+                  {workerOn ? <strong>Jira task</strong> : null}
+                  {workerOn ? ' when the remind service is reachable.' : null}
+                </>
+              )}
             </>
           )}
         </p>
 
-        {copiedPart !== null && !error && (
+        {slackTrack?.ok && (
+          <p className="review-modal-copied" role="status">
+            ✓ Slack DM sent{handle ? ` to @${handle}` : ''}.
+          </p>
+        )}
+        {slackTrack && !slackTrack.ok && (
+          <p className="review-modal-jira-warn" role="status">
+            Slack DM failed: {slackTrack.error}. Use copy &amp; open below if needed.
+          </p>
+        )}
+        {copiedPart !== null && !error && !slackTrack?.ok && (
           <p className="review-modal-copied" role="status">
             ✓ Message {copiedPart + 1} copied — paste in Slack
             {handle ? ` to @${handle}` : ''}.
@@ -227,6 +323,7 @@ export default function ReviewMessageModal({
                   setPreviewIndex(idx);
                   setCopiedPart(null);
                   setJiraTrack(null);
+                  setSlackTrack(null);
                 }}
               >
                 Part {idx + 1}
@@ -251,10 +348,14 @@ export default function ReviewMessageModal({
             onClick={() => handleOpenSlackPart(safePreview)}
           >
             {sendingPart === safePreview
-              ? 'Opening…'
-              : partTotal > 1
-                ? `Copy & open Slack (part ${safePreview + 1}/${partTotal})`
-                : 'Copy & open Slack'}
+              ? 'Sending…'
+              : autoSlack
+                ? partTotal > 1
+                  ? `Send Slack DM (part ${safePreview + 1}/${partTotal})`
+                  : 'Send Slack DM'
+                : partTotal > 1
+                  ? `Copy & open Slack (part ${safePreview + 1}/${partTotal})`
+                  : 'Copy & open Slack'}
           </button>
           <button
             type="button"

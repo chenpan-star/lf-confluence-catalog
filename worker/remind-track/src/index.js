@@ -170,6 +170,82 @@ async function createRemindIssue(env, body) {
   };
 }
 
+async function sendSlackDirectMessage(env, { slackUserId, message }) {
+  const token = env.SLACK_BOT_TOKEN?.trim();
+  if (!token) {
+    throw new Error('SLACK_BOT_TOKEN is not configured on the worker');
+  }
+  const channel = String(slackUserId || '').trim();
+  if (!channel) {
+    throw new Error('slackUserId is required');
+  }
+  const text = String(message || '').trim();
+  if (!text) {
+    throw new Error('message is required');
+  }
+  if (text.length > 3900) {
+    throw new Error('Message is too long for Slack — send a smaller part');
+  }
+
+  const res = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      channel,
+      text,
+      mrkdwn: true,
+      unfurl_links: false,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok) {
+    throw new Error(data.error || 'Slack chat.postMessage failed');
+  }
+  return { channel: data.channel, ts: data.ts };
+}
+
+async function handleRemindRequest(env, body) {
+  const slackUserId = String(body.slackUserId || '').trim();
+  const wantsSlack = body.sendSlack === true && Boolean(slackUserId);
+  const wantsJira = body.createJira !== false;
+
+  const out = { ok: false, slack: null, jira: null };
+
+  if (wantsSlack) {
+    try {
+      const slack = await sendSlackDirectMessage(env, {
+        slackUserId,
+        message: body.message,
+      });
+      out.slack = { ok: true, ...slack };
+    } catch (err) {
+      out.slack = { ok: false, error: err?.message || 'Slack send failed' };
+    }
+  }
+
+  if (wantsJira) {
+    try {
+      const jira = await createRemindIssue(env, body);
+      out.jira = { ok: true, ...jira };
+    } catch (err) {
+      out.jira = { ok: false, error: err?.message || 'Jira create failed' };
+    }
+  }
+
+  out.ok = Boolean(out.slack?.ok || out.jira?.ok);
+  if ((wantsSlack || wantsJira) && !out.ok) {
+    const parts = [];
+    if (out.slack && !out.slack.ok) parts.push(`Slack: ${out.slack.error}`);
+    if (out.jira && !out.jira.ok) parts.push(`Jira: ${out.jira.error}`);
+    out.error = parts.join(' · ') || 'Remind dispatch failed';
+  }
+
+  return out;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -184,6 +260,7 @@ export default {
           ok: true,
           service: 'lf-catalog-remind-track',
           jiraConfigured: Boolean(env.ATLASSIAN_EMAIL && env.ATLASSIAN_API_TOKEN),
+          slackConfigured: Boolean(env.SLACK_BOT_TOKEN?.trim()),
         },
         200,
         request,
@@ -207,11 +284,12 @@ export default {
     }
 
     try {
-      const result = await createRemindIssue(env, body);
-      return jsonResponse({ ok: true, ...result }, 201, request, env);
+      const result = await handleRemindRequest(env, body);
+      const status = result.ok ? 201 : 502;
+      return jsonResponse(result, status, request, env);
     } catch (err) {
       return jsonResponse(
-        { ok: false, error: err?.message || 'Failed to create Jira issue' },
+        { ok: false, error: err?.message || 'Failed to process remind request' },
         502,
         request,
         env,

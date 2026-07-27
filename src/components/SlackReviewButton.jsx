@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { guessEmail, primaryContact } from '../lib/contact';
-import { buildReviewMessage, guessSlackHandle, openSlackReview } from '../lib/slack';
-import { isRemindTrackConfigured, trackRemindInJira } from '../lib/remindTrack';
+import {
+  buildReviewMessage,
+  guessSlackHandle,
+  openSlackReview,
+  resolveSlackUserId,
+} from '../lib/slack';
+import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured } from '../lib/remindTrack';
 import RemindConfirmModal from './RemindConfirmModal';
 
 export default function SlackReviewButton({
@@ -20,6 +25,8 @@ export default function SlackReviewButton({
   const handle = guessSlackHandle(contact);
   const email = guessEmail(contact);
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
+  const autoSlack = canAutoSendSlack(contact, slackConfig);
+  const slackUserId = resolveSlackUserId(contact, slackConfig);
 
   const message = buildReviewMessage({
     page,
@@ -30,6 +37,32 @@ export default function SlackReviewButton({
   });
 
   async function openSlack() {
+    if (isRemindTrackConfigured()) {
+      const result = await dispatchRemind({
+        editor: contact || 'Unknown',
+        editorEmail: email,
+        message,
+        pagesCount: 1,
+        partIndex: 1,
+        partTotal: 1,
+        remindTrackConfig,
+        slackUserId,
+        sendSlack: autoSlack,
+        createJira: true,
+      });
+
+      if (result.slack?.ok) {
+        const jira = result.jira?.ok ? ` · Jira ${result.jira.issueKey}` : '';
+        setHint(`Slack DM sent${jira}`);
+        setTimeout(() => setHint(''), 6000);
+        return;
+      }
+
+      if (autoSlack && result.slack && !result.slack.ok) {
+        setHint(`Slack DM failed (${result.slack.error}) — opening manual copy…`);
+      }
+    }
+
     await openSlackReview({
       page,
       spaceName,
@@ -38,8 +71,9 @@ export default function SlackReviewButton({
       catalogPageUrl,
       slackConfig,
     });
-    if (isRemindTrackConfigured()) {
-      const jira = await trackRemindInJira({
+
+    if (isRemindTrackConfigured() && !autoSlack) {
+      const jiraOnly = await dispatchRemind({
         editor: contact || 'Unknown',
         editorEmail: email,
         message,
@@ -47,13 +81,16 @@ export default function SlackReviewButton({
         partIndex: 1,
         partTotal: 1,
         remindTrackConfig,
+        sendSlack: false,
+        createJira: true,
       });
-      if (jira.ok && jira.issueKey) {
-        setHint(`Copied — Jira ${jira.issueKey} created. Paste in Slack.`);
+      if (jiraOnly.jira?.ok) {
+        setHint(`Copied — Jira ${jiraOnly.jira.issueKey}. Paste in Slack.`);
         setTimeout(() => setHint(''), 6000);
         return;
       }
     }
+
     const label = handle ? `@${handle}` : contact || 'editor';
     setHint(`Message copied — paste in Slack to ${label}`);
     setTimeout(() => setHint(''), 5000);
@@ -67,7 +104,7 @@ export default function SlackReviewButton({
       {hint && <span className="slack-hint">{hint}</span>}
       {confirmOpen && (
         <RemindConfirmModal
-          title="Send Slack reminder?"
+          title={autoSlack ? 'Send Slack DM?' : 'Send Slack reminder?'}
           recipientName={contact || 'Unknown'}
           recipientHandle={handle}
           recipientEmail={email}
