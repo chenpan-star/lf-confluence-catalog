@@ -98,11 +98,6 @@ export default function ReviewMessageModal({
     }
   }
 
-  const multiPartHint =
-    partTotal > 1
-      ? ` Slack limits how long one message can be — send ${partTotal} messages (same DM), one per button below.`
-      : '';
-
   return (
     <div className="review-modal-backdrop" role="presentation" onClick={onClose}>
       <div
@@ -137,8 +132,17 @@ export default function ReviewMessageModal({
         </p>
 
         <p className="remind-confirm-mode">
-          Each button <strong>copies that message</strong> and opens Slack — paste into their DM.
-          {multiPartHint}
+          {partTotal > 1 ? (
+            <>
+              Select a <strong>Part</strong> tab to preview it, then{' '}
+              <strong>copy &amp; open Slack</strong> for that message only ({partTotal} messages, same
+              DM).
+            </>
+          ) : (
+            <>
+              Confirm will <strong>copy the message</strong> and open Slack — paste into their DM.
+            </>
+          )}
         </p>
 
         {copiedPart !== null && !error && (
@@ -164,7 +168,10 @@ export default function ReviewMessageModal({
                 className={`review-modal-chunk-tab${idx === safePreview ? ' active' : ''}${
                   copiedPart === idx ? ' sent' : ''
                 }`}
-                onClick={() => setPreviewIndex(idx)}
+                onClick={() => {
+                  setPreviewIndex(idx);
+                  setCopiedPart(null);
+                }}
               >
                 Part {idx + 1}
                 <span className="review-modal-chunk-tab-meta">
@@ -181,31 +188,18 @@ export default function ReviewMessageModal({
         <pre className="review-modal-body">{message}</pre>
 
         <div className="review-modal-actions">
-          {partTotal === 1 ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={sendingPart !== null}
-              onClick={() => handleOpenSlackPart(0)}
-            >
-              {sendingPart === 0 ? 'Opening…' : 'Copy & open Slack'}
-            </button>
-          ) : (
-            chunks.map((chunk, idx) => (
-              <button
-                key={idx}
-                type="button"
-                className={`btn btn-primary${idx > 0 ? ' btn-sm' : ''}`}
-                disabled={sendingPart !== null}
-                onClick={() => handleOpenSlackPart(idx)}
-                title={`${chunk.length} pages in this message`}
-              >
-                {sendingPart === idx
-                  ? 'Opening…'
-                  : `Copy & open Slack (part ${idx + 1}/${partTotal})`}
-              </button>
-            ))
-          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={sendingPart !== null}
+            onClick={() => handleOpenSlackPart(safePreview)}
+          >
+            {sendingPart === safePreview
+              ? 'Opening…'
+              : partTotal > 1
+                ? `Copy & open Slack (part ${safePreview + 1}/${partTotal})`
+                : 'Copy & open Slack'}
+          </button>
           <button
             type="button"
             className="btn btn-ghost"

@@ -530,11 +530,13 @@
   border-radius: var(--radius-md);
 }
 
-.space-person-active-name-row {
+.space-person-active-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 0.75rem;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .space-person-active-label {

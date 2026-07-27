@@ -361,23 +361,23 @@ export default function SpacePage() {
           <div className="space-person-active">
             <div className="space-person-active-info">
               <span className="space-person-active-label">Selected editor</span>
-              <div className="space-person-active-name-row">
-                <span className="space-person-active-name">{personFilter}</span>
-                {personOutdatedPages.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setPersonRemindOpen(true)}
-                  >
-                    Remind about all {formatNumber(personOutdatedPages.length)} outdated page
-                    {personOutdatedPages.length === 1 ? '' : 's'}
-                  </button>
-                )}
-              </div>
+              <span className="space-person-active-name">{personFilter}</span>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPersonFilter('')}>
-              Clear
-            </button>
+            <div className="space-person-active-actions">
+              {personOutdatedPages.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setPersonRemindOpen(true)}
+                >
+                  Remind about all {formatNumber(personOutdatedPages.length)} outdated page
+                  {personOutdatedPages.length === 1 ? '' : 's'}
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPersonFilter('')}>
+                Clear
+              </button>
+            </div>
           </div>
         )}
 

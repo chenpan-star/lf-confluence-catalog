@@ -312,8 +312,8 @@ export default function MyPagesReviewPage() {
       ) : (
         <>
           <div className="person-result-head">
-            <div className="person-result-head-title">
-              <h2 className="home-section-title">{activeEditor}</h2>
+            <h2 className="home-section-title person-result-head-name">{activeEditor}</h2>
+            <div className="person-result-head-actions">
               {summary.attentionPages.length > 0 && (
                 <button
                   type="button"
@@ -324,16 +324,16 @@ export default function MyPagesReviewPage() {
                   {summary.attentionPages.length === 1 ? '' : 's'}
                 </button>
               )}
+              {queryParam && selectedEditor && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setSearchParams({ q: queryParam }, { replace: true })}
+                >
+                  ← Back to matches
+                </button>
+              )}
             </div>
-            {queryParam && selectedEditor && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setSearchParams({ q: queryParam }, { replace: true })}
-              >
-                ← Back to matches
-              </button>
-            )}
           </div>
 
           <div className="hygiene-stats" style={{ marginBottom: '1.5rem' }}>
