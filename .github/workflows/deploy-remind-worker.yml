@@ -17,8 +17,40 @@ jobs:
           node-version: '24'
           cache: npm
 
+      - name: Validate GitHub secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+        run: |
+          missing=0
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID REMIND_API_SECRET ATLASSIAN_EMAIL ATLASSIAN_API_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name — run scripts/setup-remind-worker-github.sh"
+              missing=1
+            fi
+          done
+          exit $missing
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Deploy Worker
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          npx wrangler deploy --config worker/remind-track/wrangler.jsonc 2>&1 | tee deploy.log
+          URL="$(grep -oE 'https://[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+\.workers\.dev' deploy.log | tail -1 || true)"
+          if [ -z "$URL" ]; then
+            echo "::warning::Could not parse workers.dev URL from deploy log — check Cloudflare dashboard"
+          else
+            echo "worker_url=$URL" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Sync Worker secrets
         env:
@@ -31,11 +63,30 @@ jobs:
           printf '%s' "$REMIND_API_SECRET" | npx wrangler secret put REMIND_API_SECRET --config worker/remind-track/wrangler.jsonc
           printf '%s' "$ATLASSIAN_EMAIL" | npx wrangler secret put ATLASSIAN_EMAIL --config worker/remind-track/wrangler.jsonc
           printf '%s' "$ATLASSIAN_API_TOKEN" | npx wrangler secret put ATLASSIAN_API_TOKEN --config worker/remind-track/wrangler.jsonc
-        working-directory: .
 
-      - name: Deploy Worker
+      - name: Health check
+        if: steps.deploy.outputs.worker_url != ''
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --config worker/remind-track/wrangler.jsonc
-        working-directory: .
+          WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          curl -sf "$WORKER_URL/health" | tee health.json
+          node -e "const h=require('./health.json'); if(!h.jiraConfigured) { console.error('jiraConfigured false — check ATLASSIAN secrets'); process.exit(1); }"
+
+      - name: Job summary
+        if: always()
+        env:
+          WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          {
+            echo "## Remind-track Worker"
+            if [ -n "$WORKER_URL" ]; then
+              echo "- **Worker URL:** \`$WORKER_URL\`"
+              echo "- Health: \`$WORKER_URL/health\`"
+              echo ""
+              echo "### Catalog (step 4)"
+              echo "Set repository **variable** \`VITE_REMIND_TRACK_URL\` to the Worker URL above, then redeploy GitHub Pages."
+              echo "\`VITE_REMIND_API_KEY\` should already match \`REMIND_API_SECRET\` (setup script)."
+            else
+              echo "Deploy finished — open Cloudflare Workers dashboard for the script URL."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

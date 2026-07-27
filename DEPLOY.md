@@ -234,6 +234,21 @@ The catalog stays static; **Jira credentials live only on the Worker**. The brow
 
 2. Local secrets — copy `worker/remind-track/.dev.vars.example` → `.dev.vars` (gitignored).
 
+### Option B — GitHub Actions (recommended)
+
+```bash
+cd ~/Projects/lf-confluence-catalog
+gh auth login
+export CLOUDFLARE_API_TOKEN='…'
+export CLOUDFLARE_ACCOUNT_ID='…'
+./scripts/setup-remind-worker-github.sh
+gh workflow run deploy-remind-worker.yml -R chenpan-star/lf-confluence-catalog
+```
+
+The script uses **Atlassian** values from your `.env`, generates **`REMIND_API_SECRET`**, and sets GitHub secrets (including **`VITE_REMIND_API_KEY`**). After the workflow run, open **Summary** → copy **Worker URL** → `gh variable set VITE_REMIND_TRACK_URL --body '<url>' -R chenpan-star/lf-confluence-catalog`, then redeploy Pages.
+
+### Option A — Deploy from your laptop
+
 3. Deploy:
    ```bash
    npm ci
@@ -242,8 +257,6 @@ The catalog stays static; **Jira credentials live only on the Worker**. The brow
    npx wrangler secret put ATLASSIAN_API_TOKEN --config worker/remind-track/wrangler.jsonc
    npm run worker:remind:deploy
    ```
-
-   Or use GitHub Action **Deploy remind-track Worker** (needs secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `REMIND_API_SECRET`, `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN`).
 
 4. Health check: `curl -s https://<worker-host>/health`
 
