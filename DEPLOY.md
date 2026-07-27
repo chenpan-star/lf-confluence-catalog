@@ -193,6 +193,7 @@ Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Sl
 
 1. Slack app → **OAuth & Permissions** → add Bot scopes:
    - **`users:read`** (user map export)
+   - **`users:read.email`** (Worker resolves Slack members by email when `slack.json` ids are stale)
    - **`chat:write`**, **`im:write`** (bot DMs via remind Worker)
    → **Reinstall to workspace**
 2. Put token in `.env` (never commit):
@@ -234,6 +235,7 @@ The catalog stays static; **Jira credentials live only on the Worker**. The brow
 
 1. Edit `worker/remind-track/wrangler.jsonc`:
    - Set **`JIRA_PROJECT_KEY`** (and optionally `JIRA_ISSUE_TYPE`, `JIRA_LABELS`).
+   - **PROT** requires **Requested Due Date** — the Worker fills required date fields automatically (default **+14 days**, override with **`JIRA_DUE_DATE_DAYS`** or **`JIRA_REQUESTED_DUE_DATE_FIELD`**).
    - Add your Cloudflare **`account_id`** if `wrangler deploy` asks for it.
    - Prefer a **custom domain route** on `*.lotusflare.com` if `*.workers.dev` is blocked on office DNS.
 

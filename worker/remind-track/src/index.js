@@ -89,14 +89,56 @@ async function jiraFetch(env, path, init = {}) {
     data = { raw: text };
   }
   if (!res.ok) {
+    const fieldErrors =
+      data?.errors && typeof data.errors === 'object'
+        ? Object.entries(data.errors)
+            .map(([k, v]) => `${k === 'summary' ? 'Summary' : k}: ${v}`)
+            .join('; ')
+        : '';
     const msg =
       data?.errorMessages?.join('; ') ||
-      data?.errors?.summary ||
+      fieldErrors ||
       data?.message ||
       `Jira HTTP ${res.status}`;
     throw new Error(msg);
   }
   return data;
+}
+
+function defaultRequestedDueDate(env) {
+  const days = Number(env.JIRA_DUE_DATE_DAYS) || 14;
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Fill required Jira fields (e.g. PROT "Requested Due Date") from create metadata. */
+async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
+  const params = new URLSearchParams({
+    projectKeys: projectKey,
+    issuetypeNames: issueType,
+    expand: 'projects.issuetypes.fields',
+  });
+  const meta = await jiraFetch(env, `/rest/api/3/issue/createmeta?${params}`);
+  const issueTypes = meta.projects?.[0]?.issuetypes || [];
+  const typeMeta =
+    issueTypes.find((t) => t.name?.toLowerCase() === issueType.toLowerCase()) || issueTypes[0];
+  const fieldSpecs = typeMeta?.fields || {};
+  const dueDefault = defaultRequestedDueDate(env);
+  const explicitField = (env.JIRA_REQUESTED_DUE_DATE_FIELD || '').trim();
+
+  if (explicitField && !fields[explicitField]) {
+    fields[explicitField] = dueDefault;
+  }
+
+  for (const [fieldId, spec] of Object.entries(fieldSpecs)) {
+    if (!spec?.required || fields[fieldId] != null) continue;
+    const name = String(spec.name || '').toLowerCase();
+    const schema = spec.schema || {};
+    if (schema.type === 'date' || name.includes('due date')) {
+      fields[fieldId] = dueDefault;
+    }
+  }
 }
 
 async function findAssigneeAccountId(env, projectKey, editor, editorEmail) {
@@ -158,6 +200,8 @@ async function createRemindIssue(env, body) {
   );
   if (assigneeId) fields.assignee = { id: assigneeId };
 
+  await applyRequiredJiraFields(env, projectKey, issueType, fields);
+
   const created = await jiraFetch(env, '/rest/api/3/issue', {
     method: 'POST',
     body: JSON.stringify({ fields }),
@@ -185,13 +229,60 @@ async function slackApi(env, method, body) {
   });
   const data = await res.json().catch(() => ({}));
   if (!data.ok) {
-    const hint =
-      data.error === 'missing_scope'
-        ? ' (add chat:write and im:write to the Slack app, then reinstall)'
-        : '';
-    throw new Error((data.error || `${method} failed`) + hint);
+    const err = data.error || `${method} failed`;
+    let hint = '';
+    if (err === 'missing_scope') {
+      hint =
+        ' (add chat:write, im:write, users:read, and users:read.email to the Slack app, then reinstall)';
+    } else if (err === 'user_not_found') {
+      hint =
+        ' (stale slack.json id or wrong workspace — use the same SLACK_BOT_TOKEN for export and the Worker, or re-run slack:export-users --apply)';
+    }
+    const e = new Error(err + hint);
+    e.slackError = err;
+    throw e;
   }
   return data;
+}
+
+async function slackLookupUserByEmail(env, email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized || !normalized.includes('@')) return null;
+  try {
+    const data = await slackApi(env, 'users.lookupByEmail', { email: normalized });
+    return data.user || null;
+  } catch (err) {
+    if (err.slackError === 'users_not_found') return null;
+    throw err;
+  }
+}
+
+async function slackGetUser(env, slackUserId) {
+  const id = String(slackUserId || '').trim();
+  if (!id) return null;
+  try {
+    const data = await slackApi(env, 'users.info', { user: id });
+    return data.user || null;
+  } catch (err) {
+    if (err.slackError === 'user_not_found') return null;
+    throw err;
+  }
+}
+
+async function resolveSlackUserForRemind(env, { slackUserId, editor, editorEmail }) {
+  let user = await slackGetUser(env, slackUserId);
+  if (user?.id) return user;
+
+  const emails = [editorEmail, guessEmailFromEditor(editor)].filter(Boolean);
+  for (const email of emails) {
+    user = await slackLookupUserByEmail(env, email);
+    if (user?.id) return user;
+  }
+
+  throw new Error(
+    `Slack user not found for "${editor}"` +
+      ' (re-run npm run slack:export-users -- --apply and ensure Worker SLACK_BOT_TOKEN matches export token)',
+  );
 }
 
 function normalizePersonName(name) {
@@ -214,9 +305,7 @@ function guessEmailFromEditor(editor) {
   return `${local}@lotusflare.com`;
 }
 
-async function assertSlackUserMatchesEditor(env, slackUserId, editor, editorEmail) {
-  const data = await slackApi(env, 'users.info', { user: slackUserId });
-  const user = data.user;
+async function assertSlackUserMatchesEditor(user, editor, editorEmail) {
   if (!user || user.deleted) {
     throw new Error('Slack user not found or deactivated');
   }
@@ -258,15 +347,17 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
   if (text.length > 3900) {
     throw new Error('Message is too long for Slack — send a smaller part');
   }
-  await assertSlackUserMatchesEditor(env, slackUserId, editor, editorEmail);
-  const channel = await openSlackDmChannel(env, slackUserId);
+  const user = await resolveSlackUserForRemind(env, { slackUserId, editor, editorEmail });
+  await assertSlackUserMatchesEditor(user, editor, editorEmail);
+  const resolvedUserId = user.id;
+  const channel = await openSlackDmChannel(env, resolvedUserId);
   const data = await slackApi(env, 'chat.postMessage', {
     channel,
     text,
     mrkdwn: true,
     unfurl_links: false,
   });
-  return { channel: data.channel, ts: data.ts };
+  return { channel: data.channel, ts: data.ts, slackUserId: resolvedUserId };
 }
 
 async function handleRemindRequest(env, body) {
