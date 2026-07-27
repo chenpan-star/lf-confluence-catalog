@@ -351,6 +351,24 @@ async function findUserAccountIdByQuery(env, query) {
   return null;
 }
 
+async function assignIssueWithNotify(env, issueKey, accountId) {
+  await jiraFetch(
+    env,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/assignee?notifyUsers=true`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ accountId }),
+    },
+  );
+}
+
+async function addIssueWatcher(env, issueKey, accountId) {
+  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/watchers`, {
+    method: 'POST',
+    body: JSON.stringify(accountId),
+  });
+}
+
 async function mentionAssigneeOnIssue(env, issueKey, accountId, summary) {
   await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
     method: 'POST',
@@ -420,10 +438,28 @@ async function notifyIssueRecipient(
     '<p>Created from the LF Confluence catalog remind flow.</p>',
   ].join('');
 
+  let assignNotifyOk = false;
+  let watcherOk = false;
   let mentionOk = false;
   let notifyOk = false;
+  let assignNotifyError = null;
+  let watcherError = null;
   let mentionError = null;
   let notifyError = null;
+
+  try {
+    await assignIssueWithNotify(env, issueKey, accountId);
+    assignNotifyOk = true;
+  } catch (err) {
+    assignNotifyError = err?.message || 'Assign with notify failed';
+  }
+
+  try {
+    await addIssueWatcher(env, issueKey, accountId);
+    watcherOk = true;
+  } catch (err) {
+    watcherError = err?.message || 'Add watcher failed';
+  }
 
   try {
     await mentionAssigneeOnIssue(env, issueKey, accountId, summary);
@@ -440,9 +476,9 @@ async function notifyIssueRecipient(
         textBody,
         htmlBody,
         to: {
-          assignee: Boolean(assigneeAccountId),
+          assignee: true,
           reporter: false,
-          watchers: false,
+          watchers: true,
           users: [{ accountId }],
         },
       }),
@@ -452,15 +488,25 @@ async function notifyIssueRecipient(
     notifyError = err?.message || 'Jira notify failed';
   }
 
-  const ok = mentionOk || notifyOk;
+  const ok = assignNotifyOk || mentionOk || notifyOk;
   return {
     ok,
     emailedAccountId: accountId,
+    assignNotifyOk,
+    watcherOk,
     mentionOk,
     notifyOk,
     error: ok
       ? undefined
-      : [mentionError, notifyError].filter(Boolean).join(' · ') || 'Email notification failed',
+      : [assignNotifyError, watcherError, mentionError, notifyError]
+          .filter(Boolean)
+          .join(' · ') || 'Email notification failed',
+    details: {
+      assignNotifyError,
+      watcherError,
+      mentionError,
+      notifyError,
+    },
   };
 }
 
@@ -523,7 +569,6 @@ async function createRemindIssue(env, body) {
     editor,
     body.editorEmail?.trim(),
   );
-  if (assigneeId) fields.assignee = { id: assigneeId };
 
   await applyRequiredJiraFields(env, projectKey, issueType, fields);
 
@@ -534,6 +579,26 @@ async function createRemindIssue(env, body) {
 
   const base = (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
   const issueUrl = `${base}/browse/${created.key}`;
+
+  let assigneeSet = false;
+  if (assigneeId) {
+    try {
+      await assignIssueWithNotify(env, created.key, assigneeId);
+      assigneeSet = true;
+    } catch {
+      try {
+        await jiraFetch(
+          env,
+          `/rest/api/3/issue/${encodeURIComponent(created.key)}/assignee?notifyUsers=false`,
+          { method: 'PUT', body: JSON.stringify({ accountId: assigneeId }) },
+        );
+        assigneeSet = true;
+      } catch {
+        assigneeSet = false;
+      }
+    }
+  }
+
   const notifyEmail = await notifyIssueRecipient(env, created.key, {
     summary,
     issueUrl,
@@ -547,7 +612,7 @@ async function createRemindIssue(env, body) {
     issueKey: created.key,
     issueId: created.id,
     issueUrl,
-    assigneeSet: Boolean(assigneeId),
+    assigneeSet,
     notifyEmail,
   };
 }

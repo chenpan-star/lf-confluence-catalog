@@ -266,10 +266,12 @@ export default function ReviewMessageModal({
             created
             {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
             {jiraTrack.notifyEmail?.ok
-              ? ` Notification sent${jiraTrack.notifyEmail.mentionOk ? ' (@mention on issue)' : ''}${jiraTrack.notifyEmail.notifyOk ? ' (email queued)' : ''}.`
+              ? ` Owner notified (assign email: ${jiraTrack.notifyEmail.assignNotifyOk ? 'yes' : 'no'}, @mention: ${jiraTrack.notifyEmail.mentionOk ? 'yes' : 'no'}, notify API: ${jiraTrack.notifyEmail.notifyOk ? 'yes' : 'no'}). Check spam / Jira notification settings if inbox is empty.`
               : jiraTrack.notifyEmail?.error
-                ? ` Notification failed: ${jiraTrack.notifyEmail.error}`
-                : null}
+                ? ` Owner notification failed: ${jiraTrack.notifyEmail.error}`
+                : jiraTrack.notifyEmail?.skipped
+                  ? ' Owner email disabled on Worker.'
+                  : null}
           </p>
         )}
         {jiraTrack && !jiraTrack.ok && jiraTrack.error && (
