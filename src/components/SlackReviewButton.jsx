@@ -5,7 +5,7 @@ import {
   buildReviewMessage,
   guessSlackHandle,
   openSlackReview,
-  resolveSlackUserId,
+  resolveSlackRecipient,
 } from '../lib/slack';
 import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured } from '../lib/remindTrack';
 import RemindConfirmModal from './RemindConfirmModal';
@@ -26,7 +26,8 @@ export default function SlackReviewButton({
   const email = guessEmail(contact);
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
   const autoSlack = canAutoSendSlack(contact, slackConfig);
-  const slackUserId = resolveSlackUserId(contact, slackConfig);
+  const slackRecipient = resolveSlackRecipient(contact, slackConfig);
+  const slackUserId = slackRecipient?.userId ?? null;
 
   const message = buildReviewMessage({
     page,
@@ -52,8 +53,9 @@ export default function SlackReviewButton({
       });
 
       if (result.slack?.ok) {
+        const to = slackRecipient?.matchedAs || (handle ? `@${handle}` : contact);
         const jira = result.jira?.ok ? ` · Jira ${result.jira.issueKey}` : '';
-        setHint(`Slack DM sent${jira}`);
+        setHint(`Slack DM sent to ${to}${jira}`);
         setTimeout(() => setHint(''), 6000);
         return;
       }
@@ -106,7 +108,7 @@ export default function SlackReviewButton({
         <RemindConfirmModal
           title={autoSlack ? 'Send Slack DM?' : 'Send Slack reminder?'}
           recipientName={contact || 'Unknown'}
-          recipientHandle={handle}
+          recipientHandle={slackRecipient?.matchedAs || handle}
           recipientEmail={email}
           messagePreview={message}
           onOpenSlack={openSlack}

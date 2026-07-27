@@ -1,6 +1,14 @@
-import { formatTitle } from './text.js';
+import { formatTitle, normalizeForSearch } from './text.js';
 import { formatDate } from './labels.js';
 import { guessEmail, primaryContact } from './contact.js';
+
+function normalizePersonNameForSlack(name) {
+  return normalizeForSearch(name)
+    .replace(/\s*\(unlicensed\)\s*/gi, ' ')
+    .replace(/\./g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export const DEFAULT_SLACK_CONFIG = {
   workspaceUrl: 'https://lotusflare.slack.com',
@@ -61,14 +69,56 @@ Thanks!`;
 }
 
 export function resolveSlackUserId(contact, config) {
+  const resolved = resolveSlackRecipient(contact, config);
+  return resolved?.userId || null;
+}
+
+/**
+ * Resolve Slack member ID for a Confluence display name (strict — avoids short-name collisions).
+ */
+export function resolveSlackRecipient(contact, config) {
   if (!contact || !config?.users) return null;
   const users = config.users;
-  if (users[contact]) return users[contact];
-  const email = guessEmail(contact);
-  if (email && users[email]) return users[email];
-  const handle = guessSlackHandle(contact);
-  if (handle && users[handle]) return users[handle];
-  if (handle && users[`@${handle}`]) return users[`@${handle}`];
+  const c = contact.trim();
+  if (!c) return null;
+
+  const pick = (userId, matchedAs, matchType) =>
+    userId ? { userId, matchedAs, matchType } : null;
+
+  if (users[c]) return pick(users[c], c, 'exact');
+
+  const lower = c.toLowerCase();
+  for (const [key, id] of Object.entries(users)) {
+    if (key.toLowerCase() === lower) return pick(id, key, 'case-insensitive');
+  }
+
+  const norm = normalizePersonNameForSlack(c);
+  for (const [key, id] of Object.entries(users)) {
+    if (!key.includes(' ')) continue;
+    if (normalizePersonNameForSlack(key) === norm) return pick(id, key, 'normalized-name');
+  }
+
+  const email = guessEmail(c);
+  if (email) {
+    if (users[email]) return pick(users[email], email, 'email');
+    for (const [key, id] of Object.entries(users)) {
+      if (key.toLowerCase() === email) return pick(id, key, 'email');
+    }
+  }
+
+  const handle = guessSlackHandle(c);
+  if (handle) {
+    if (users[handle]) return pick(users[handle], handle, 'handle');
+    if (users[`@${handle}`]) return pick(users[`@${handle}`], `@${handle}`, 'handle');
+  }
+
+  // Single-word keys (e.g. "sam") are export aliases — only match single-word contacts.
+  if (!c.includes(' ') && !c.includes('@')) {
+    if (users[c]) return pick(users[c], c, 'first-name');
+    const handleKey = c.toLowerCase();
+    if (users[handleKey]) return pick(users[handleKey], handleKey, 'handle');
+  }
+
   return null;
 }
 

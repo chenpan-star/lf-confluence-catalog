@@ -3,7 +3,7 @@
  * Build with VITE_REMIND_TRACK_URL and VITE_REMIND_API_KEY (GitHub Actions secrets).
  */
 
-import { resolveSlackUserId } from './slack.js';
+import { resolveSlackRecipient } from './slack.js';
 
 export function isRemindTrackConfigured() {
   const url = import.meta.env.VITE_REMIND_TRACK_URL?.trim();
@@ -11,10 +11,10 @@ export function isRemindTrackConfigured() {
   return Boolean(url && key);
 }
 
-/** True when Worker can DM this person (needs slack.json user id map). */
+/** @param {boolean} sendSlack */
 export function canAutoSendSlack(contact, slackConfig) {
   if (!isRemindTrackConfigured()) return false;
-  return Boolean(resolveSlackUserId(contact, slackConfig));
+  return Boolean(resolveSlackRecipient(contact, slackConfig)?.userId);
 }
 
 export async function dispatchRemind({

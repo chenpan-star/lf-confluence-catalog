@@ -6,7 +6,7 @@ import {
   guessSlackHandle,
   openBundledSlackReview,
   REMIND_PAGES_PER_MESSAGE,
-  resolveSlackUserId,
+  resolveSlackRecipient,
   splitReminderPageChunks,
 } from '../lib/slack';
 import './ReviewMessageModal.css';
@@ -29,8 +29,12 @@ export default function ReviewMessageModal({
   const [slackTrack, setSlackTrack] = useState(null);
   const { remindTrackConfig } = useCatalog();
   const workerOn = isRemindTrackConfigured();
+  const slackRecipient = useMemo(
+    () => (editor ? resolveSlackRecipient(editor, slackConfig) : null),
+    [editor, slackConfig],
+  );
+  const slackUserId = slackRecipient?.userId ?? null;
   const autoSlack = canAutoSendSlack(editor, slackConfig);
-  const slackUserId = resolveSlackUserId(editor, slackConfig);
 
   const chunks = useMemo(
     () => splitReminderPageChunks(pages, REMIND_PAGES_PER_MESSAGE),
@@ -214,6 +218,15 @@ export default function ReviewMessageModal({
               · <span className="mono">{email}</span>
             </>
           ) : null}
+          {autoSlack && slackRecipient ? (
+            <>
+              {' '}
+              · Slack DM →{' '}
+              <span className="mono" title={slackRecipient.userId}>
+                {slackRecipient.matchedAs}
+              </span>
+            </>
+          ) : null}
         </p>
 
         <p className="remind-confirm-mode">
@@ -277,7 +290,8 @@ export default function ReviewMessageModal({
 
         {slackTrack?.ok && (
           <p className="review-modal-copied" role="status">
-            ✓ Slack DM sent{handle ? ` to @${handle}` : ''}.
+            ✓ Slack DM sent
+            {slackRecipient?.matchedAs ? ` to ${slackRecipient.matchedAs}` : handle ? ` to @${handle}` : ''}.
           </p>
         )}
         {slackTrack && !slackTrack.ok && (

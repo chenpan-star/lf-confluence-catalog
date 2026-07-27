@@ -194,6 +194,56 @@ async function slackApi(env, method, body) {
   return data;
 }
 
+function normalizePersonName(name) {
+  return String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s*\(unlicensed\)\s*/gi, ' ')
+    .replace(/\./g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function guessEmailFromEditor(editor) {
+  const raw = String(editor || '').trim();
+  if (!raw || raw.includes('@')) return raw.includes('@') ? raw.toLowerCase() : null;
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
+  const local = `${parts[0].toLowerCase()}.${parts[parts.length - 1].toLowerCase()}`;
+  return `${local}@lotusflare.com`;
+}
+
+async function assertSlackUserMatchesEditor(env, slackUserId, editor, editorEmail) {
+  const data = await slackApi(env, 'users.info', { user: slackUserId });
+  const user = data.user;
+  if (!user || user.deleted) {
+    throw new Error('Slack user not found or deactivated');
+  }
+  const profile = user.profile || {};
+  const editorNorm = normalizePersonName(editor);
+  const nameCandidates = [
+    profile.real_name,
+    profile.display_name,
+    user.name,
+  ].filter(Boolean);
+
+  for (const name of nameCandidates) {
+    if (normalizePersonName(name) === editorNorm) return;
+  }
+
+  const emails = [editorEmail, guessEmailFromEditor(editor), profile.email]
+    .filter(Boolean)
+    .map((e) => String(e).toLowerCase());
+  const profileEmail = profile.email?.toLowerCase();
+  if (profileEmail && emails.includes(profileEmail)) return;
+
+  const who = profile.real_name || profile.display_name || user.name || slackUserId;
+  throw new Error(
+    `Slack recipient mismatch: catalog editor is "${editor}" but Slack user is "${who}". Update slack.json or contact Infra.`,
+  );
+}
+
 async function openSlackDmChannel(env, slackUserId) {
   const user = String(slackUserId || '').trim();
   const data = await slackApi(env, 'conversations.open', { users: user });
@@ -202,12 +252,13 @@ async function openSlackDmChannel(env, slackUserId) {
   return channelId;
 }
 
-async function sendSlackDirectMessage(env, { slackUserId, message }) {
+async function sendSlackDirectMessage(env, { slackUserId, message, editor, editorEmail }) {
   const text = String(message || '').trim();
   if (!text) throw new Error('message is required');
   if (text.length > 3900) {
     throw new Error('Message is too long for Slack — send a smaller part');
   }
+  await assertSlackUserMatchesEditor(env, slackUserId, editor, editorEmail);
   const channel = await openSlackDmChannel(env, slackUserId);
   const data = await slackApi(env, 'chat.postMessage', {
     channel,
@@ -230,6 +281,8 @@ async function handleRemindRequest(env, body) {
       const slack = await sendSlackDirectMessage(env, {
         slackUserId,
         message: body.message,
+        editor: (body.editor || '').trim(),
+        editorEmail: body.editorEmail?.trim(),
       });
       out.slack = { ok: true, ...slack };
     } catch (err) {
