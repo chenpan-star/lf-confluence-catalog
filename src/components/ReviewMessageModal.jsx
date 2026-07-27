@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
-import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured } from '../lib/remindTrack';
+import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured, slackRemindDelivered } from '../lib/remindTrack';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
@@ -119,11 +119,19 @@ export default function ReviewMessageModal({
         if (result.slack) setSlackTrack(result.slack);
         if (result.jira) setJiraTrack(result.jira);
 
-        if (!result.skipped && result.error && !result.slack?.ok && !result.jira?.ok) {
+        if (!result.skipped && result.error && !slackRemindDelivered(result.slack) && !result.jira?.ok) {
           setError(result.error);
         }
 
-        if (result.slack?.ok) {
+        if (autoSlack && result.slack && !slackRemindDelivered(result.slack)) {
+          setError(
+            result.slack.error ||
+              result.error ||
+              'Slack DM did not send — Jira may still have been created.',
+          );
+        }
+
+        if (slackRemindDelivered(result.slack)) {
           setCopiedPart(partIdx);
           if (partTotal === 1) {
             setTimeout(() => onClose?.(), 1800);
@@ -132,16 +140,6 @@ export default function ReviewMessageModal({
         }
 
         if (autoSlack) {
-          await openBundledSlackReview({
-            editor,
-            pages: chunk,
-            site,
-            slackConfig,
-            partIndex: partIdx + 1,
-            partTotal,
-            globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
-          });
-          setCopiedPart(partIdx);
           return;
         }
 
@@ -288,18 +286,22 @@ export default function ReviewMessageModal({
           )}
         </p>
 
-        {slackTrack?.ok && (
+        {slackRemindDelivered(slackTrack) && (
           <p className="review-modal-copied" role="status">
-            ✓ Slack DM sent
-            {slackRecipient?.matchedAs ? ` to ${slackRecipient.matchedAs}` : handle ? ` to @${handle}` : ''}.
+            ✓ Slack DM sent to{' '}
+            {slackTrack.recipientName ||
+              slackRecipient?.matchedAs ||
+              (handle ? `@${handle}` : editor)}
+            . They will see it under <strong>DMs with the catalog Slack app</strong> (not from your
+            personal account).
           </p>
         )}
-        {slackTrack && !slackTrack.ok && (
+        {slackTrack && !slackRemindDelivered(slackTrack) && (
           <p className="review-modal-jira-warn" role="status">
             Slack DM failed: {slackTrack.error}. Use copy &amp; open below if needed.
           </p>
         )}
-        {copiedPart !== null && !error && !slackTrack?.ok && (
+        {copiedPart !== null && !error && !slackRemindDelivered(slackTrack) && (
           <p className="review-modal-copied" role="status">
             ✓ Message {copiedPart + 1} copied — paste in Slack
             {handle ? ` to @${handle}` : ''}.

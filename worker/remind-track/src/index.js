@@ -328,11 +328,17 @@ async function resolveSlackUserForRemind(env, { slackUserId, editor, editorEmail
 
   for (const email of emails) {
     const user = await slackLookupUserByEmail(env, email);
-    if (user?.id) return { user, resolvedVia: 'email' };
+    if (user?.id) {
+      const profileEmail = user.profile?.email?.trim().toLowerCase();
+      if (profileEmail && profileEmail !== email) {
+        continue;
+      }
+      return { user, resolvedVia: 'email', matchedEmail: email };
+    }
   }
 
   const user = await slackGetUser(env, slackUserId);
-  if (user?.id) return { user, resolvedVia: 'id' };
+  if (user?.id) return { user, resolvedVia: 'id', matchedEmail: null };
 
   throw new Error(
     `Slack user not found for "${editor}"` +
@@ -429,22 +435,24 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
     editor,
     editorEmail,
   });
-  if (resolvedVia !== 'email') {
-    await assertSlackUserMatchesEditor(user, editor, editorEmail);
-  }
+  await assertSlackUserMatchesEditor(user, editor, editorEmail);
   const resolvedUserId = user.id;
   const channel = await openSlackDmChannel(env, resolvedUserId);
-  let data;
-  try {
-    data = await postSlackDmText(env, channel, text);
-  } catch (err) {
-    if (err.slackError !== 'invalid_arguments') throw err;
-    data = await slackApi(env, 'chat.postMessage', {
-      channel: resolvedUserId,
-      text,
-    });
+  const data = await postSlackDmText(env, channel, text);
+  if (!data?.ts) {
+    throw new Error('Slack did not confirm message delivery (missing message id)');
   }
-  return { channel: data.channel, ts: data.ts, slackUserId: resolvedUserId };
+
+  const recipientName =
+    user.profile?.real_name || user.profile?.display_name || user.name || editor;
+
+  return {
+    channel: typeof data.channel === 'string' ? data.channel : data.channel?.id || channel,
+    ts: data.ts,
+    slackUserId: resolvedUserId,
+    recipientName,
+    resolvedVia,
+  };
 }
 
 async function handleRemindRequest(env, body) {

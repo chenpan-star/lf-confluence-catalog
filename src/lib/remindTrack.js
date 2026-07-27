@@ -19,6 +19,11 @@ export function canAutoSendSlack(contact, slackConfig) {
   return Boolean(guessEmail(contact));
 }
 
+/** True when Worker reported a delivered Slack DM (needs message timestamp). */
+export function slackRemindDelivered(slack) {
+  return Boolean(slack?.ok && slack?.ts);
+}
+
 export async function dispatchRemind({
   editor,
   editorEmail,
@@ -73,7 +78,7 @@ export async function dispatchRemind({
       jira: data.jira ?? null,
       error:
         data.error ||
-        (data.slack && !data.slack.ok ? data.slack.error : undefined) ||
+        (data.slack && !slackRemindDelivered(data.slack) ? data.slack.error : undefined) ||
         (data.jira && !data.jira.ok ? data.jira.error : undefined) ||
         (!res.ok ? `Remind service HTTP ${res.status}` : undefined),
     };
