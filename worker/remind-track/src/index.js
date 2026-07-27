@@ -285,6 +285,11 @@ function addWorkingDays(isoDate, workingDays) {
   return dt.toISOString().slice(0, 10);
 }
 
+function defaultStartDate(env) {
+  const tz = (env.JIRA_DUE_DATE_TIMEZONE || 'Asia/Singapore').trim();
+  return calendarDateInTimeZone(tz);
+}
+
 function defaultRequestedDueDate(env) {
   const workingDays =
     Number(env.JIRA_DUE_DATE_WORKING_DAYS) || Number(env.JIRA_DUE_DATE_DAYS) || 14;
@@ -305,11 +310,26 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
   const typeMeta =
     issueTypes.find((t) => t.name?.toLowerCase() === issueType.toLowerCase()) || issueTypes[0];
   const fieldSpecs = typeMeta?.fields || {};
+  const startDefault = defaultStartDate(env);
   const dueDefault = defaultRequestedDueDate(env);
-  const explicitField = (env.JIRA_REQUESTED_DUE_DATE_FIELD || '').trim();
+  const explicitDueField = (env.JIRA_REQUESTED_DUE_DATE_FIELD || '').trim();
+  const explicitStartField = (env.JIRA_START_DATE_FIELD || '').trim();
 
-  if (explicitField && !fields[explicitField]) {
-    fields[explicitField] = dueDefault;
+  if (explicitStartField && !fields[explicitStartField]) {
+    fields[explicitStartField] = startDefault;
+  }
+  if (explicitDueField && !fields[explicitDueField]) {
+    fields[explicitDueField] = dueDefault;
+  }
+
+  for (const [fieldId, spec] of Object.entries(fieldSpecs)) {
+    if (fields[fieldId] != null) continue;
+    const name = String(spec.name || '').toLowerCase();
+    const schema = spec.schema || {};
+    if (schema.type !== 'date') continue;
+    if (name.includes('start')) {
+      fields[fieldId] = startDefault;
+    }
   }
 
   for (const [fieldId, spec] of Object.entries(fieldSpecs)) {
@@ -319,6 +339,68 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
     if (schema.type === 'date' || name.includes('due date')) {
       fields[fieldId] = dueDefault;
     }
+  }
+}
+
+async function findUserAccountIdByQuery(env, query) {
+  const q = String(query || '').trim();
+  if (!q) return null;
+  const params = new URLSearchParams({ query: q, maxResults: '5' });
+  const users = await jiraFetch(env, `/rest/api/3/user/search?${params}`);
+  if (Array.isArray(users) && users[0]?.accountId) return users[0].accountId;
+  return null;
+}
+
+async function notifyIssueRecipient(env, issueKey, { summary, issueUrl, assigneeAccountId, editor, editorEmail }) {
+  if (String(env.JIRA_NOTIFY_ASSIGNEE || 'true').toLowerCase() === 'false') {
+    return { skipped: true };
+  }
+
+  let accountId = assigneeAccountId || null;
+  if (!accountId) {
+    accountId = await findUserAccountIdByQuery(env, editorEmail || editor);
+  }
+
+  const to = assigneeAccountId
+    ? { assignee: true, reporter: false, watchers: false }
+    : accountId
+      ? { assignee: false, reporter: false, watchers: false, users: [{ accountId }] }
+      : null;
+
+  if (!to) {
+    return { ok: false, error: 'No Jira user found to email (set assignee or check editor email)' };
+  }
+
+  const textBody = [
+    'You have a new Confluence documentation review task.',
+    '',
+    summary,
+    '',
+    issueUrl,
+    '',
+    'Created from the LF Confluence catalog remind flow.',
+  ].join('\n');
+
+  const htmlBody = [
+    '<p>You have a new <strong>Confluence documentation review</strong> task.</p>',
+    `<p>${summary.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`,
+    `<p><a href="${issueUrl}">${issueKey}</a></p>`,
+    '<p>Created from the LF Confluence catalog remind flow.</p>',
+  ].join('');
+
+  try {
+    await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/notify`, {
+      method: 'POST',
+      body: JSON.stringify({
+        subject: summary,
+        textBody,
+        htmlBody,
+        to,
+      }),
+    });
+    return { ok: true, emailedAccountId: accountId || assigneeAccountId };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Jira notify failed' };
   }
 }
 
@@ -391,11 +473,21 @@ async function createRemindIssue(env, body) {
   });
 
   const base = (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
+  const issueUrl = `${base}/browse/${created.key}`;
+  const notifyEmail = await notifyIssueRecipient(env, created.key, {
+    summary,
+    issueUrl,
+    assigneeAccountId: assigneeId,
+    editor,
+    editorEmail: body.editorEmail?.trim(),
+  });
+
   return {
     issueKey: created.key,
     issueId: created.id,
-    issueUrl: `${base}/browse/${created.key}`,
+    issueUrl,
     assigneeSet: Boolean(assigneeId),
+    notifyEmail,
   };
 }
 
