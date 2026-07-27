@@ -11,8 +11,10 @@ function corsHeaders(request, env) {
     .map((s) => s.trim())
     .filter(Boolean);
   const origin = request.headers.get('Origin') || '';
-  const match = allowed.find((o) => o === origin || origin.startsWith(o.replace(/\/$/, '')));
-  const allowOrigin = match || allowed[0] || '*';
+  let allowOrigin = allowed.find((o) => o === origin);
+  if (!allowOrigin && origin.endsWith('.github.io')) allowOrigin = origin;
+  if (!allowOrigin && origin.includes('lotusflare.com')) allowOrigin = origin;
+  if (!allowOrigin) allowOrigin = allowed[0] || '*';
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -170,40 +172,49 @@ async function createRemindIssue(env, body) {
   };
 }
 
-async function sendSlackDirectMessage(env, { slackUserId, message }) {
+async function slackApi(env, method, body) {
   const token = env.SLACK_BOT_TOKEN?.trim();
-  if (!token) {
-    throw new Error('SLACK_BOT_TOKEN is not configured on the worker');
-  }
-  const channel = String(slackUserId || '').trim();
-  if (!channel) {
-    throw new Error('slackUserId is required');
-  }
-  const text = String(message || '').trim();
-  if (!text) {
-    throw new Error('message is required');
-  }
-  if (text.length > 3900) {
-    throw new Error('Message is too long for Slack — send a smaller part');
-  }
-
-  const res = await fetch('https://slack.com/api/chat.postMessage', {
+  if (!token) throw new Error('SLACK_BOT_TOKEN is not configured on the worker');
+  const res = await fetch(`https://slack.com/api/${method}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      channel,
-      text,
-      mrkdwn: true,
-      unfurl_links: false,
-    }),
+    body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!data.ok) {
-    throw new Error(data.error || 'Slack chat.postMessage failed');
+    const hint =
+      data.error === 'missing_scope'
+        ? ' (add chat:write and im:write to the Slack app, then reinstall)'
+        : '';
+    throw new Error((data.error || `${method} failed`) + hint);
   }
+  return data;
+}
+
+async function openSlackDmChannel(env, slackUserId) {
+  const user = String(slackUserId || '').trim();
+  const data = await slackApi(env, 'conversations.open', { users: user });
+  const channelId = data.channel?.id;
+  if (!channelId) throw new Error('Slack did not return a DM channel id');
+  return channelId;
+}
+
+async function sendSlackDirectMessage(env, { slackUserId, message }) {
+  const text = String(message || '').trim();
+  if (!text) throw new Error('message is required');
+  if (text.length > 3900) {
+    throw new Error('Message is too long for Slack — send a smaller part');
+  }
+  const channel = await openSlackDmChannel(env, slackUserId);
+  const data = await slackApi(env, 'chat.postMessage', {
+    channel,
+    text,
+    mrkdwn: true,
+    unfurl_links: false,
+  });
   return { channel: data.channel, ts: data.ts };
 }
 
@@ -266,6 +277,11 @@ export default {
         request,
         env,
       );
+    }
+
+    if (request.method === 'GET' && url.pathname === '/v1/auth-check') {
+      if (!authorize(request, env)) return unauthorized(request, env);
+      return jsonResponse({ ok: true, authorized: true }, 200, request, env);
     }
 
     if (request.method !== 'POST' || url.pathname !== '/v1/remind') {

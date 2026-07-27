@@ -65,17 +65,15 @@ export async function dispatchRemind({
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok && !data.slack && !data.jira) {
-      return {
-        ok: false,
-        error: data.error || `Remind service failed (HTTP ${res.status})`,
-      };
-    }
     return {
       ok: Boolean(data.ok),
-      slack: data.slack || null,
-      jira: data.jira || null,
-      error: data.error,
+      slack: data.slack ?? null,
+      jira: data.jira ?? null,
+      error:
+        data.error ||
+        (data.slack && !data.slack.ok ? data.slack.error : undefined) ||
+        (data.jira && !data.jira.ok ? data.jira.error : undefined) ||
+        (!res.ok ? `Remind service HTTP ${res.status}` : undefined),
     };
   } catch (err) {
     return {

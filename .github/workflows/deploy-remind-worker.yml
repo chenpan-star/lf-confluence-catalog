@@ -92,6 +92,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config worker/remind-track/wrangler.jsonc
 
+      - name: Auth smoke test
+        if: steps.deploy.outputs.worker_url != ''
+        env:
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          curl -sf -H "Authorization: Bearer $REMIND_API_SECRET" "$WORKER_URL/v1/auth-check"
+          echo "Remind API auth OK"
+
       - name: Health check
         if: steps.deploy.outputs.worker_url != ''
         env:

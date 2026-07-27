@@ -115,6 +115,10 @@ export default function ReviewMessageModal({
         if (result.slack) setSlackTrack(result.slack);
         if (result.jira) setJiraTrack(result.jira);
 
+        if (!result.skipped && result.error && !result.slack?.ok && !result.jira?.ok) {
+          setError(result.error);
+        }
+
         if (result.slack?.ok) {
           setCopiedPart(partIdx);
           if (partTotal === 1) {
@@ -297,9 +301,10 @@ export default function ReviewMessageModal({
             {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
           </p>
         )}
-        {jiraTrack && !jiraTrack.skipped && !jiraTrack.ok && (
+        {jiraTrack && !jiraTrack.ok && jiraTrack.error && (
           <p className="review-modal-jira-warn" role="status">
-            Jira tracking: {jiraTrack.error}. Slack message was still copied.
+            Jira: {jiraTrack.error || 'could not create issue'}.
+            {slackTrack?.ok ? ' Slack DM was still sent.' : ' Use copy & open if needed.'}
           </p>
         )}
         {error && (
