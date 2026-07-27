@@ -435,6 +435,19 @@
   margin-bottom: 1rem;
 }
 
+.person-result-head-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.person-result-head-title .home-section-title {
+  margin: 0;
+}
+
 .hygiene-banner {
   margin-top: 1rem;
   padding: 1rem 1.15rem;

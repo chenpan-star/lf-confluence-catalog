@@ -361,7 +361,19 @@ export default function SpacePage() {
           <div className="space-person-active">
             <div className="space-person-active-info">
               <span className="space-person-active-label">Selected editor</span>
-              <span className="space-person-active-name">{personFilter}</span>
+              <div className="space-person-active-name-row">
+                <span className="space-person-active-name">{personFilter}</span>
+                {personOutdatedPages.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setPersonRemindOpen(true)}
+                  >
+                    Remind about all {formatNumber(personOutdatedPages.length)} outdated page
+                    {personOutdatedPages.length === 1 ? '' : 's'}
+                  </button>
+                )}
+              </div>
             </div>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPersonFilter('')}>
               Clear
@@ -452,22 +464,6 @@ export default function SpacePage() {
                     <span className="space-person-stat-label">Outdated</span>
                   </button>
                 </div>
-                {personOutdatedPages.length > 0 && (
-                  <div className="space-person-remind">
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => setPersonRemindOpen(true)}
-                    >
-                      Remind about all {formatNumber(personOutdatedPages.length)} outdated page
-                      {personOutdatedPages.length === 1 ? '' : 's'}
-                    </button>
-                    <p className="space-person-remind-hint">
-                      One bundled Slack message lists every outdated page in this space for{' '}
-                      {personFilter}.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>

@@ -312,7 +312,19 @@ export default function MyPagesReviewPage() {
       ) : (
         <>
           <div className="person-result-head">
-            <h2 className="home-section-title">{activeEditor}</h2>
+            <div className="person-result-head-title">
+              <h2 className="home-section-title">{activeEditor}</h2>
+              {summary.attentionPages.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setBulkRemindOpen(true)}
+                >
+                  Remind about all {formatNumber(summary.attentionPages.length)} outdated page
+                  {summary.attentionPages.length === 1 ? '' : 's'}
+                </button>
+              )}
+            </div>
             {queryParam && selectedEditor && (
               <button
                 type="button"
@@ -337,29 +349,18 @@ export default function MyPagesReviewPage() {
 
           {summary.attentionPages.length > 0 ? (
             <section style={{ marginBottom: '1.5rem' }}>
-              <div className="person-bulk-remind-head">
-                <div>
-                  <h3 className="home-section-title" style={{ marginBottom: '0.35rem' }}>
-                    Outdated pages
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: '0.9rem',
-                      color: 'var(--text-secondary)',
-                      marginBottom: 0,
-                    }}
-                  >
-                    Not updated in over a year — consider updating, archiving, or deleting.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setBulkRemindOpen(true)}
-                >
-                  Remind about all {formatNumber(summary.attentionPages.length)}
-                </button>
-              </div>
+              <h3 className="home-section-title" style={{ marginBottom: '0.35rem' }}>
+                Outdated pages
+              </h3>
+              <p
+                style={{
+                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Not updated in over a year — consider updating, archiving, or deleting.
+              </p>
               <PaginationBar
                 page={attentionPage}
                 pageSize={PAGE_SIZE}
