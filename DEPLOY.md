@@ -237,6 +237,8 @@ The catalog stays static; **Jira credentials live only on the Worker**. The brow
 1. Edit `worker/remind-track/wrangler.jsonc`:
    - Set **`JIRA_PROJECT_KEY`** (and optionally `JIRA_ISSUE_TYPE`, **`JIRA_PRIORITY_NAME`** (default `Major`), `JIRA_LABELS`).
    - **PROT** requires **Requested Due Date** — the Worker fills required date fields automatically (**today + 14 working days**, Mon–Fri; override with **`JIRA_DUE_DATE_WORKING_DAYS`**, **`JIRA_DUE_DATE_TIMEZONE`**, or **`JIRA_REQUESTED_DUE_DATE_FIELD`**).
+   - **Start date** fields (name contains “start”) default to **today** in **`JIRA_DUE_DATE_TIMEZONE`** (override with **`JIRA_START_DATE_FIELD`**).
+   - After create, the Worker queues a **Jira email** to the assignee (or editor’s Jira account) via `POST /issue/{key}/notify` — disable with **`JIRA_NOTIFY_ASSIGNEE=false`**. Uses Atlassian’s mail queue (same as manual “Send email” in Jira).
    - Add your Cloudflare **`account_id`** if `wrangler deploy` asks for it.
    - Prefer a **custom domain route** on `*.lotusflare.com` if `*.workers.dev` is blocked on office DNS.
 
