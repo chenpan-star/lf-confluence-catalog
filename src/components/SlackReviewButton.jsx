@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { guessEmail, primaryContact } from '../lib/contact';
 import {
@@ -55,8 +55,14 @@ export default function SlackReviewButton({
     partTotal: 1,
     pageIds: page?.id ? [page.id] : [],
   });
-  const jiraLocked =
-    jiraCreated || readRemindJiraPartLock(jiraPartKey);
+
+  useEffect(() => {
+    if (!confirmOpen) return;
+    const fromSession = readRemindJiraPartLock(jiraPartKey);
+    if (fromSession?.issueKey) setJiraCreated(fromSession);
+  }, [confirmOpen, jiraPartKey]);
+
+  const jiraReady = Boolean(jiraCreated?.issueKey);
 
   function storeJira(jira) {
     const entry = rememberRemindJiraSuccess(jiraPartKey, jira);
@@ -64,10 +70,10 @@ export default function SlackReviewButton({
   }
 
   async function dispatch(action) {
-    if (action === 'jira' && jiraLocked) {
-      throw new Error(`Jira ${jiraLocked.issueKey} is already linked to this reminder.`);
+    if (action === 'jira' && jiraReady) {
+      throw new Error(`Jira ${jiraCreated.issueKey} is already linked to this reminder.`);
     }
-    if (action === 'slack' && !jiraLocked?.issueKey) {
+    if (action === 'slack' && !jiraReady) {
       throw new Error('Create the Jira task first, then send Slack DM.');
     }
     if (!workerOn && action !== 'copy') {
@@ -106,8 +112,8 @@ export default function SlackReviewButton({
       slackUserId,
       sendSlack: action === 'slack' && autoSlack,
       createJira: action === 'jira',
-      jiraIssueKey: action === 'slack' ? jiraLocked?.issueKey : undefined,
-      jiraIssueUrl: action === 'slack' ? jiraLocked?.issueUrl : undefined,
+      jiraIssueKey: action === 'slack' ? jiraCreated?.issueKey : undefined,
+      jiraIssueUrl: action === 'slack' ? jiraCreated?.issueUrl : undefined,
     });
 
     if (action === 'slack') {
@@ -167,8 +173,10 @@ export default function SlackReviewButton({
           onSendSlackDm={autoSlack && workerOn ? () => dispatch('slack') : undefined}
           onCreateJira={workerOn ? () => dispatch('jira') : undefined}
           onCopyOpenSlack={() => dispatch('copy')}
-          jiraCreated={jiraCreated || jiraLocked}
-          onClose={() => setConfirmOpen(false)}
+          jiraCreated={jiraCreated}
+          onClose={() => {
+            setConfirmOpen(false);
+          }}
         />
       )}
     </span>

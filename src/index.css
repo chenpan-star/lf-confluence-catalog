@@ -614,6 +614,14 @@ code,
   text-decoration: none;
 }
 
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.42;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: saturate(0.85);
+}
+
 .btn-primary {
   background: var(--accent);
   color: #fff;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
 import {
   buildRemindJiraPartKey,
@@ -53,6 +53,25 @@ export default function ReviewMessageModal({
   );
 
   const partTotal = chunks.length;
+
+  useEffect(() => {
+    const fromSession = {};
+    for (let idx = 0; idx < chunks.length; idx += 1) {
+      const chunk = chunks[idx] || [];
+      const key = buildRemindJiraPartKey({
+        editor,
+        partIndex: idx + 1,
+        partTotal: chunks.length,
+        pageIds: chunk.map((p) => p.id),
+      });
+      const lock = readRemindJiraPartLock(key);
+      if (lock?.issueKey) fromSession[idx] = lock;
+    }
+    if (Object.keys(fromSession).length) {
+      setJiraByPart((prev) => ({ ...fromSession, ...prev }));
+    }
+  }, [editor, chunks, partTotal]);
+
   const safePreview = Math.min(previewIndex, Math.max(0, partTotal - 1));
   const previewChunk = chunks[safePreview] || [];
   const globalOffset = safePreview * REMIND_PAGES_PER_MESSAGE;
