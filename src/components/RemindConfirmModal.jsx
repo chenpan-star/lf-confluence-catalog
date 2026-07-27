@@ -1,29 +1,33 @@
 import { useState } from 'react';
 import './ReviewMessageModal.css';
 
-/** Confirm before copying a reminder and opening Slack. */
+/** Confirm before sending a reminder (Slack DM, Jira, or manual copy). */
 export default function RemindConfirmModal({
-  title = 'Send Slack reminder?',
+  title = 'Send reminder?',
   recipientName,
   recipientHandle,
   recipientEmail,
   messagePreview,
-  onOpenSlack,
+  workerOn = false,
+  autoSlack = false,
+  onSendSlackDm,
+  onCreateJira,
+  onCopyOpenSlack,
   onClose,
 }) {
-  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
 
-  async function handleOpenSlack() {
-    if (!onOpenSlack || sending) return;
-    setSending(true);
+  async function run(action, fn) {
+    if (!fn || busy) return;
+    setBusy(action);
     setError('');
     try {
-      await onOpenSlack();
-      onClose?.();
+      await fn();
     } catch (err) {
-      setError(err?.message || 'Could not open Slack');
-      setSending(false);
+      setError(err?.message || 'Action failed');
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -44,7 +48,7 @@ export default function RemindConfirmModal({
         </header>
 
         <p className="review-modal-sub">
-          Message will go to <strong>{recipientName || 'unknown'}</strong>
+          Remind <strong>{recipientName || 'unknown'}</strong>
           {recipientHandle ? (
             <>
               {' '}
@@ -60,8 +64,19 @@ export default function RemindConfirmModal({
         </p>
 
         <p className="remind-confirm-mode">
-          Confirm will <strong>copy the message</strong> and open Slack so you can paste it into
-          their DM.
+          {workerOn && autoSlack ? (
+            <>
+              <strong>Send Slack DM</strong> posts via the catalog bot. <strong>Create Jira</strong>{' '}
+              opens a PROT task — use either or both.
+            </>
+          ) : workerOn ? (
+            <>
+              Use <strong>Create Jira</strong> for PROT tracking, or <strong>Copy &amp; open Slack</strong>{' '}
+              to paste manually.
+            </>
+          ) : (
+            <>Confirm will copy the message and open Slack so you can paste it into their DM.</>
+          )}
         </p>
 
         {error && (
@@ -73,15 +88,46 @@ export default function RemindConfirmModal({
         <pre className="review-modal-body">{messagePreview}</pre>
 
         <div className="review-modal-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={sending}
-            onClick={handleOpenSlack}
-          >
-            {sending ? 'Opening…' : 'Copy & open Slack'}
-          </button>
-          <button type="button" className="btn btn-ghost" disabled={sending} onClick={onClose}>
+          {workerOn && autoSlack && onSendSlackDm ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={Boolean(busy)}
+              onClick={() => run('slack', onSendSlackDm)}
+            >
+              {busy === 'slack' ? 'Sending…' : 'Send Slack DM'}
+            </button>
+          ) : onCopyOpenSlack ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={Boolean(busy)}
+              onClick={() => run('copy', onCopyOpenSlack)}
+            >
+              {busy === 'copy' ? 'Opening…' : 'Copy & open Slack'}
+            </button>
+          ) : null}
+          {workerOn && onCreateJira ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={Boolean(busy)}
+              onClick={() => run('jira', onCreateJira)}
+            >
+              {busy === 'jira' ? 'Creating…' : 'Create Jira task'}
+            </button>
+          ) : null}
+          {workerOn && autoSlack && onCopyOpenSlack ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={Boolean(busy)}
+              onClick={() => run('copy', onCopyOpenSlack)}
+            >
+              {busy === 'copy' ? 'Opening…' : 'Copy & open Slack'}
+            </button>
+          ) : null}
+          <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} onClick={onClose}>
             Cancel
           </button>
         </div>

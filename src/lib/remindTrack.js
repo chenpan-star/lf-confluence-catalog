@@ -78,9 +78,11 @@ export async function dispatchRemind({
     });
     const data = await res.json().catch(() => ({}));
     const slackAccepted = !sendSlack || slackRemindAccepted(data.slack);
-    const jiraOk = createJira === false || Boolean(data.jira?.ok);
+    const jiraOk = !createJira || Boolean(data.jira?.ok);
+    const ok =
+      (sendSlack ? slackAccepted : true) && (createJira ? jiraOk : true);
     return {
-      ok: slackAccepted && jiraOk,
+      ok,
       slack: data.slack ?? null,
       jira: data.jira ?? null,
       error:
