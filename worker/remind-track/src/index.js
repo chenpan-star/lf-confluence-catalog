@@ -1201,18 +1201,9 @@ async function verifySlackDmDelivery(env, { channelId, messageTs, expectedUserId
 }
 
 async function postSlackDmText(env, channelId, text) {
-  const body = String(text || '').trim();
-  const fallback = body.length > 4000 ? `${body.slice(0, 3997)}…` : body;
-  const blockText = body.length > 3000 ? `${body.slice(0, 2997)}…` : body;
   return slackApi(env, 'chat.postMessage', {
     channel: channelId,
-    text: fallback,
-    blocks: [
-      {
-        type: 'section',
-        text: { type: 'mrkdwn', text: blockText },
-      },
-    ],
+    text: String(text || '').trim(),
   });
 }
 
