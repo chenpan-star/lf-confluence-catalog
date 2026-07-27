@@ -194,6 +194,7 @@ Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Sl
 1. Slack app → **OAuth & Permissions** → add Bot scopes:
    - **`users:read`** (user map export)
    - **`users:read.email`** (Worker resolves Slack members by email when `slack.json` ids are stale)
+   - **`im:history`** and **`channels:read`** (Worker verifies DMs landed in the recipient’s bot thread; without these, UI shows “accepted” not “verified”)
    - **`chat:write`**, **`im:write`** (bot DMs via remind Worker)
    → **Reinstall to workspace**
 2. Put token in `.env` (never commit):

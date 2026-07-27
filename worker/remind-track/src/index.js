@@ -337,6 +337,14 @@ async function resolveSlackUserForRemind(env, { slackUserId, editor, editorEmail
     }
   }
 
+  // Do not fall back to slack.json when we guessed an email — avoids DMing the wrong person.
+  if (emails.length > 0) {
+    throw new Error(
+      `No Slack user with email ${emails.join(' or ')} for "${editor}". ` +
+        'Confirm their Lotusflare email in Slack, re-run slack:export-users --apply, or use Copy & open.',
+    );
+  }
+
   const user = await slackGetUser(env, slackUserId);
   if (user?.id) return { user, resolvedVia: 'id', matchedEmail: null };
 
@@ -474,7 +482,7 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
   if (text.length > 3900) {
     throw new Error('Message is too long for Slack — send a smaller part');
   }
-  const { user, resolvedVia } = await resolveSlackUserForRemind(env, {
+  const { user, resolvedVia, matchedEmail } = await resolveSlackUserForRemind(env, {
     slackUserId,
     editor,
     editorEmail,
@@ -502,6 +510,7 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
     slackUserId: resolvedUserId,
     recipientName,
     resolvedVia,
+    matchedEmail: matchedEmail || null,
     verified: delivery.verified,
     verifyNote: delivery.verifyNote,
     dmUserId: delivery.channelUser,

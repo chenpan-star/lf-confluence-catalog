@@ -77,7 +77,6 @@ export async function dispatchRemind({
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
-    const slackDelivered = !sendSlack || slackRemindDelivered(data.slack);
     const slackAccepted = !sendSlack || slackRemindAccepted(data.slack);
     const jiraOk = createJira === false || Boolean(data.jira?.ok);
     return {

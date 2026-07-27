@@ -216,13 +216,10 @@ export default function ReviewMessageModal({
               · <span className="mono">{email}</span>
             </>
           ) : null}
-          {autoSlack && slackRecipient ? (
+          {autoSlack && email ? (
             <>
               {' '}
-              · Slack DM →{' '}
-              <span className="mono" title={slackRecipient.userId}>
-                {slackRecipient.matchedAs}
-              </span>
+              · Worker will look up <span className="mono">{email}</span> in Slack
             </>
           ) : null}
         </p>
@@ -288,18 +285,20 @@ export default function ReviewMessageModal({
 
         {slackRemindDelivered(slackTrack) && (
           <p className="review-modal-copied" role="status">
-            ✓ Slack DM verified in recipient bot thread →{' '}
-            {slackTrack.recipientName ||
-              slackRecipient?.matchedAs ||
-              (handle ? `@${handle}` : editor)}
-            .
+            ✓ Slack DM verified in recipient bot thread → {slackTrack.recipientName || editor}.
           </p>
         )}
         {slackRemindAccepted(slackTrack) && !slackRemindDelivered(slackTrack) && (
-          <p className="review-modal-jira-warn" role="status">
-            Slack accepted the DM to {slackTrack.recipientName || editor}. Recipient must check{' '}
-            <strong>DMs with the catalog Slack app</strong> (not your personal Slack).
-            {slackTrack.verifyNote ? ` ${slackTrack.verifyNote}` : null}
+          <p className="review-modal-copied" role="status">
+            ✓ Slack accepted DM to {slackTrack.recipientName || editor}
+            {slackTrack.matchedEmail || slackTrack.resolvedVia === 'email' ? (
+              <>
+                {' '}
+                (<span className="mono">{slackTrack.matchedEmail || email}</span>)
+              </>
+            ) : null}
+            . <strong>{editor}</strong> must open Slack → DMs → <strong>catalog bot</strong> on{' '}
+            <em>their</em> account (you will not see it in your Slack unless you are the owner).
           </p>
         )}
         {slackTrack && !slackRemindAccepted(slackTrack) && (
