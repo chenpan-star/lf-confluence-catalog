@@ -11,6 +11,7 @@
     "JIRA_BASE_URL": "https://lotusflare.atlassian.net",
     "JIRA_PROJECT_KEY": "PROT",
     "JIRA_ISSUE_TYPE": "Task",
+    "JIRA_PRIORITY_NAME": "Major",
     "JIRA_LABELS": "confluence-catalog,doc-review",
     "JIRA_DUE_DATE_WORKING_DAYS": "14",
     "JIRA_DUE_DATE_TIMEZONE": "Asia/Singapore",

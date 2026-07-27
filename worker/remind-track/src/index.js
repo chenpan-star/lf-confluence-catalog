@@ -48,7 +48,7 @@ function textToAdf(text) {
     const lines = block.split('\n');
     const inline = [];
     for (let i = 0; i < lines.length; i += 1) {
-      if (lines[i]) inline.push({ type: 'text', text: lines[i] });
+      if (lines[i]) inline.push(...lineToAdfInlines(lines[i]));
       if (i < lines.length - 1) inline.push({ type: 'hardBreak' });
     }
     return {
@@ -57,6 +57,160 @@ function textToAdf(text) {
     };
   });
   return { type: 'doc', version: 1, content: content.length ? content : [{ type: 'paragraph', content: [] }] };
+}
+
+function adfText(text, marks = undefined) {
+  const node = { type: 'text', text: String(text) };
+  if (marks?.length) node.marks = marks;
+  return node;
+}
+
+function adfLink(label, href) {
+  return adfText(label, [{ type: 'link', attrs: { href } }]);
+}
+
+function adfParagraph(...nodes) {
+  const content = nodes.flat().filter(Boolean);
+  return {
+    type: 'paragraph',
+    content: content.length ? content : [adfText(' ')],
+  };
+}
+
+function adfHeading(level, text) {
+  return { type: 'heading', attrs: { level }, content: [adfText(text)] };
+}
+
+function adfBulletList(listItems) {
+  return {
+    type: 'bulletList',
+    content: listItems.map((blocks) => ({
+      type: 'listItem',
+      content: blocks,
+    })),
+  };
+}
+
+const URL_IN_TEXT = /https:\/\/[^\s<>"')\]]+/g;
+
+/** Turn one line into ADF inlines (links + *bold*). */
+function lineToAdfInlines(line) {
+  const out = [];
+  let rest = String(line);
+  while (rest.length) {
+    const urlMatch = rest.match(URL_IN_TEXT);
+    const urlAt = urlMatch ? rest.indexOf(urlMatch[0]) : -1;
+    const boldMatch = rest.match(/\*([^*]+)\*/);
+    const boldAt = boldMatch ? rest.indexOf(boldMatch[0]) : -1;
+
+    let next = -1;
+    let kind = null;
+    if (urlAt >= 0 && (boldAt < 0 || urlAt <= boldAt)) {
+      next = urlAt;
+      kind = 'url';
+    } else if (boldAt >= 0) {
+      next = boldAt;
+      kind = 'bold';
+    }
+
+    if (next < 0) {
+      if (rest) out.push(adfText(rest));
+      break;
+    }
+    if (next > 0) out.push(adfText(rest.slice(0, next)));
+    if (kind === 'url') {
+      const href = urlMatch[0];
+      out.push(adfLink(href, href));
+      rest = rest.slice(next + href.length);
+    } else {
+      out.push(adfText(boldMatch[1], [{ type: 'strong' }]));
+      rest = rest.slice(next + boldMatch[0].length);
+    }
+  }
+  return out.length ? out : [adfText(' ')];
+}
+
+function parseRemindPagesFromMessage(message) {
+  const text = String(message || '');
+  const pages = [];
+  const numbered =
+    /(\d+)\.\s+\*([^*]+)\*\s+\(([^)]+)\)[^\n]*\n[ \t]*(https:\/\/[^\s]+)/g;
+  let m;
+  while ((m = numbered.exec(text)) !== null) {
+    pages.push({ n: m[1], title: m[2].trim(), meta: m[3].trim(), url: m[4].trim() });
+  }
+  if (pages.length) return pages;
+
+  const title = text.match(/•\s+\*([^*]+)\*/)?.[1]?.trim();
+  const confUrl = text.match(/•\s+Confluence:\s*(https:\/\/[^\s]+)/i)?.[1]?.trim();
+  const space = text.match(/•\s+Space:\s*([^\n]+)/)?.[1]?.trim();
+  if (title && confUrl) {
+    pages.push({
+      n: '1',
+      title,
+      meta: space || '',
+      url: confUrl,
+    });
+  }
+  return pages;
+}
+
+function buildRemindDescriptionAdf({ editor, message, catalogUrl, pagesCount, partIndex, partTotal }) {
+  const partNote =
+    partTotal > 1 ? `Part ${partIndex} of ${partTotal} · ${pagesCount} page${pagesCount === 1 ? '' : 's'}` : `${pagesCount} page${pagesCount === 1 ? '' : 's'}`;
+
+  const content = [
+    adfHeading(2, 'Confluence documentation review'),
+    adfParagraph(
+      adfText('Assignee context: '),
+      adfText(editor, [{ type: 'strong' }]),
+      adfText(` · ${partNote}`),
+    ),
+    adfParagraph(
+      adfText(
+        'Please review the pages below — update, archive, or delete as appropriate.',
+      ),
+    ),
+  ];
+
+  const pages = parseRemindPagesFromMessage(message);
+  if (pages.length) {
+    content.push(adfHeading(3, 'Pages'));
+    content.push(
+      adfBulletList(
+        pages.map((p) => [
+          adfParagraph(
+            adfText(`${p.n}. `),
+            adfText(p.title, [{ type: 'strong' }]),
+            p.meta ? adfText(` (${p.meta})`) : null,
+          ),
+          adfParagraph(adfLink('Open in Confluence', p.url)),
+        ]),
+      ),
+    );
+  } else {
+    content.push(adfHeading(3, 'Reminder text'));
+    content.push(...String(message || '').split(/\n\n+/).map((block) => {
+      const lines = block.split('\n');
+      const inline = [];
+      for (let i = 0; i < lines.length; i += 1) {
+        inline.push(...lineToAdfInlines(lines[i]));
+        if (i < lines.length - 1) inline.push({ type: 'hardBreak' });
+      }
+      return adfParagraph(...inline);
+    }));
+  }
+
+  content.push({ type: 'rule' });
+  content.push(
+    adfParagraph(
+      adfText('Created from the '),
+      catalogUrl ? adfLink('LF Confluence catalog', catalogUrl) : adfText('LF Confluence catalog'),
+      adfText(' remind flow.'),
+    ),
+  );
+
+  return { type: 'doc', version: 1, content };
 }
 
 function truncate(str, max) {
@@ -196,14 +350,6 @@ async function createRemindIssue(env, body) {
     250,
   );
 
-  const descriptionParts = [
-    message,
-    '',
-    '---',
-    `Created from LF Confluence catalog reminder.`,
-    catalogUrl ? `Catalog: ${catalogUrl}` : '',
-  ].filter(Boolean);
-
   const labels = Array.isArray(body.labels)
     ? body.labels.map((l) => String(l).trim()).filter(Boolean)
     : (env.JIRA_LABELS || 'confluence-catalog,doc-review')
@@ -211,12 +357,22 @@ async function createRemindIssue(env, body) {
         .map((l) => l.trim())
         .filter(Boolean);
 
+  const priorityName = (body.priorityName || env.JIRA_PRIORITY_NAME || 'Major').trim();
+
   const fields = {
     project: { key: projectKey },
     issuetype: { name: issueType },
     summary,
-    description: textToAdf(descriptionParts.join('\n')),
+    description: buildRemindDescriptionAdf({
+      editor,
+      message,
+      catalogUrl,
+      pagesCount,
+      partIndex,
+      partTotal,
+    }),
     labels,
+    priority: { name: priorityName },
   };
 
   const assigneeId = await findAssigneeAccountId(
