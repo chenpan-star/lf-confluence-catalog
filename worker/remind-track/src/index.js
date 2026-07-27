@@ -351,24 +351,56 @@ async function findUserAccountIdByQuery(env, query) {
   return null;
 }
 
-async function notifyIssueRecipient(env, issueKey, { summary, issueUrl, assigneeAccountId, editor, editorEmail }) {
+async function mentionAssigneeOnIssue(env, issueKey, accountId, summary) {
+  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      body: {
+        type: 'doc',
+        version: 1,
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Confluence catalog review assigned to ' },
+              {
+                type: 'mention',
+                attrs: { id: accountId, text: '@assignee', accessLevel: '' },
+              },
+              {
+                type: 'text',
+                text: ` — ${summary}. Please review the linked Confluence pages in the description.`,
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  });
+}
+
+async function notifyIssueRecipient(
+  env,
+  issueKey,
+  { summary, issueUrl, assigneeAccountId, editor, editorEmail, projectKey },
+) {
   if (String(env.JIRA_NOTIFY_ASSIGNEE || 'true').toLowerCase() === 'false') {
     return { skipped: true };
   }
 
   let accountId = assigneeAccountId || null;
   if (!accountId) {
+    accountId = await findAssigneeAccountId(env, projectKey, editor, editorEmail);
+  }
+  if (!accountId) {
     accountId = await findUserAccountIdByQuery(env, editorEmail || editor);
   }
 
-  const to = assigneeAccountId
-    ? { assignee: true, reporter: false, watchers: false }
-    : accountId
-      ? { assignee: false, reporter: false, watchers: false, users: [{ accountId }] }
-      : null;
-
-  if (!to) {
-    return { ok: false, error: 'No Jira user found to email (set assignee or check editor email)' };
+  if (!accountId) {
+    return {
+      ok: false,
+      error: 'No Jira user found to email (could not match assignee / editor email)',
+    };
   }
 
   const textBody = [
@@ -388,6 +420,18 @@ async function notifyIssueRecipient(env, issueKey, { summary, issueUrl, assignee
     '<p>Created from the LF Confluence catalog remind flow.</p>',
   ].join('');
 
+  let mentionOk = false;
+  let notifyOk = false;
+  let mentionError = null;
+  let notifyError = null;
+
+  try {
+    await mentionAssigneeOnIssue(env, issueKey, accountId, summary);
+    mentionOk = true;
+  } catch (err) {
+    mentionError = err?.message || 'Mention comment failed';
+  }
+
   try {
     await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/notify`, {
       method: 'POST',
@@ -395,13 +439,29 @@ async function notifyIssueRecipient(env, issueKey, { summary, issueUrl, assignee
         subject: summary,
         textBody,
         htmlBody,
-        to,
+        to: {
+          assignee: Boolean(assigneeAccountId),
+          reporter: false,
+          watchers: false,
+          users: [{ accountId }],
+        },
       }),
     });
-    return { ok: true, emailedAccountId: accountId || assigneeAccountId };
+    notifyOk = true;
   } catch (err) {
-    return { ok: false, error: err?.message || 'Jira notify failed' };
+    notifyError = err?.message || 'Jira notify failed';
   }
+
+  const ok = mentionOk || notifyOk;
+  return {
+    ok,
+    emailedAccountId: accountId,
+    mentionOk,
+    notifyOk,
+    error: ok
+      ? undefined
+      : [mentionError, notifyError].filter(Boolean).join(' · ') || 'Email notification failed',
+  };
 }
 
 async function findAssigneeAccountId(env, projectKey, editor, editorEmail) {
@@ -480,6 +540,7 @@ async function createRemindIssue(env, body) {
     assigneeAccountId: assigneeId,
     editor,
     editorEmail: body.editorEmail?.trim(),
+    projectKey,
   });
 
   return {

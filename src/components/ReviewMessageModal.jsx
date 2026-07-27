@@ -266,9 +266,9 @@ export default function ReviewMessageModal({
             created
             {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
             {jiraTrack.notifyEmail?.ok
-              ? ' Email queued for assignee.'
+              ? ` Notification sent${jiraTrack.notifyEmail.mentionOk ? ' (@mention on issue)' : ''}${jiraTrack.notifyEmail.notifyOk ? ' (email queued)' : ''}.`
               : jiraTrack.notifyEmail?.error
-                ? ` Email not sent: ${jiraTrack.notifyEmail.error}`
+                ? ` Notification failed: ${jiraTrack.notifyEmail.error}`
                 : null}
           </p>
         )}

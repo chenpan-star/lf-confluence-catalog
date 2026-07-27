@@ -96,7 +96,14 @@ export default function SlackReviewButton({
 
     if (action === 'jira') {
       if (result.jira?.ok) {
-        setHint(`Jira ${result.jira.issueKey} created`);
+        const notify = result.jira.notifyEmail;
+        let extra = '';
+        if (notify?.ok) {
+          extra = notify.mentionOk ? ' · @mention sent' : notify.notifyOk ? ' · email queued' : ' · notified';
+        } else if (notify?.error) {
+          extra = ` · notify failed: ${notify.error}`;
+        }
+        setHint(`Jira ${result.jira.issueKey} created${extra}`);
         setTimeout(() => setHint(''), 6000);
         return;
       }
