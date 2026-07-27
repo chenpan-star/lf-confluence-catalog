@@ -12,8 +12,8 @@ import {
 } from '../lib/remindTrack';
 import {
   buildBundledReviewMessage,
+  buildSlackUrl,
   guessSlackHandle,
-  openBundledSlackReview,
   REMIND_PAGES_PER_MESSAGE,
   resolveSlackRecipient,
   splitReminderPageChunks,
@@ -164,19 +164,30 @@ export default function ReviewMessageModal({
       partIndex: partIdx + 1,
       partTotal,
       globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
+      jira: jiraLock || null,
+      jiraPending: workerOn && !jiraLock,
     });
 
     try {
       if (action === 'copy') {
-        await openBundledSlackReview({
+        const lock = jiraLockForPart(partIdx);
+        const message = buildBundledReviewMessage({
           editor,
           pages: chunk,
           site,
-          slackConfig,
           partIndex: partIdx + 1,
           partTotal,
           globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
+          jira: lock || null,
+          jiraPending: workerOn && !lock,
         });
+        const url = buildSlackUrl(editor, slackConfig);
+        try {
+          await navigator.clipboard.writeText(message);
+        } catch {
+          /* clipboard may be blocked */
+        }
+        window.open(url, '_blank', 'noopener,noreferrer');
         setCopiedPart(partIdx);
         if (partTotal === 1) {
           setTimeout(() => onClose?.(), 1400);

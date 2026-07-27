@@ -1201,19 +1201,44 @@ async function verifySlackDmDelivery(env, { channelId, messageTs, expectedUserId
 }
 
 async function postSlackDmText(env, channelId, text) {
+  const body = String(text || '').trim();
+  const fallback = body.length > 4000 ? `${body.slice(0, 3997)}…` : body;
+  const blockText = body.length > 3000 ? `${body.slice(0, 2997)}…` : body;
   return slackApi(env, 'chat.postMessage', {
     channel: channelId,
-    text,
+    text: fallback,
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: blockText },
+      },
+    ],
   });
 }
 
+function jiraBrowseBase(env) {
+  return (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
+}
+
+function normalizeRemindJiraRef(env, jira) {
+  const issueKey = String(jira?.issueKey || '').trim();
+  if (!issueKey) return null;
+  const issueUrl =
+    String(jira?.issueUrl || '').trim() ||
+    `${jiraBrowseBase(env)}/browse/${issueKey}`;
+  return { issueKey, issueUrl };
+}
+
 /** Slack mrkdwn footer with Jira link (requires issue created first). */
-function appendJiraTicketToSlackMessage(message, jira) {
+function appendJiraTicketToSlackMessage(message, jira, env) {
   const base = String(message || '').trim();
-  if (!jira?.issueKey || !jira?.issueUrl) return base;
+  const ref = normalizeRemindJiraRef(env, jira);
+  if (!ref) return base;
+  if (base.includes(ref.issueUrl)) return base;
   const footer = `
 
-📌 *Jira task:* <${jira.issueUrl}|${jira.issueKey}>
+📌 *Jira task:* <${ref.issueUrl}|${ref.issueKey}>
+${ref.issueUrl}
 When you're done reviewing, please comment on or close this task in Jira. 🙏`;
   const combined = `${base}${footer}`.trim();
   if (combined.length > 3900) {
@@ -1270,8 +1295,11 @@ async function handleRemindRequest(env, body) {
     Boolean(slackUserId || body.editorEmail?.trim() || body.editor?.trim());
   const wantsJira = body.createJira === true;
   const existingJiraKey = String(body.jiraIssueKey || '').trim();
-  const existingJiraUrl = String(body.jiraIssueUrl || '').trim();
-  const hasExistingJira = Boolean(existingJiraKey && existingJiraUrl);
+  let existingJiraUrl = String(body.jiraIssueUrl || '').trim();
+  if (existingJiraKey && !existingJiraUrl) {
+    existingJiraUrl = `${jiraBrowseBase(env)}/browse/${existingJiraKey}`;
+  }
+  const hasExistingJira = Boolean(existingJiraKey);
 
   const out = { ok: false, slack: null, jira: null };
 
@@ -1306,7 +1334,7 @@ async function handleRemindRequest(env, body) {
       };
     } else {
       try {
-        const slackText = appendJiraTicketToSlackMessage(body.message, out.jira);
+        const slackText = appendJiraTicketToSlackMessage(body.message, out.jira, env);
         const slack = await sendSlackDirectMessage(env, {
           slackUserId,
           message: slackText,

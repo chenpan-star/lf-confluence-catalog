@@ -31,6 +31,31 @@ export function slackRemindAccepted(slack) {
 
 const JIRA_LOCK_PREFIX = 'lf-catalog-jira-lock:';
 
+export const DEFAULT_JIRA_BROWSE_BASE = 'https://lotusflare.atlassian.net';
+
+/** Browse URL for a remind ticket (fills in when API omitted issueUrl). */
+export function resolveRemindJiraUrl(
+  issueKey,
+  issueUrl,
+  base = DEFAULT_JIRA_BROWSE_BASE,
+) {
+  const key = String(issueKey || '').trim();
+  if (!key) return '';
+  const url = String(issueUrl || '').trim();
+  if (url) return url;
+  return `${String(base).replace(/\/$/, '')}/browse/${key}`;
+}
+
+export function normalizeRemindJiraLock({ issueKey, issueUrl, duplicate }) {
+  const key = String(issueKey || '').trim();
+  if (!key) return null;
+  return {
+    issueKey: key,
+    issueUrl: resolveRemindJiraUrl(key, issueUrl),
+    duplicate: Boolean(duplicate),
+  };
+}
+
 /** Stable key for “this remind part already has a Jira task” (sessionStorage). */
 export function buildRemindJiraPartKey({ editor, partIndex, partTotal, pageIds = [] }) {
   const ids = [...pageIds].filter(Boolean).sort().join(',');
@@ -43,7 +68,8 @@ export function readRemindJiraPartLock(key) {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    return data?.issueKey ? data : null;
+    if (!data?.issueKey) return null;
+    return normalizeRemindJiraLock(data);
   } catch {
     return null;
   }
@@ -68,11 +94,12 @@ export function writeRemindJiraPartLock(key, { issueKey, issueUrl, duplicate }) 
 
 export function rememberRemindJiraSuccess(key, jira) {
   if (!jira?.ok || !jira?.issueKey) return null;
-  const entry = {
+  const entry = normalizeRemindJiraLock({
     issueKey: jira.issueKey,
     issueUrl: jira.issueUrl,
-    duplicate: Boolean(jira.duplicate),
-  };
+    duplicate: jira.duplicate,
+  });
+  if (!entry) return null;
   writeRemindJiraPartLock(key, entry);
   return entry;
 }
@@ -104,6 +131,11 @@ export async function dispatchRemind({
     };
   }
 
+  const linkedKey = String(jiraIssueKey || '').trim();
+  const linkedUrl = linkedKey
+    ? resolveRemindJiraUrl(linkedKey, jiraIssueUrl)
+    : '';
+
   const catalogUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}`
@@ -122,8 +154,8 @@ export async function dispatchRemind({
     sendSlack: Boolean(sendSlack),
     slackUserId: slackUserId || undefined,
     createJira: Boolean(createJira),
-    jiraIssueKey: jiraIssueKey?.trim() || undefined,
-    jiraIssueUrl: jiraIssueUrl?.trim() || undefined,
+    jiraIssueKey: linkedKey || undefined,
+    jiraIssueUrl: linkedUrl || undefined,
   };
 
   try {

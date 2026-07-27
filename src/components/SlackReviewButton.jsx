@@ -12,6 +12,7 @@ import {
   canAutoSendSlack,
   dispatchRemind,
   isRemindTrackConfigured,
+  normalizeRemindJiraLock,
   readRemindJiraPartLock,
   rememberRemindJiraSuccess,
   slackRemindAccepted,
@@ -66,7 +67,7 @@ export default function SlackReviewButton({
 
   function storeJira(jira) {
     const entry = rememberRemindJiraSuccess(jiraPartKey, jira);
-    if (entry) setJiraCreated(entry);
+    if (entry) setJiraCreated(normalizeRemindJiraLock(entry) || entry);
   }
 
   async function dispatch(action) {
@@ -104,6 +105,8 @@ export default function SlackReviewButton({
         spaceKey,
         site,
         catalogPageUrl,
+        jira: jiraReady ? jiraCreated : null,
+        jiraPending: workerOn && !jiraReady,
       }),
       pagesCount: 1,
       partIndex: 1,
