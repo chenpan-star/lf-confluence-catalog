@@ -2,8 +2,8 @@ import './HygieneHelp.css';
 
 const STEPS = [
   'Pick someone who last edited outdated pages.',
-  'Click Send reminder and confirm who will be messaged.',
-  'Copy & open Slack, then paste the message into their DM.',
+  'Click Send reminder (all N) — one message lists every outdated page for them.',
+  'Copy & open Slack for each part if the list is long, then paste into their DM.',
 ];
 
 export default function HygieneHelpCard({ title = 'How this works', compact = false }) {

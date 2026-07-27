@@ -9,6 +9,18 @@ export const DEFAULT_SLACK_CONFIG = {
   users: {},
 };
 
+/** Max pages listed in one Slack message (split into multiple messages above this). */
+export const REMIND_PAGES_PER_MESSAGE = 12;
+
+export function splitReminderPageChunks(pages, size = REMIND_PAGES_PER_MESSAGE) {
+  if (!pages?.length) return [];
+  const chunks = [];
+  for (let i = 0; i < pages.length; i += size) {
+    chunks.push(pages.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export function guessSlackHandle(name) {
   const email = guessEmail(name);
   if (email) return email.split('@')[0];
@@ -116,34 +128,37 @@ export function buildBundledReviewMessage({
   editor,
   pages,
   site = 'lotusflare.atlassian.net',
-  maxPages = 15,
+  partIndex = 1,
+  partTotal = 1,
+  globalOffset = 0,
 }) {
   const contact = editor;
   const handle = guessSlackHandle(contact);
   const mention = handle ? `@${handle}` : contact || 'there';
-  const shown = pages.slice(0, maxPages);
-  const remaining = pages.length - shown.length;
 
-  const lines = shown.map((page, index) => {
+  const lines = pages.map((page, index) => {
     const title = formatTitle(page.title);
     const confluenceUrl =
       page.url || `https://${site}/wiki/spaces/${page.spaceKey || 'UNKNOWN'}`;
     const status = page.recency === 'legacy' ? 'legacy' : 'stale';
-    return `${index + 1}. *${title}* (${page.spaceName || page.spaceKey}, ${status}, ${formatDate(page.lastModified)})
+    const n = globalOffset + index + 1;
+    return `${n}. *${title}* (${page.spaceName || page.spaceKey}, ${status}, ${formatDate(page.lastModified)})
    ${confluenceUrl}`;
   });
 
   let body = `Hi ${mention},
 
-I'm reviewing our Confluence documentation catalog. These pages may need updating, archiving, or deleting:
+I'm reviewing our Confluence documentation catalog. These pages may need updating, archiving, or deleting:`;
 
-${lines.join('\n\n')}`;
-
-  if (remaining > 0) {
-    body += `\n\n…and ${remaining} more stale page(s) assigned to you in the catalog.`;
+  if (partTotal > 1) {
+    body += `\n\nPart ${partIndex} of ${partTotal} (${pages.length} page${pages.length === 1 ? '' : 's'} in this message):`;
   }
 
-  body += '\n\nThanks!';
+  body += `
+
+${lines.join('\n\n')}
+
+Thanks!`;
   return body;
 }
 
@@ -152,9 +167,18 @@ export async function openBundledSlackReview({
   pages,
   site,
   slackConfig = DEFAULT_SLACK_CONFIG,
-  maxPages = 15,
+  partIndex = 1,
+  partTotal = 1,
+  globalOffset = 0,
 }) {
-  const message = buildBundledReviewMessage({ editor, pages, site, maxPages });
+  const message = buildBundledReviewMessage({
+    editor,
+    pages,
+    site,
+    partIndex,
+    partTotal,
+    globalOffset,
+  });
   const url = buildSlackUrl(editor, slackConfig);
   const handle = guessSlackHandle(editor);
 

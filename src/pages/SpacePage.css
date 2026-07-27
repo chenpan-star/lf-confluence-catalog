@@ -700,6 +700,21 @@
   font-weight: 500;
 }
 
+.space-person-remind {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.space-person-remind-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
 @media (max-width: 640px) {
   .space-person-head {
     flex-direction: column;

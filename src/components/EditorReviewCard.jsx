@@ -59,6 +59,7 @@ export default function EditorReviewCard({
             title={bot ? 'Automated accounts usually should not be messaged' : undefined}
           >
             Send reminder
+            {group.pages.length > 1 ? ` (all ${formatNumber(group.pages.length)})` : ''}
           </button>
           {bot && (
             <p className="editor-review-bot-note">Usually skip — automated account.</p>
@@ -75,6 +76,7 @@ export default function EditorReviewCard({
                 page={page}
                 compact
                 reviewDetail={reviewDetail}
+                hideRemindButton
                 selected={
                   detailSpaceKey === page.spaceKey &&
                   detailPageId === String(page.id || '')

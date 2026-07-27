@@ -89,7 +89,7 @@ Optional: add `ATLASSIAN_EMAIL` + `ATLASSIAN_API_TOKEN` secrets for daily catalo
 
 ### Slack reminders
 
-**Send reminder** copies a message and opens Slack so you can paste it into the owner’s DM.  
+**Send reminder** copies a message and opens Slack so you can paste it into the last editor’s DM.  
 Optional: map Slack member IDs in `public/config/slack.json` (monthly Action — see [DEPLOY.md](./DEPLOY.md)).
 
 ### Simple password (no IT)

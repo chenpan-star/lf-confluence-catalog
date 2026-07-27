@@ -15,6 +15,7 @@ export default function StalePageRow({
   showCategory = false,
   reviewDetail = false,
   selected = false,
+  hideRemindButton = false,
 }) {
   const { catalog } = useCatalog();
   const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
@@ -78,15 +79,17 @@ export default function StalePageRow({
             )}
           </span>
         </div>
-        <SlackReviewButton
-          page={page}
-          spaceName={page.spaceName}
-          spaceKey={page.spaceKey}
-          catalogPageUrl={catalogPageUrl}
-          className="btn btn-sm btn-secondary"
-        >
-          Send reminder
-        </SlackReviewButton>
+        {!hideRemindButton && (
+          <SlackReviewButton
+            page={page}
+            spaceName={page.spaceName}
+            spaceKey={page.spaceKey}
+            catalogPageUrl={catalogPageUrl}
+            className="btn btn-sm btn-secondary"
+          >
+            Send reminder
+          </SlackReviewButton>
+        )}
       </li>
     );
   }
@@ -140,15 +143,17 @@ export default function StalePageRow({
         </span>
       </td>
       <td className="stale-actions">
-        <SlackReviewButton
-          page={page}
-          spaceName={page.spaceName}
-          spaceKey={page.spaceKey}
-          catalogPageUrl={catalogPageUrl}
-          className="btn btn-sm btn-primary"
-        >
-          Send reminder
-        </SlackReviewButton>
+        {!hideRemindButton && (
+          <SlackReviewButton
+            page={page}
+            spaceName={page.spaceName}
+            spaceKey={page.spaceKey}
+            catalogPageUrl={catalogPageUrl}
+            className="btn btn-sm btn-primary"
+          >
+            Send reminder
+          </SlackReviewButton>
+        )}
         <a
           href={confluenceUrl}
           target="_blank"

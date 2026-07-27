@@ -138,19 +138,24 @@ export function buildBundledReviewMailto({
   editor,
   pages,
   site = 'lotusflare.atlassian.net',
-  maxPages = 15,
+  partIndex = 1,
+  partTotal = 1,
+  globalOffset = 0,
 }) {
   const email = guessEmail(editor);
   const contact = editor;
-  const shown = pages.slice(0, maxPages);
-  const remaining = pages.length - shown.length;
 
-  const subject = `Confluence review: ${shown.length} page(s) need attention`;
-  const lines = shown.map((page, index) => {
+  const subject =
+    partTotal > 1
+      ? `Confluence review (part ${partIndex}/${partTotal}): ${pages.length} page(s)`
+      : `Confluence review: ${pages.length} page(s) need attention`;
+
+  const lines = pages.map((page, index) => {
     const title = formatTitle(page.title);
     const confluenceUrl =
       page.url || `https://${site}/wiki/spaces/${page.spaceKey || 'UNKNOWN'}`;
-    return `${index + 1}. ${title}
+    const n = globalOffset + index + 1;
+    return `${n}. ${title}
    Space: ${page.spaceName} (${page.spaceKey})
    Last updated: ${formatDate(page.lastModified)}
    ${confluenceUrl}`;
@@ -158,15 +163,17 @@ export function buildBundledReviewMailto({
 
   let body = `Hi${contact ? ` ${contact.split(' ')[0]}` : ''},
 
-I'm reviewing our Confluence documentation catalog. These pages may need updating, archiving, or deleting:
+I'm reviewing our Confluence documentation catalog. These pages may need updating, archiving, or deleting:`;
 
-${lines.join('\n\n')}`;
-
-  if (remaining > 0) {
-    body += `\n\n…and ${remaining} more stale page(s) in the catalog.`;
+  if (partTotal > 1) {
+    body += `\n\nPart ${partIndex} of ${partTotal}:`;
   }
 
-  body += '\n\nThank you!';
+  body += `
+
+${lines.join('\n\n')}
+
+Thank you!`;
 
   const qs = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   if (email) return `mailto:${email}?${qs}`;

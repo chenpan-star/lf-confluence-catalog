@@ -21,7 +21,7 @@ export default function HomePage() {
       <section className="hero hero-home">
         <h1>LotusFlare documentation catalog</h1>
         <p className="hero-lead">
-          Browse spaces by topic, or find outdated pages and remind the people who own them.
+          Browse spaces by topic, or find outdated pages and remind the people who last edited them.
         </p>
         {meta.refreshedAt && (
           <p className="hero-meta">

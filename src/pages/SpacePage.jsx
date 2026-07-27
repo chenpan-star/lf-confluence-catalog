@@ -19,6 +19,8 @@ import {
   slicePage,
   PAGE_SIZE,
 } from '../lib/pagination';
+import ReviewMessageModal from '../components/ReviewMessageModal';
+import '../components/ReviewMessageModal.css';
 import '../components/PageTree.css';
 import '../components/HygieneHelp.css';
 import './SpacePage.css';
@@ -64,13 +66,14 @@ export default function SpacePage() {
   const outlet = useOutletContext() || {};
   const categoryId = outlet.categoryId;
   const routeContext = { categoryId };
-  const { catalog, resolveSpace, loading, error } = useCatalog();
+  const { catalog, resolveSpace, loading, error, slackConfig } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [docFilter, setDocFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [personDraft, setPersonDraft] = useState(searchParams.get('person') || '');
   const [viewMode, setViewMode] = useState('flat');
   const [personPanelOpen, setPersonPanelOpen] = useState(Boolean(searchParams.get('person')));
+  const [personRemindOpen, setPersonRemindOpen] = useState(false);
 
   const personFilter = searchParams.get('person') || '';
   const recencyFilter = searchParams.get('freshness') || 'all';
@@ -116,6 +119,19 @@ export default function SpacePage() {
   const personSummary = useMemo(() => {
     if (!space?.pages || !personFilter.trim()) return null;
     return summarizePersonInSpace(space.pages, personFilter.trim());
+  }, [space, personFilter]);
+
+  const personOutdatedPages = useMemo(() => {
+    if (!space?.pages || !personFilter.trim()) return [];
+    const selected = personFilter.trim();
+    return space.pages.filter((p) => {
+      if (p.recency !== 'stale' && p.recency !== 'legacy') return false;
+      const lastEditor = (p.lastEditor || '').trim();
+      const contact = accountablePerson(p);
+      return (
+        editorsAreSamePerson(lastEditor, selected) || editorsAreSamePerson(contact, selected)
+      );
+    });
   }, [space, personFilter]);
 
   const filteredPages = useMemo(() => {
@@ -436,6 +452,22 @@ export default function SpacePage() {
                     <span className="space-person-stat-label">Outdated</span>
                   </button>
                 </div>
+                {personOutdatedPages.length > 0 && (
+                  <div className="space-person-remind">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setPersonRemindOpen(true)}
+                    >
+                      Remind about all {formatNumber(personOutdatedPages.length)} outdated page
+                      {personOutdatedPages.length === 1 ? '' : 's'}
+                    </button>
+                    <p className="space-person-remind-hint">
+                      One bundled Slack message lists every outdated page in this space for{' '}
+                      {personFilter}.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -616,6 +648,16 @@ export default function SpacePage() {
             )}
           </PaginationBar>
         </>
+      )}
+
+      {personRemindOpen && personFilter && personOutdatedPages.length > 0 && (
+        <ReviewMessageModal
+          editor={personFilter}
+          pages={personOutdatedPages}
+          site={catalog?.meta?.source}
+          slackConfig={slackConfig}
+          onClose={() => setPersonRemindOpen(false)}
+        />
       )}
     </div>
   );

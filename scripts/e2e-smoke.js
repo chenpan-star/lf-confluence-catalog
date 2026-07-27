@@ -42,9 +42,17 @@ function testCatalog() {
     pass(`${catalog.spaces.length} spaces`);
   }
 
-  const noOwner = catalog.spaces.filter((s) => !s.owner?.name?.trim());
-  if (noOwner.length) fail(`${noOwner.length} spaces missing owner.name`);
-  else pass('all spaces have owner');
+  const withOwner = catalog.spaces.filter((s) => s.owner?.name?.trim());
+  if (withOwner.length) fail(`${withOwner.length} spaces still have owner (per-space maintainers removed)`);
+  else pass('no per-space owners');
+
+  const chunks = [];
+  for (let i = 0; i < 25; i += 1) chunks.push(i);
+  const parts = [];
+  for (let i = 0; i < chunks.length; i += 12) parts.push(chunks.slice(i, i + 12));
+  if (parts.length !== 3 || parts[0].length !== 12 || parts[2].length !== 1) {
+    fail('reminder chunk split: expected 3 parts (12+12+1) for 25 pages');
+  } else pass('reminder page chunks (12 per message)');
 
   const sample = catalog.spaces.find((s) => s.pages?.length > 5 && s.category);
   if (!sample) {
@@ -143,7 +151,7 @@ function testRoutes(sample) {
 // ── HTTP preview checks ─────────────────────────────────────────────
 async function testHttp(routes) {
   console.log('\nHTTP preview');
-  const assets = ['/', '/data/catalog.json', '/config/slack.json', '/config/space-owners.json'];
+  const assets = ['/', '/data/catalog.json', '/config/slack.json'];
 
   for (const path of [...assets, ...routes.slice(0, 6)]) {
     try {

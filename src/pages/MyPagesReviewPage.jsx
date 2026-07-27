@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useCatalog } from '../context/CatalogContext';
+import ReviewMessageModal from '../components/ReviewMessageModal';
 import StalePageRow from '../components/StalePageRow';
 import HygieneHelpCard from '../components/HygieneHelp';
 import RemindStatusBanner from '../components/RemindStatusBanner';
@@ -24,6 +25,7 @@ import {
   PAGE_SIZE,
 } from '../lib/pagination';
 import '../components/HygieneHelp.css';
+import '../components/ReviewMessageModal.css';
 
 const RECENT_KEY = 'lf-catalog-recent-person-searches';
 const MAX_RECENT = 5;
@@ -50,7 +52,7 @@ function saveRecentSearch(name) {
 }
 
 export default function MyPagesReviewPage() {
-  const { catalog, loading, error } = useCatalog();
+  const { catalog, loading, error, slackConfig } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedEditor = searchParams.get('editor') || '';
   const queryParam = searchParams.get('q') || '';
@@ -61,6 +63,7 @@ export default function MyPagesReviewPage() {
   const [draft, setDraft] = useState(queryParam || selectedEditor);
   const [recentSearches, setRecentSearches] = useState([]);
   const [showRecent, setShowRecent] = useState(false);
+  const [bulkRemindOpen, setBulkRemindOpen] = useState(false);
 
   useEffect(() => {
     setRecentSearches(loadRecentSearches());
@@ -334,18 +337,29 @@ export default function MyPagesReviewPage() {
 
           {summary.attentionPages.length > 0 ? (
             <section style={{ marginBottom: '1.5rem' }}>
-              <h3 className="home-section-title" style={{ marginBottom: '0.35rem' }}>
-                Outdated pages
-              </h3>
-              <p
-                style={{
-                  fontSize: '0.9rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                Not updated in over a year — consider updating, archiving, or deleting.
-              </p>
+              <div className="person-bulk-remind-head">
+                <div>
+                  <h3 className="home-section-title" style={{ marginBottom: '0.35rem' }}>
+                    Outdated pages
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: '0.9rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: 0,
+                    }}
+                  >
+                    Not updated in over a year — consider updating, archiving, or deleting.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setBulkRemindOpen(true)}
+                >
+                  Remind about all {formatNumber(summary.attentionPages.length)}
+                </button>
+              </div>
               <PaginationBar
                 page={attentionPage}
                 pageSize={PAGE_SIZE}
@@ -360,6 +374,7 @@ export default function MyPagesReviewPage() {
                       page={page}
                       compact
                       reviewDetail
+                      hideRemindButton
                       selected={
                         detailSpaceKey === page.spaceKey &&
                         detailPageId === String(page.id || '')
@@ -423,6 +438,16 @@ export default function MyPagesReviewPage() {
         Need to nudge many people? Use <Link to="/review/editors">Send reminders</Link> to message
         editors in bulk.
       </p>
+
+      {bulkRemindOpen && activeEditor && summary.attentionPages.length > 0 && (
+        <ReviewMessageModal
+          editor={activeEditor}
+          pages={summary.attentionPages}
+          site={catalog?.meta?.source}
+          slackConfig={slackConfig}
+          onClose={() => setBulkRemindOpen(false)}
+        />
+      )}
     </div>
   );
 }

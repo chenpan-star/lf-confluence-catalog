@@ -11,7 +11,6 @@ export function buildSearchIndex(catalog) {
 
   for (const space of catalog.spaces) {
     const catLabel = catalog.categories?.[space.category]?.label || '';
-    const ownerName = space.owner?.name || '';
 
     items.push({
       type: 'space',
@@ -19,9 +18,7 @@ export function buildSearchIndex(catalog) {
       title: space.name,
       subtitle: [space.key, catLabel].filter(Boolean).join(' · '),
       path: `/space/${encodeURIComponent(space.key)}`,
-      haystack: normalizeForSearch(
-        `${space.name} ${space.key} ${catLabel} ${ownerName} ${personSearchHaystack(ownerName)}`,
-      ),
+      haystack: normalizeForSearch(`${space.name} ${space.key} ${catLabel}`),
       score: 0,
     });
 

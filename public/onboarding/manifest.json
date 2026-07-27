@@ -1,0 +1,44 @@
+[
+  {
+    "file": "01-home.png",
+    "path": "/",
+    "caption": "Job 1 — Home: start here",
+    "theme": "soft",
+    "url": "onboarding/01-home.png"
+  },
+  {
+    "file": "02-category.png",
+    "path": "/category/dno-platform",
+    "caption": "Job 1 — Pick a category, then a space",
+    "theme": "soft",
+    "url": "onboarding/02-category.png"
+  },
+  {
+    "file": "03-space.png",
+    "path": "/category/dno-platform/space/PCONF",
+    "caption": "Job 2 — Open one space",
+    "theme": "soft",
+    "url": "onboarding/03-space.png"
+  },
+  {
+    "file": "04-filter-person.png",
+    "path": "/category/dno-platform/space/PCONF",
+    "caption": "Job 2 — Filter by person (editors in this space)",
+    "theme": "soft",
+    "url": "onboarding/04-filter-person.png"
+  },
+  {
+    "file": "05-person-pages.png",
+    "path": "/category/dno-platform/space/PCONF?person=Alex%20Chadyuk",
+    "caption": "Job 2 — One person’s pages in this space",
+    "theme": "soft",
+    "url": "onboarding/05-person-pages.png"
+  },
+  {
+    "file": "06-send-reminders.png",
+    "path": "/review/editors",
+    "caption": "Job 3 — Send reminders",
+    "theme": "soft",
+    "url": "onboarding/06-send-reminders.png"
+  }
+]

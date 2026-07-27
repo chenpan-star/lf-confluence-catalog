@@ -183,7 +183,7 @@ After refresh commits new `catalog.json`, push triggers **Deploy to GitHub Pages
 
 ## Slack reminders (copy & open)
 
-**Send reminder** on the catalog copies a message and opens Slack so you can paste it into the owner’s DM.
+**Send reminder** on the catalog copies a message and opens Slack so you can paste it into the last editor’s DM.
 
 ### Slack user ID map (optional)
 

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
   openBundledSlackReview,
+  REMIND_PAGES_PER_MESSAGE,
+  splitReminderPageChunks,
 } from '../lib/slack';
 import './ReviewMessageModal.css';
 import './HygieneHelp.css';
@@ -14,51 +16,92 @@ export default function ReviewMessageModal({
   site,
   slackConfig,
   onClose,
-  onSendSlack,
 }) {
-  const [copied, setCopied] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [copiedPart, setCopiedPart] = useState(null);
+  const [sendingPart, setSendingPart] = useState(null);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [showMore, setShowMore] = useState(false);
 
+  const chunks = useMemo(
+    () => splitReminderPageChunks(pages, REMIND_PAGES_PER_MESSAGE),
+    [pages],
+  );
+
+  const partTotal = chunks.length;
+  const safePreview = Math.min(previewIndex, Math.max(0, partTotal - 1));
+  const previewChunk = chunks[safePreview] || [];
+  const globalOffset = safePreview * REMIND_PAGES_PER_MESSAGE;
+
   const message =
-    editor && pages?.length
-      ? buildBundledReviewMessage({ editor, pages, site })
+    editor && previewChunk.length
+      ? buildBundledReviewMessage({
+          editor,
+          pages: previewChunk,
+          site,
+          partIndex: safePreview + 1,
+          partTotal,
+          globalOffset,
+        })
       : '';
+
   const handle = editor ? guessSlackHandle(editor) : null;
   const email = editor ? guessEmail(editor) : null;
   const mailto =
-    editor && pages?.length
-      ? buildBundledReviewMailto({ editor, pages, site })
+    editor && previewChunk.length
+      ? buildBundledReviewMailto({
+          editor,
+          pages: previewChunk,
+          site,
+          partIndex: safePreview + 1,
+          partTotal,
+          globalOffset,
+        })
       : '#';
 
   if (!editor || !pages?.length) return null;
 
-  async function copyMessage() {
+  async function copyPreview() {
     try {
       await navigator.clipboard.writeText(message);
-      setCopied(true);
+      setCopiedPart(safePreview);
     } catch {
-      setCopied(false);
+      setCopiedPart(null);
     }
   }
 
-  async function handleOpenSlack() {
-    if (sending) return;
-    setSending(true);
+  async function handleOpenSlackPart(partIdx) {
+    if (sendingPart !== null) return;
+    const chunk = chunks[partIdx];
+    if (!chunk?.length) return;
+
+    setSendingPart(partIdx);
     setError('');
     try {
-      await copyMessage();
-      if (onSendSlack) await onSendSlack();
-      else await openBundledSlackReview({ editor, pages, site, slackConfig });
-      setSuccess(`Copied — paste in Slack to ${handle ? `@${handle}` : editor}.`);
-      setTimeout(() => onClose?.(), 1400);
+      await openBundledSlackReview({
+        editor,
+        pages: chunk,
+        site,
+        slackConfig,
+        partIndex: partIdx + 1,
+        partTotal,
+        globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
+      });
+      setCopiedPart(partIdx);
+      if (partTotal === 1) {
+        setTimeout(() => onClose?.(), 1400);
+      }
     } catch (err) {
       setError(err?.message || 'Could not open Slack');
-      setSending(false);
+    } finally {
+      setSendingPart(null);
     }
   }
+
+  const multiPartHint =
+    partTotal > 1
+      ? ` Slack limits how long one message can be — send ${partTotal} messages (same DM), one per button below.`
+      : '';
 
   return (
     <div className="review-modal-backdrop" role="presentation" onClick={onClose}>
@@ -70,7 +113,7 @@ export default function ReviewMessageModal({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="review-modal-header">
-          <h2 id="review-modal-title">Send reminder to {editor}?</h2>
+          <h2 id="review-modal-title">Remind {editor}</h2>
           <button type="button" className="review-modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
@@ -78,6 +121,7 @@ export default function ReviewMessageModal({
 
         <p className="review-modal-sub">
           {pages.length} outdated page{pages.length === 1 ? '' : 's'}
+          {partTotal > 1 ? ` · ${partTotal} Slack messages` : ''}
           {handle ? (
             <>
               {' '}
@@ -93,18 +137,14 @@ export default function ReviewMessageModal({
         </p>
 
         <p className="remind-confirm-mode">
-          Confirm will <strong>copy the message</strong> and open Slack so you can paste it into
-          their DM.
+          Each button <strong>copies that message</strong> and opens Slack — paste into their DM.
+          {multiPartHint}
         </p>
 
-        {copied && !success && !error && (
+        {copiedPart !== null && !error && (
           <p className="review-modal-copied" role="status">
-            ✓ Message copied
-          </p>
-        )}
-        {success && (
-          <p className="review-modal-copied" role="status">
-            ✓ {success}
+            ✓ Message {copiedPart + 1} copied — paste in Slack
+            {handle ? ` to @${handle}` : ''}.
           </p>
         )}
         {error && (
@@ -113,38 +153,84 @@ export default function ReviewMessageModal({
           </p>
         )}
 
-        <p className="review-modal-preview-label">Message preview</p>
+        {partTotal > 1 && (
+          <div className="review-modal-chunk-tabs" role="tablist" aria-label="Message parts">
+            {chunks.map((chunk, idx) => (
+              <button
+                key={idx}
+                type="button"
+                role="tab"
+                aria-selected={idx === safePreview}
+                className={`review-modal-chunk-tab${idx === safePreview ? ' active' : ''}${
+                  copiedPart === idx ? ' sent' : ''
+                }`}
+                onClick={() => setPreviewIndex(idx)}
+              >
+                Part {idx + 1}
+                <span className="review-modal-chunk-tab-meta">
+                  {chunk.length} page{chunk.length === 1 ? '' : 's'}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p className="review-modal-preview-label">
+          Preview{partTotal > 1 ? ` (part ${safePreview + 1} of ${partTotal})` : ''}
+        </p>
         <pre className="review-modal-body">{message}</pre>
 
         <div className="review-modal-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={sending || Boolean(success)}
-            onClick={handleOpenSlack}
-          >
-            {sending ? 'Opening…' : 'Copy & open Slack'}
-          </button>
+          {partTotal === 1 ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={sendingPart !== null}
+              onClick={() => handleOpenSlackPart(0)}
+            >
+              {sendingPart === 0 ? 'Opening…' : 'Copy & open Slack'}
+            </button>
+          ) : (
+            chunks.map((chunk, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`btn btn-primary${idx > 0 ? ' btn-sm' : ''}`}
+                disabled={sendingPart !== null}
+                onClick={() => handleOpenSlackPart(idx)}
+                title={`${chunk.length} pages in this message`}
+              >
+                {sendingPart === idx
+                  ? 'Opening…'
+                  : `Copy & open Slack (part ${idx + 1}/${partTotal})`}
+              </button>
+            ))
+          )}
           <button
             type="button"
             className="btn btn-ghost"
-            disabled={sending}
+            disabled={sendingPart !== null}
             onClick={() => setShowMore((v) => !v)}
           >
             {showMore ? 'Hide options' : 'More options'}
           </button>
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={sending}>
-            Cancel
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={sendingPart !== null}>
+            {partTotal > 1 ? 'Done' : 'Cancel'}
           </button>
         </div>
 
         {showMore && (
           <div className="review-modal-more">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={copyMessage} disabled={sending}>
-              Copy again
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={copyPreview}
+              disabled={sendingPart !== null}
+            >
+              Copy preview only
             </button>
             <a className="btn btn-secondary btn-sm" href={mailto}>
-              Use email instead
+              Email (this part)
             </a>
           </div>
         )}

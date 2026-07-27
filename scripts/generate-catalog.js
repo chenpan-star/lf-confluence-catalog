@@ -18,8 +18,6 @@ import {
   inferDepartmentFromContributorNetwork,
   buildContributorsCatalog,
 } from './lib/confluence-contributors.js';
-import { loadSpaceOwnerConfig, resolveSpaceOwner } from './lib/space-owner.js';
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const defaultInput = join(__dirname, '../data/raw-pages.json');
 const zohoInput = join(__dirname, '../data/zoho-employees.json');
@@ -117,7 +115,6 @@ for (const s of spaces.values()) {
 const contributorStats = buildContributorStats(pages);
 const config = loadDepartmentConfig();
 const contributorOverrides = config.contributorOverrides || {};
-const spaceOwnerConfig = loadSpaceOwnerConfig();
 
 // Pass 1: manual → zoho → name/category heuristics
 for (const s of spaces.values()) {
@@ -171,7 +168,6 @@ const refreshedAt =
 const exportSpaces = [...spaces.values()]
   .sort((a, b) => b.pageCount - a.pageCount)
   .map((s) => {
-    const owner = resolveSpaceOwner(s.key, s.name, spaceOwnerConfig);
     const staleCount = s.pages.filter((p) => p.recency === 'stale' || p.recency === 'legacy').length;
     return {
       id: s.key || s.name,
@@ -180,7 +176,6 @@ const exportSpaces = [...spaces.values()]
       category: s.category,
       department: s.department,
       departmentSource: s.departmentSource,
-      owner,
       staleCount,
       networkConfidence: s.networkConfidence,
       networkContributors: s.networkContributors,
@@ -229,7 +224,6 @@ const exportData = {
     zohoEmployees: zohoEmployeeCount,
     contributorCount: contributorStats.size,
     departmentAssignment: 'space-level',
-    spaceOwnerAssignment: 'space-level',
   },
   contributors,
   departments,

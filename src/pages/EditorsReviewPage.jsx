@@ -11,7 +11,6 @@ import {
   groupStalePagesByEditor,
   sortEditorGroups,
 } from '../lib/editorReview';
-import { openBundledSlackReview } from '../lib/slack';
 import { formatNumber } from '../lib/labels';
 import Pagination, { PaginationBar } from '../components/Pagination';
 import {
@@ -116,17 +115,6 @@ export default function EditorsReviewPage() {
   function clearPersonSearch() {
     setEditorDraft('');
     applyFilters({ editor: '', page: pageDraft });
-  }
-
-  async function handleSendSlack(group) {
-    const site = catalog?.meta?.source || 'lotusflare.atlassian.net';
-    await openBundledSlackReview({
-      editor: group.editor,
-      pages: group.pages,
-      site,
-      slackConfig,
-    });
-    setModalGroup(null);
   }
 
   if (loading) return <div className="loading">Loading outdated pages…</div>;
@@ -357,9 +345,9 @@ export default function EditorsReviewPage() {
       )}
 
       <p className="stale-footnote">
-        Tip: after confirming <strong>Copy &amp; open Slack</strong>, paste the message into their
-        DM. Use <strong>More options</strong> for email if needed.
-        One message can list all outdated pages for that person.
+        Tip: use <strong>Send reminder (all N)</strong> on each person — one bundled message lists every
+        outdated page for them. Long lists split into several Slack messages (part 1, 2, …).
+        Use <strong>More options</strong> for email if needed.
       </p>
 
       {modalGroup && (
@@ -369,7 +357,6 @@ export default function EditorsReviewPage() {
           site={catalog.meta?.source}
           slackConfig={slackConfig}
           onClose={() => setModalGroup(null)}
-          onSendSlack={() => handleSendSlack(modalGroup)}
         />
       )}
     </div>

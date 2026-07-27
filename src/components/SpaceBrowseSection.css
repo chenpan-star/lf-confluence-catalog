@@ -186,11 +186,6 @@
   align-items: center;
 }
 
-.space-index-owner {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-}
-
 .space-index-stale {
   font-size: 0.65rem;
   color: var(--amber);
