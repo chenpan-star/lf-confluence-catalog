@@ -144,53 +144,150 @@ function parseRemindPagesFromMessage(message) {
   const title = text.match(/•\s+\*([^*]+)\*/)?.[1]?.trim();
   const confUrl = text.match(/•\s+Confluence:\s*(https:\/\/[^\s]+)/i)?.[1]?.trim();
   const space = text.match(/•\s+Space:\s*([^\n]+)/)?.[1]?.trim();
+  const lastUpdated = text.match(/•\s+Last updated:\s*([^\n]+)/i)?.[1]?.trim();
   if (title && confUrl) {
+    const metaParts = [space, lastUpdated].filter(Boolean);
     pages.push({
       n: '1',
       title,
-      meta: space || '',
+      meta: metaParts.join(' · '),
       url: confUrl,
     });
   }
   return pages;
 }
 
-function buildRemindDescriptionAdf({ editor, message, catalogUrl, pagesCount, partIndex, partTotal }) {
-  const partNote =
-    partTotal > 1 ? `Part ${partIndex} of ${partTotal} · ${pagesCount} page${pagesCount === 1 ? '' : 's'}` : `${pagesCount} page${pagesCount === 1 ? '' : 's'}`;
+/** Shared, friendly copy for Jira description + email (with light emoji). */
+function remindCopyContext({ editor, pagesCount, partIndex, partTotal, pages, issueKey }) {
+  const n = pages?.length || pagesCount || 0;
+  const firstName = String(editor || '')
+    .trim()
+    .split(/\s+/)[0];
+  const hi = firstName ? `👋 Hi ${firstName}!` : '👋 Hi there!';
 
-  const content = [
-    adfHeading(2, 'Confluence documentation review'),
-    adfParagraph(
-      adfText('Assignee context: '),
-      adfText(editor, [{ type: 'strong' }]),
-      adfText(` · ${partNote}`),
-    ),
-    adfParagraph(
-      adfText(
-        'Please review the pages below — update, archive, or delete as appropriate.',
-      ),
+  let intro;
+  if (n === 1) {
+    intro = 'Could you take a quick look at **1 Confluence page** that might be out of date?';
+  } else if (n > 1) {
+    intro = `Could you take a quick look at **${n} Confluence pages** that might be out of date?`;
+  } else {
+    intro = 'Could you take a quick look at some Confluence pages that might be out of date?';
+  }
+  if (partTotal > 1) {
+    intro += ` _(Reminder ${partIndex} of ${partTotal}.)_`;
+  }
+
+  const action =
+    '📝 **What to do:** Open each page → update it, archive it, or delete it if we do not need it anymore.';
+  const pagesLabel = '📄 **Pages to check**';
+  const taskLabel = issueKey ? '📌 **Your Jira task**' : null;
+  const done = issueKey
+    ? `✅ **All done?** Leave a short note on ${issueKey} or mark the task complete — whatever works for you.`
+    : '✅ **All done?** Mark this task complete when you are finished.';
+  const thanks = '🙏 Thanks for helping keep our docs accurate!';
+  const openLink = '🔗 Open in Confluence';
+  const catalogNote = '📚 Sent from the Confluence catalog.';
+
+  return {
+    n,
+    hi,
+    intro,
+    action,
+    pagesLabel,
+    taskLabel,
+    done,
+    thanks,
+    openLink,
+    catalogNote,
+    issueKey,
+  };
+}
+
+/** Strip simple markdown bold/italic for plain text + email. */
+function plainFriendly(text) {
+  return String(text || '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1');
+}
+
+/** Email clients: base typography (inline styles only). */
+const REMIND_EMAIL_WRAP =
+  "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;line-height:1.6;color:#172B4D;max-width:640px";
+const REMIND_EMAIL_P = 'margin:0 0 18px;font-size:17px;line-height:1.6';
+const REMIND_EMAIL_LEAD = 'margin:0 0 20px;font-size:20px;line-height:1.45;font-weight:600';
+const REMIND_EMAIL_SECTION = 'margin:24px 0 12px;font-size:18px;line-height:1.4;font-weight:600';
+const REMIND_EMAIL_META = 'font-size:15px;line-height:1.5;color:#44546F';
+const REMIND_EMAIL_LINK = 'font-size:17px;color:#0052CC';
+const REMIND_EMAIL_BTN =
+  'display:inline-block;margin:4px 0 20px;padding:14px 22px;font-size:17px;font-weight:600;color:#ffffff !important;background:#0052CC;text-decoration:none;border-radius:8px';
+
+function wrapRemindEmailHtml(inner) {
+  return `<div style="${REMIND_EMAIL_WRAP}">${inner}</div>`;
+}
+
+/** ADF blocks for the page list (readable in Jira UI; plain URLs help email/wiki export). */
+function buildRemindPageListAdfContent(pages) {
+  if (!pages.length) return [];
+  return [
+    adfHeading(3, '📄 Pages to check'),
+    adfBulletList(
+      pages.map((p) => {
+        const items = [
+          adfParagraph(
+            adfText(p.title, [{ type: 'strong' }]),
+            adfText(' — '),
+            adfLink('Open in Confluence', p.url),
+          ),
+        ];
+        if (p.meta) items.push(adfParagraph(adfText(p.meta)));
+        items.push(adfParagraph(adfText(p.url)));
+        return items;
+      }),
     ),
   ];
+}
 
+/** Full issue description (paragraphs only — no headings — so Jira UI stays clean). */
+function buildRemindDescriptionAdf({
+  editor,
+  message,
+  catalogUrl,
+  pagesCount,
+  partIndex,
+  partTotal,
+  issueKey,
+  issueUrl,
+  summary,
+}) {
   const pages = parseRemindPagesFromMessage(message);
-  if (pages.length) {
-    content.push(adfHeading(3, 'Pages'));
+  const copy = remindCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages,
+    issueKey,
+  });
+
+  const content = [
+    adfHeading(4, copy.hi),
+    adfParagraph(adfText(plainFriendly(copy.intro))),
+    adfParagraph(adfText(plainFriendly(copy.action))),
+  ];
+
+  if (issueKey && issueUrl) {
     content.push(
-      adfBulletList(
-        pages.map((p) => [
-          adfParagraph(
-            adfText(`${p.n}. `),
-            adfText(p.title, [{ type: 'strong' }]),
-            p.meta ? adfText(` (${p.meta})`) : null,
-          ),
-          adfParagraph(adfLink('Open in Confluence', p.url)),
-        ]),
+      adfParagraph(
+        adfText('📌 Your Jira task: '),
+        adfLink(issueKey, issueUrl),
       ),
     );
-  } else {
-    content.push(adfHeading(3, 'Reminder text'));
-    content.push(...String(message || '').split(/\n\n+/).map((block) => {
+  }
+
+  if (pages.length) {
+    content.push(...buildRemindPageListAdfContent(pages));
+  } else if (message?.trim()) {
+    content.push(...String(message).split(/\n\n+/).map((block) => {
       const lines = block.split('\n');
       const inline = [];
       for (let i = 0; i < lines.length; i += 1) {
@@ -201,16 +298,127 @@ function buildRemindDescriptionAdf({ editor, message, catalogUrl, pagesCount, pa
     }));
   }
 
-  content.push({ type: 'rule' });
-  content.push(
-    adfParagraph(
-      adfText('Created from the '),
-      catalogUrl ? adfLink('LF Confluence catalog', catalogUrl) : adfText('LF Confluence catalog'),
-      adfText(' remind flow.'),
-    ),
-  );
+  if (issueKey && issueUrl) {
+    content.push(
+      adfParagraph(
+        adfText('✅ All done? '),
+        adfLink(`Update ${issueKey}`, issueUrl),
+        adfText(' when you finish. 🙏'),
+      ),
+    );
+  }
+
+  if (catalogUrl) {
+    content.push({ type: 'rule' });
+    content.push(
+      adfParagraph(
+        adfText('📚 Sent from '),
+        adfLink('Confluence catalog', catalogUrl),
+        adfText('.'),
+      ),
+    );
+  }
 
   return { type: 'doc', version: 1, content };
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Plain + HTML bodies for POST /issue/{key}/notify (and reference for Jira Automation copy). */
+function buildRemindEmailBodies({
+  editor,
+  summary,
+  issueKey,
+  issueUrl,
+  message,
+  pagesCount,
+  partIndex,
+  partTotal,
+}) {
+  const pages = parseRemindPagesFromMessage(message);
+  const copy = remindCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages,
+    issueKey,
+  });
+
+  const textPageLines = [];
+  if (pages.length) {
+    textPageLines.push('📄 Pages to check:', '');
+    for (const p of pages) {
+      textPageLines.push(`  • ${p.title}`);
+      if (p.meta) textPageLines.push(`    ${p.meta.replace(/,/g, ' ·')}`);
+      textPageLines.push(`    🔗 ${p.url}`);
+      textPageLines.push('');
+    }
+  } else if (message?.trim()) {
+    textPageLines.push(String(message).trim(), '');
+  }
+
+  const textBody = [
+    copy.hi,
+    plainFriendly(copy.intro),
+    '',
+    plainFriendly(copy.action),
+    '',
+    issueKey ? `📌 Your Jira task ${issueKey}: ${issueUrl}` : null,
+    issueKey ? '' : null,
+    ...textPageLines,
+    plainFriendly(copy.done),
+    '',
+    copy.thanks,
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
+
+  const pageListHtml =
+    pages.length > 0
+      ? pages
+          .map(
+            (p) =>
+              `<li style="margin-bottom:20px;font-size:17px;line-height:1.55">` +
+              `<div style="font-size:18px;font-weight:600;margin-bottom:6px">📄 ${escapeHtml(p.title)}</div>` +
+              (p.meta
+                ? `<div style="${REMIND_EMAIL_META};margin-bottom:8px">${escapeHtml(p.meta.replace(/,/g, ' ·'))}</div>`
+                : '') +
+              `<a href="${escapeHtml(p.url)}" style="${REMIND_EMAIL_LINK}">🔗 Open in Confluence</a></li>`,
+          )
+          .join('')
+      : message?.trim()
+        ? `<pre style="white-space:pre-wrap;font-family:inherit;font-size:16px;line-height:1.55">${escapeHtml(message.trim())}</pre>`
+        : '';
+
+  const htmlBody = wrapRemindEmailHtml(
+    [
+      `<p style="${REMIND_EMAIL_LEAD}">${escapeHtml(copy.hi)}</p>`,
+      `<p style="${REMIND_EMAIL_P}">${escapeHtml(plainFriendly(copy.intro))}</p>`,
+      `<p style="${REMIND_EMAIL_P}">${escapeHtml(plainFriendly(copy.action))}</p>`,
+      issueKey
+        ? `<p style="${REMIND_EMAIL_P}">📌 Your Jira task: <a href="${escapeHtml(issueUrl)}" style="${REMIND_EMAIL_LINK}"><strong>${escapeHtml(issueKey)}</strong></a></p>`
+        : '',
+      pageListHtml
+        ? `<p style="${REMIND_EMAIL_SECTION}">📄 Pages to check</p><ul style="padding:0;margin:0 0 8px;list-style:none">${pageListHtml}</ul>`
+        : '',
+      `<p style="${REMIND_EMAIL_P}">${escapeHtml(plainFriendly(copy.done))}</p>`,
+      issueKey
+        ? `<a href="${escapeHtml(issueUrl)}" style="${REMIND_EMAIL_BTN}">Open ${escapeHtml(issueKey)} in Jira</a>`
+        : '',
+      `<p style="${REMIND_EMAIL_P};margin-top:8px">${escapeHtml(copy.thanks)}</p>`,
+    ]
+      .filter(Boolean)
+      .join(''),
+  );
+
+  return { textBody, htmlBody, pages };
 }
 
 function truncate(str, max) {
@@ -369,30 +577,51 @@ async function addIssueWatcher(env, issueKey, accountId) {
   });
 }
 
-async function mentionAssigneeOnIssue(env, issueKey, accountId, summary) {
+async function addRemindAssigneeComment(
+  env,
+  issueKey,
+  accountId,
+  { message, editor, pagesCount, partIndex, partTotal, issueUrl },
+) {
+  const pages = parseRemindPagesFromMessage(message);
+  const copy = remindCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages,
+    issueKey,
+  });
+
+  const content = [
+    {
+      type: 'paragraph',
+      content: [
+        {
+          type: 'mention',
+          attrs: { id: accountId, text: '@assignee', accessLevel: '' },
+        },
+        {
+          type: 'text',
+          text: ` ${copy.hi}`,
+          marks: [{ type: 'strong' }],
+        },
+      ],
+    },
+    adfParagraph(adfText(plainFriendly(copy.intro))),
+    adfParagraph(adfText(plainFriendly(copy.action))),
+    ...buildRemindPageListAdfContent(pages),
+    adfParagraph(
+      adfText('📌 Open task: '),
+      adfLink(issueKey, issueUrl),
+    ),
+    adfParagraph(adfText(`${plainFriendly(copy.done)} ${copy.thanks}`)),
+  ];
+
   await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
     method: 'POST',
     body: JSON.stringify({
-      body: {
-        type: 'doc',
-        version: 1,
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Confluence catalog review assigned to ' },
-              {
-                type: 'mention',
-                attrs: { id: accountId, text: '@assignee', accessLevel: '' },
-              },
-              {
-                type: 'text',
-                text: ` — ${summary}. Please review the linked Confluence pages in the description.`,
-              },
-            ],
-          },
-        ],
-      },
+      body: { type: 'doc', version: 1, content },
     }),
   });
 }
@@ -400,7 +629,18 @@ async function mentionAssigneeOnIssue(env, issueKey, accountId, summary) {
 async function notifyIssueRecipient(
   env,
   issueKey,
-  { summary, issueUrl, assigneeAccountId, editor, editorEmail, projectKey },
+  {
+    summary,
+    issueUrl,
+    assigneeAccountId,
+    editor,
+    editorEmail,
+    projectKey,
+    pagesCount,
+    message,
+    partIndex,
+    partTotal,
+  },
 ) {
   if (String(env.JIRA_NOTIFY_ASSIGNEE || 'true').toLowerCase() === 'false') {
     return { skipped: true };
@@ -421,22 +661,16 @@ async function notifyIssueRecipient(
     };
   }
 
-  const textBody = [
-    'You have a new Confluence documentation review task.',
-    '',
+  const { textBody, htmlBody } = buildRemindEmailBodies({
+    editor,
     summary,
-    '',
+    issueKey,
     issueUrl,
-    '',
-    'Created from the LF Confluence catalog remind flow.',
-  ].join('\n');
-
-  const htmlBody = [
-    '<p>You have a new <strong>Confluence documentation review</strong> task.</p>',
-    `<p>${summary.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`,
-    `<p><a href="${issueUrl}">${issueKey}</a></p>`,
-    '<p>Created from the LF Confluence catalog remind flow.</p>',
-  ].join('');
+    message,
+    pagesCount,
+    partIndex,
+    partTotal,
+  });
 
   let assignNotifyOk = false;
   let watcherOk = false;
@@ -462,7 +696,14 @@ async function notifyIssueRecipient(
   }
 
   try {
-    await mentionAssigneeOnIssue(env, issueKey, accountId, summary);
+    await addRemindAssigneeComment(env, issueKey, accountId, {
+      message,
+      editor,
+      pagesCount,
+      partIndex,
+      partTotal,
+      issueUrl,
+    });
     mentionOk = true;
   } catch (err) {
     mentionError = err?.message || 'Mention comment failed';
@@ -551,14 +792,11 @@ async function createRemindIssue(env, body) {
     project: { key: projectKey },
     issuetype: { name: issueType },
     summary,
-    description: buildRemindDescriptionAdf({
-      editor,
-      message,
-      catalogUrl,
-      pagesCount,
-      partIndex,
-      partTotal,
-    }),
+    description: {
+      type: 'doc',
+      version: 1,
+      content: [adfParagraph(adfText('📄 Loading Confluence page list…'))],
+    },
     labels,
     priority: { name: priorityName },
   };
@@ -570,6 +808,10 @@ async function createRemindIssue(env, body) {
     body.editorEmail?.trim(),
   );
 
+  if (assigneeId) {
+    fields.assignee = { accountId: assigneeId };
+  }
+
   await applyRequiredJiraFields(env, projectKey, issueType, fields);
 
   const created = await jiraFetch(env, '/rest/api/3/issue', {
@@ -580,22 +822,37 @@ async function createRemindIssue(env, body) {
   const base = (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
   const issueUrl = `${base}/browse/${created.key}`;
 
-  let assigneeSet = false;
+  try {
+    await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(created.key)}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        fields: {
+          description: buildRemindDescriptionAdf({
+            editor,
+            message,
+            catalogUrl,
+            pagesCount,
+            partIndex,
+            partTotal,
+            issueKey: created.key,
+            issueUrl,
+            summary,
+          }),
+        },
+      }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Issue ${created.key} created but description update failed: ${err?.message || err}`,
+    );
+  }
+
+  let assigneeSet = Boolean(assigneeId);
   if (assigneeId) {
     try {
       await assignIssueWithNotify(env, created.key, assigneeId);
-      assigneeSet = true;
     } catch {
-      try {
-        await jiraFetch(
-          env,
-          `/rest/api/3/issue/${encodeURIComponent(created.key)}/assignee?notifyUsers=false`,
-          { method: 'PUT', body: JSON.stringify({ accountId: assigneeId }) },
-        );
-        assigneeSet = true;
-      } catch {
-        assigneeSet = false;
-      }
+      assigneeSet = false;
     }
   }
 
@@ -606,6 +863,10 @@ async function createRemindIssue(env, body) {
     editor,
     editorEmail: body.editorEmail?.trim(),
     projectKey,
+    pagesCount,
+    message,
+    partIndex,
+    partTotal,
   });
 
   return {
@@ -850,6 +1111,21 @@ async function postSlackDmText(env, channelId, text) {
   });
 }
 
+/** Slack mrkdwn footer with Jira link (requires issue created first). */
+function appendJiraTicketToSlackMessage(message, jira) {
+  const base = String(message || '').trim();
+  if (!jira?.issueKey || !jira?.issueUrl) return base;
+  const footer = `
+
+📌 *Jira task:* <${jira.issueUrl}|${jira.issueKey}>
+When you're done reviewing, please comment on or close this task in Jira. 🙏`;
+  const combined = `${base}${footer}`.trim();
+  if (combined.length > 3900) {
+    throw new Error('Message with Jira link is too long for Slack — send a smaller part');
+  }
+  return combined;
+}
+
 async function sendSlackDirectMessage(env, { slackUserId, message, editor, editorEmail }) {
   const text = String(message || '').trim();
   if (!text) throw new Error('message is required');
@@ -897,42 +1173,58 @@ async function handleRemindRequest(env, body) {
     body.sendSlack === true &&
     Boolean(slackUserId || body.editorEmail?.trim() || body.editor?.trim());
   const wantsJira = body.createJira !== false;
+  /** Slack DMs always require a Jira ticket first (created + verified before postMessage). */
+  const needsJira = wantsJira || wantsSlack;
 
   const out = { ok: false, slack: null, jira: null };
 
-  if (wantsSlack) {
-    try {
-      const slack = await sendSlackDirectMessage(env, {
-        slackUserId,
-        message: body.message,
-        editor: (body.editor || '').trim(),
-        editorEmail: body.editorEmail?.trim(),
-      });
-      out.slack = { ok: true, ...slack };
-    } catch (err) {
-      out.slack = { ok: false, error: err?.message || 'Slack send failed' };
-    }
-  }
-
-  if (wantsJira) {
+  if (needsJira) {
     try {
       const jira = await createRemindIssue(env, body);
+      if (!jira?.issueKey || !jira?.issueUrl) {
+        throw new Error('Jira issue was created but missing issue key or URL');
+      }
       out.jira = { ok: true, ...jira };
     } catch (err) {
       out.jira = { ok: false, error: err?.message || 'Jira create failed' };
     }
   }
 
+  if (wantsSlack) {
+    if (!out.jira?.ok || !out.jira?.issueKey) {
+      out.slack = {
+        ok: false,
+        error:
+          out.jira?.error ||
+          'Slack DM blocked — create the Jira task first (ticket missing or create failed).',
+        skippedPendingJira: true,
+      };
+    } else {
+      try {
+        const slackText = appendJiraTicketToSlackMessage(body.message, out.jira);
+        const slack = await sendSlackDirectMessage(env, {
+          slackUserId,
+          message: slackText,
+          editor: (body.editor || '').trim(),
+          editorEmail: body.editorEmail?.trim(),
+        });
+        out.slack = { ok: true, ...slack, jiraIssueKey: out.jira.issueKey };
+      } catch (err) {
+        out.slack = { ok: false, error: err?.message || 'Slack send failed' };
+      }
+    }
+  }
+
   const slackOk =
     !wantsSlack ||
     Boolean(out.slack?.ok && out.slack?.ts && (out.slack?.verified || out.slack?.verifyNote));
-  const jiraOk = !wantsJira || Boolean(out.jira?.ok);
+  const jiraOk = !needsJira || Boolean(out.jira?.ok);
   out.ok = slackOk && jiraOk;
 
-  if ((wantsSlack || wantsJira) && !out.ok) {
+  if ((wantsSlack || needsJira) && !out.ok) {
     const parts = [];
+    if (needsJira && !jiraOk) parts.push(`Jira: ${out.jira?.error || 'create failed'}`);
     if (wantsSlack && !slackOk) parts.push(`Slack: ${out.slack?.error || 'DM not delivered'}`);
-    if (wantsJira && !jiraOk) parts.push(`Jira: ${out.jira?.error || 'create failed'}`);
     out.error = parts.join(' · ') || 'Remind dispatch failed';
   }
 

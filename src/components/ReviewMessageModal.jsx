@@ -55,6 +55,7 @@ export default function ReviewMessageModal({
           partIndex: safePreview + 1,
           partTotal,
           globalOffset,
+          jiraPending: workerOn,
         })
       : '';
 
@@ -134,11 +135,12 @@ export default function ReviewMessageModal({
         remindTrackConfig,
         slackUserId,
         sendSlack: action === 'slack' && autoSlack,
-        createJira: action === 'jira',
+        createJira: action === 'jira' || (action === 'slack' && autoSlack),
       });
 
       if (action === 'slack') {
         setSlackTrack(result.slack ?? null);
+        if (result.jira?.ok) setJiraTrack(result.jira);
         if (slackRemindAccepted(result.slack)) {
           setCopiedPart(partIdx);
         } else {
@@ -213,8 +215,8 @@ export default function ReviewMessageModal({
             <>
               {workerOn && autoSlack ? (
                 <>
-                  <strong>Send Slack DM</strong> and <strong>Create Jira task</strong> are separate — use
-                  either or both.
+                  <strong>Send Slack DM</strong> creates a <strong>PROT Jira task first</strong>, then DMs
+                  with the ticket link. <strong>Create Jira task</strong> only if you skip Slack.
                 </>
               ) : workerOn ? (
                 <>
@@ -236,6 +238,16 @@ export default function ReviewMessageModal({
         {slackRemindAccepted(slackTrack) && !slackRemindDelivered(slackTrack) && (
           <p className="review-modal-copied" role="status">
             ✓ Slack accepted DM to {slackTrack.recipientName || editor}
+            {slackTrack.jiraIssueKey || jiraTrack?.issueKey ? (
+              <>
+                {' '}
+                · Jira{' '}
+                <a href={jiraTrack?.issueUrl} target="_blank" rel="noreferrer">
+                  {slackTrack.jiraIssueKey || jiraTrack?.issueKey}
+                </a>{' '}
+                linked in message
+              </>
+            ) : null}
             {slackTrack.matchedEmail || slackTrack.resolvedVia === 'email' ? (
               <>
                 {' '}
@@ -265,13 +277,15 @@ export default function ReviewMessageModal({
             </a>{' '}
             created
             {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
-            {jiraTrack.notifyEmail?.ok
-              ? ` Owner notified (assign email: ${jiraTrack.notifyEmail.assignNotifyOk ? 'yes' : 'no'}, @mention: ${jiraTrack.notifyEmail.mentionOk ? 'yes' : 'no'}, notify API: ${jiraTrack.notifyEmail.notifyOk ? 'yes' : 'no'}). Check spam / Jira notification settings if inbox is empty.`
-              : jiraTrack.notifyEmail?.error
-                ? ` Owner notification failed: ${jiraTrack.notifyEmail.error}`
-                : jiraTrack.notifyEmail?.skipped
-                  ? ' Owner email disabled on Worker.'
-                  : null}
+            {jiraTrack.notifyEmail?.mentionOk
+              ? ' @mention comment added (check Jira bell). Inbox email only if the assignee’s Jira profile has email enabled for mentions; otherwise use Slack DM or ask a Jira admin for a PROT Automation email rule (see DEPLOY.md).'
+              : null}
+            {jiraTrack.notifyEmail?.ok && !jiraTrack.notifyEmail?.mentionOk
+              ? ` Owner notified (assign email: ${jiraTrack.notifyEmail.assignNotifyOk ? 'yes' : 'no'}, notify API: ${jiraTrack.notifyEmail.notifyOk ? 'yes' : 'no'}).`
+              : null}
+            {jiraTrack.notifyEmail && !jiraTrack.notifyEmail.ok && jiraTrack.notifyEmail.error
+              ? ` Owner notification failed: ${jiraTrack.notifyEmail.error}`
+              : null}
           </p>
         )}
         {jiraTrack && !jiraTrack.ok && jiraTrack.error && (

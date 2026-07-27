@@ -66,8 +66,8 @@ export default function RemindConfirmModal({
         <p className="remind-confirm-mode">
           {workerOn && autoSlack ? (
             <>
-              <strong>Send Slack DM</strong> posts via the catalog bot. <strong>Create Jira</strong>{' '}
-              opens a PROT task — use either or both.
+              <strong>Send Slack DM</strong> creates a PROT Jira task first, then sends the DM with the
+              ticket link. <strong>Create Jira</strong> only if you skip Slack.
             </>
           ) : workerOn ? (
             <>

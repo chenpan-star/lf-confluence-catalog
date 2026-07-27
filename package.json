@@ -20,6 +20,8 @@
     "zoho:fetch": "node scripts/fetch-zoho-people.js",
     "slack:export-users": "node scripts/export-slack-users.js",
     "slack:verify-dm": "node scripts/verify-remind-slack-delivery.mjs",
+    "jira:verify-email": "node scripts/verify-jira-prot-email.mjs",
+    "jira:test-notify": "node scripts/test-jira-notify.mjs",
     "worker:remind:dev": "wrangler dev --config worker/remind-track/wrangler.jsonc",
     "worker:remind:deploy": "wrangler deploy --config worker/remind-track/wrangler.jsonc"
   },

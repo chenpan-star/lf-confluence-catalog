@@ -29,7 +29,7 @@
 }
 
 .review-modal-header h2 {
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   font-weight: 600;
 }
 
@@ -46,18 +46,19 @@
 .review-modal-sub {
   padding: 0.75rem 1.25rem 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .review-modal-body {
   margin: 0.75rem 1.25rem;
-  padding: 1rem 1.1rem;
+  padding: 1.15rem 1.25rem;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 0.88rem;
-  line-height: 1.55;
+  font-size: 1.05rem;
+  line-height: 1.65;
   white-space: pre-wrap;
   overflow: auto;
   flex: 1;
@@ -198,14 +199,15 @@
 }
 
 .remind-confirm-modal .review-modal-body {
-  max-height: 280px;
+  max-height: 320px;
+  font-size: 1.05rem;
 }
 
 .remind-confirm-mode {
   margin: 0.5rem 1.25rem 0;
-  font-size: 0.88rem;
+  font-size: 1rem;
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .remind-confirm-mode-warn {
@@ -230,7 +232,8 @@
 
 .review-modal-jira {
   margin: 0.35rem 1.25rem 0;
-  font-size: 0.88rem;
+  font-size: 1rem;
+  line-height: 1.5;
   color: var(--green, #16a34a);
 }
 
@@ -240,9 +243,9 @@
 
 .review-modal-jira-warn {
   margin: 0.35rem 1.25rem 0;
-  font-size: 0.88rem;
+  font-size: 1rem;
   color: var(--amber, #d97706);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .review-modal-preview-label {

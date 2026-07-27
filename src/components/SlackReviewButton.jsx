@@ -36,12 +36,13 @@ export default function SlackReviewButton({
   const slackRecipient = resolveSlackRecipient(contact, slackConfig);
   const slackUserId = slackRecipient?.userId ?? null;
 
-  const message = buildReviewMessage({
+  const messagePreview = buildReviewMessage({
     page,
     spaceName,
     spaceKey,
     site,
     catalogPageUrl,
+    jiraPending: workerOn,
   });
 
   async function dispatch(action) {
@@ -67,27 +68,35 @@ export default function SlackReviewButton({
     const result = await dispatchRemind({
       editor: contact || 'Unknown',
       editorEmail: email,
-      message,
+      message: buildReviewMessage({
+        page,
+        spaceName,
+        spaceKey,
+        site,
+        catalogPageUrl,
+      }),
       pagesCount: 1,
       partIndex: 1,
       partTotal: 1,
       remindTrackConfig,
       slackUserId,
       sendSlack: action === 'slack' && autoSlack,
-      createJira: action === 'jira',
+      createJira: action === 'jira' || (action === 'slack' && autoSlack),
     });
 
     if (action === 'slack') {
       if (slackRemindDelivered(result.slack)) {
         const to =
           result.slack.recipientName || slackRecipient?.matchedAs || (handle ? `@${handle}` : contact);
-        setHint(`Slack DM verified to ${to}`);
+        const jiraBit = result.jira?.issueKey ? ` · ${result.jira.issueKey} in message` : '';
+        setHint(`Slack DM verified to ${to}${jiraBit}`);
         setTimeout(() => setHint(''), 6000);
         return;
       }
       if (slackRemindAccepted(result.slack)) {
         const to = result.slack.recipientName || contact;
-        setHint(`Slack accepted DM to ${to} — owner checks bot DMs`);
+        const jiraBit = result.jira?.issueKey ? ` · ${result.jira.issueKey} linked` : '';
+        setHint(`Slack accepted DM to ${to}${jiraBit} — owner checks bot DMs`);
         setTimeout(() => setHint(''), 8000);
         return;
       }
@@ -123,7 +132,7 @@ export default function SlackReviewButton({
           recipientName={contact || 'Unknown'}
           recipientHandle={slackRecipient?.matchedAs || handle}
           recipientEmail={email}
-          messagePreview={message}
+          messagePreview={messagePreview}
           workerOn={workerOn}
           autoSlack={autoSlack}
           onSendSlackDm={autoSlack && workerOn ? () => dispatch('slack') : undefined}

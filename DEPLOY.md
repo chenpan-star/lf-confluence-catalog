@@ -238,7 +238,7 @@ The catalog stays static; **Jira credentials live only on the Worker**. The brow
    - Set **`JIRA_PROJECT_KEY`** (and optionally `JIRA_ISSUE_TYPE`, **`JIRA_PRIORITY_NAME`** (default `Major`), `JIRA_LABELS`).
    - **PROT** requires **Requested Due Date** — the Worker fills required date fields automatically (**today + 14 working days**, Mon–Fri; override with **`JIRA_DUE_DATE_WORKING_DAYS`**, **`JIRA_DUE_DATE_TIMEZONE`**, or **`JIRA_REQUESTED_DUE_DATE_FIELD`**).
    - **Start date** fields (name contains “start”) default to **today** in **`JIRA_DUE_DATE_TIMEZONE`** (override with **`JIRA_START_DATE_FIELD`**).
-   - After create, the Worker queues a **Jira email** to the assignee (or editor’s Jira account) via `POST /issue/{key}/notify` — disable with **`JIRA_NOTIFY_ASSIGNEE=false`**. Uses Atlassian’s mail queue (same as manual “Send email” in Jira).
+   - After create, the Worker tries **four** Jira-side nudges (best-effort): assign with `notifyUsers=true`, add watcher, **@mention comment** (usually shows in the issue; triggers Jira “mentioned you” if the user’s profile allows email), and `POST /issue/{key}/notify`. Disable all with **`JIRA_NOTIFY_ASSIGNEE=false`**. **Inbox delivery is still controlled by Jira** (profile notifications, project notification scheme, spam). See **Owner inbox email** below.
    - Add your Cloudflare **`account_id`** if `wrangler deploy` asks for it.
    - Prefer a **custom domain route** on `*.lotusflare.com` if `*.workers.dev` is blocked on office DNS.
 
@@ -296,6 +296,42 @@ Run `npm run worker:remind:dev` in one terminal and `npm run dev` in another to 
 - **Labels:** from `public/config/remind-track.json` (defaults: `confluence-catalog`, `doc-review`).
 
 If Jira fails, Slack copy still succeeds; the modal shows a warning with the error.
+
+### Owner inbox email (mention works, no mail)
+
+If the assignee sees the **@mention in the issue comments** but **nothing in Gmail/Outlook**, the catalog did its job; **Atlassian decides whether to send email**.
+
+**Quick checks (assignee account, e.g. `chen.pan@…`):**
+
+1. **Jira bell** — After a remind, is there an in-app “mentioned you” notification?  
+   - **Yes, no email** → almost always **personal notification settings** or spam.  
+   - **No bell either** → wrong Jira user matched as assignee, or notifications disabled globally.
+
+2. **Profile → Personal settings → Email** — Address matches the inbox you expect.
+
+3. **Profile → Notifications** (wording varies) — Turn **email** on for at least:
+   - *Someone mentions me*
+   - *Issue assigned to me* (optional backup)
+
+4. **Spam / quarantine** — Search for `lotusflare.atlassian.net` and `jira@atlassian.com`.
+
+5. **Manual control test on any PROT issue** — Use **⋯ → Send email to users** to yourself.  
+   - If that **never** arrives, no API change in the catalog will fix it; ask a **Jira admin** (notification scheme, outbound mail, or mistaken **JSM customer** profile per [Atlassian KB](https://support.atlassian.com/jira/kb/troubleshooting-why-an-internal-jira-user-did-not-receive-a-notification-in-jira-cloud/)).
+
+6. **API smoke test** (maintainers, uses `.env` token):
+   ```bash
+   npm run jira:verify-email -- PROT-47 your.email@lotusflare.com
+   # or assign+notify only:
+   npm run jira:test-notify -- PROT-47 your.email@lotusflare.com
+   ```
+   If the script prints `OK: /notify queued` but mail still never arrives, treat **`/notify` as accepted by Jira, not delivered to inbox** — same as step 5.
+
+   If **`FAIL notify: … No recipients were defined`** (HTTP 400), Jira is **rejecting the notify API** for that project (seen on **PROT** / Business projects). The catalog Worker hits the same limit — only the **@mention comment** and **assign with notifyUsers** remain; neither guarantees inbox mail.
+
+**Reliable ping without depending on Jira mail**
+
+- Use **Send Slack DM** in the catalog for owners who need a direct message (Worker + Slack scopes).
+- For **guaranteed email on every catalog task**, a **Jira admin** can add **Automation** on **PROT** — see **[docs/jira-automation-email.md](../docs/jira-automation-email.md)** for subject/body templates (titles + issue link, not URL-only).
 
 ### 4. Cannot open `*.workers.dev` (office DNS)
 

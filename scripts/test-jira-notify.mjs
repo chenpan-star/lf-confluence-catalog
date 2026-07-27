@@ -7,11 +7,22 @@ import { loadEnv } from './load-env.js';
 
 loadEnv();
 
+/** Host-only (lotusflare.atlassian.net) or full URL — same as fetch-confluence.js */
+function jiraBaseUrl(raw) {
+  let s = String(raw || 'lotusflare.atlassian.net')
+    .trim()
+    .replace(/\/$/, '')
+    .replace(/\/wiki.*$/, '');
+  if (!/^https?:\/\//i.test(s)) {
+    s = `https://${s.replace(/^https?:\/\//, '')}`;
+  }
+  return s;
+}
+
 const issueKey = process.argv[2]?.trim();
 const who = process.argv[3]?.trim();
-const base = (process.env.JIRA_BASE_URL || process.env.ATLASSIAN_SITE || 'https://lotusflare.atlassian.net')
-  .replace(/\/$/, '')
-  .replace(/\/wiki.*$/, '');
+const base = jiraBaseUrl(process.env.JIRA_BASE_URL || process.env.ATLASSIAN_SITE);
+console.log('Jira base:', base);
 const email = process.env.ATLASSIAN_EMAIL?.trim();
 const token = process.env.ATLASSIAN_API_TOKEN?.trim();
 
@@ -96,6 +107,11 @@ try {
   console.log('OK: /notify queued');
 } catch (e) {
   console.error('FAIL notify:', e.message);
+  if (String(e.message).includes('No recipients were defined')) {
+    console.error(
+      '  → Jira rejected /notify for this issue/project (common on some Business projects). Custom API email will not work; use @mention + profile settings, Slack DM, or Jira Automation.',
+    );
+  }
 }
 
 console.log('\nCheck inbox + issue comments. If all OK but no mail, Jira notification scheme blocks outbound email.');

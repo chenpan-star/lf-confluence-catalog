@@ -78,9 +78,10 @@ export async function dispatchRemind({
     });
     const data = await res.json().catch(() => ({}));
     const slackAccepted = !sendSlack || slackRemindAccepted(data.slack);
-    const jiraOk = !createJira || Boolean(data.jira?.ok);
+    const jiraRequired = createJira || sendSlack;
+    const jiraOk = !jiraRequired || Boolean(data.jira?.ok && data.jira?.issueKey);
     const ok =
-      (sendSlack ? slackAccepted : true) && (createJira ? jiraOk : true);
+      (sendSlack ? slackAccepted : true) && (jiraRequired ? jiraOk : true);
     return {
       ok,
       slack: data.slack ?? null,
@@ -89,7 +90,10 @@ export async function dispatchRemind({
         (sendSlack && !slackAccepted
           ? data.slack?.error || data.error || 'Slack DM not sent'
           : undefined) ||
-        (createJira !== false && data.jira && !data.jira.ok ? data.jira.error : undefined) ||
+        (jiraRequired && data.jira && !jiraOk
+          ? data.jira.error || 'Jira task required before Slack'
+          : undefined) ||
+        (jiraRequired && !data.jira?.ok ? data.jira?.error || data.error : undefined) ||
         (!slackAccepted || !jiraOk ? data.error : undefined) ||
         (!res.ok && slackAccepted && jiraOk ? `Remind service HTTP ${res.status}` : undefined) ||
         (!res.ok && !slackAccepted ? data.error || `Remind service HTTP ${res.status}` : undefined),

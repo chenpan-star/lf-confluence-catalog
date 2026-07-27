@@ -43,12 +43,46 @@ export function guessSlackHandle(name) {
   return null;
 }
 
+export function buildJiraSlackFooter({ issueKey, issueUrl, pending = false } = {}) {
+  if (issueKey && issueUrl) {
+    return `
+
+📌 *Jira task:* <${issueUrl}|${issueKey}>
+When you're done reviewing, please comment on or close this task in Jira. 🙏`;
+  }
+  if (pending) {
+    return `
+
+📌 *Jira:* A PROT tracking task will be created when you send (linked in this message).`;
+  }
+  return '';
+}
+
+/** Plain-text footer for clipboard / email (no Slack mrkdwn). */
+export function buildJiraPlainFooter({ issueKey, issueUrl, pending = false } = {}) {
+  if (issueKey && issueUrl) {
+    return `
+
+📌 Jira task: ${issueKey}
+${issueUrl}
+When you're done, comment on or close this task. 🙏`;
+  }
+  if (pending) {
+    return `
+
+📌 A PROT Jira task will be created when you send from the catalog.`;
+  }
+  return '';
+}
+
 export function buildReviewMessage({
   page,
   spaceName,
   spaceKey,
   site = 'lotusflare.atlassian.net',
   catalogPageUrl = '',
+  jira = null,
+  jiraPending = false,
 }) {
   const contact = primaryContact(page);
   const handle = guessSlackHandle(contact);
@@ -56,16 +90,25 @@ export function buildReviewMessage({
   const confluenceUrl = page.url || `https://${site}/wiki/spaces/${spaceKey}`;
   const mention = handle ? `@${handle}` : contact || 'there';
 
-  return `Hi ${mention},
+  let text = `👋 Hi ${mention},
 
 Could you review this Confluence page? It may need updating, archiving, or deleting:
 
 • *${title}*
 • Space: ${spaceName} (${spaceKey})
 • Last updated: ${formatDate(page.lastModified)}
-${page.lastEditor ? `• Last editor: ${page.lastEditor}\n` : ''}${catalogPageUrl ? `• Catalog: ${catalogPageUrl}\n` : ''}• Confluence: ${confluenceUrl}
+${page.lastEditor ? `• Last editor: ${page.lastEditor}\n` : ''}${catalogPageUrl ? `• Catalog: ${catalogPageUrl}\n` : ''}• Confluence: ${confluenceUrl}`;
+
+  text += buildJiraPlainFooter({
+    issueKey: jira?.issueKey,
+    issueUrl: jira?.issueUrl,
+    pending: jiraPending,
+  });
+
+  text += `
 
 Thanks!`;
+  return text;
 }
 
 export function resolveSlackUserId(contact, config) {
@@ -181,6 +224,8 @@ export function buildBundledReviewMessage({
   partIndex = 1,
   partTotal = 1,
   globalOffset = 0,
+  jira = null,
+  jiraPending = false,
 }) {
   const contact = editor;
   const handle = guessSlackHandle(contact);
@@ -196,19 +241,27 @@ export function buildBundledReviewMessage({
    ${confluenceUrl}`;
   });
 
-  let body = `Hi ${mention},
+  let body = `👋 Hi ${mention},
 
 I'm reviewing our Confluence documentation catalog. These pages may need updating, archiving, or deleting:`;
 
   if (partTotal > 1) {
-    body += `\n\nPart ${partIndex} of ${partTotal} (${pages.length} page${pages.length === 1 ? '' : 's'} in this message):`;
+    body += `\n\n📎 Part ${partIndex} of ${partTotal} (${pages.length} page${pages.length === 1 ? '' : 's'} in this message):`;
   }
 
   body += `
 
-${lines.join('\n\n')}
+${lines.join('\n\n')}`;
 
-Thanks!`;
+  body += buildJiraPlainFooter({
+    issueKey: jira?.issueKey,
+    issueUrl: jira?.issueUrl,
+    pending: jiraPending,
+  });
+
+  body += `
+
+Thanks! 🙏`;
   return body;
 }
 
