@@ -761,6 +761,78 @@ async function findAssigneeAccountId(env, projectKey, editor, editorEmail) {
   return null;
 }
 
+/** Escape user text for JQL quoted string. */
+function escapeJqlString(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Open catalog remind issue with same summary (+ page URLs in description when known).
+ * Returns null if none; skips when JIRA_DEDUP_DISABLE=true or body.forceRemind=true.
+ */
+async function findExistingOpenRemindIssue(
+  env,
+  { projectKey, summary, assigneeId, labels, message, forceRemind },
+) {
+  if (forceRemind) return null;
+  if (String(env.JIRA_DEDUP_DISABLE || 'false').toLowerCase() === 'true') return null;
+
+  const catalogLabel =
+    (Array.isArray(labels) && labels.find((l) => String(l).includes('confluence-catalog'))) ||
+    'confluence-catalog';
+  const days = Math.max(0, Number(env.JIRA_DEDUP_DAYS) || 60);
+  const escapedSummary = escapeJqlString(summary);
+
+  let jql = `project = ${projectKey} AND labels = "${escapeJqlString(catalogLabel)}" AND summary ~ "${escapedSummary}" AND statusCategory != Done`;
+  if (assigneeId) jql += ` AND assignee = "${escapeJqlString(assigneeId)}"`;
+  if (days > 0) jql += ` AND created >= -${days}d`;
+  jql += ' ORDER BY created DESC';
+
+  const params = new URLSearchParams({
+    jql,
+    maxResults: '8',
+    fields: 'summary,status,assignee,description',
+  });
+
+  let data;
+  try {
+    data = await jiraFetch(env, `/rest/api/3/search?${params}`);
+  } catch {
+    return null;
+  }
+
+  const issues = data?.issues;
+  if (!Array.isArray(issues) || !issues.length) return null;
+
+  const pageUrls = parseRemindPagesFromMessage(message)
+    .map((p) => p.url)
+    .filter(Boolean);
+
+  const base = (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
+
+  for (const issue of issues) {
+    if (!pageUrls.length) {
+      return {
+        key: issue.key,
+        id: issue.id,
+        issueUrl: `${base}/browse/${issue.key}`,
+        assigneeSet: Boolean(issue.fields?.assignee?.accountId),
+      };
+    }
+    const descBlob = JSON.stringify(issue.fields?.description || '');
+    if (pageUrls.every((url) => descBlob.includes(url))) {
+      return {
+        key: issue.key,
+        id: issue.id,
+        issueUrl: `${base}/browse/${issue.key}`,
+        assigneeSet: Boolean(issue.fields?.assignee?.accountId),
+      };
+    }
+  }
+
+  return null;
+}
+
 async function createRemindIssue(env, body) {
   const projectKey = (body.projectKey || env.JIRA_PROJECT_KEY || '').trim();
   if (!projectKey) throw new Error('JIRA_PROJECT_KEY is not configured');
@@ -810,6 +882,30 @@ async function createRemindIssue(env, body) {
 
   if (assigneeId) {
     fields.assignee = { accountId: assigneeId };
+  }
+
+  const existing = await findExistingOpenRemindIssue(env, {
+    projectKey,
+    summary,
+    assigneeId,
+    labels,
+    message,
+    forceRemind: body.forceRemind === true,
+  });
+
+  if (existing) {
+    return {
+      issueKey: existing.key,
+      issueId: existing.id,
+      issueUrl: existing.issueUrl,
+      assigneeSet: existing.assigneeSet,
+      duplicate: true,
+      notifyEmail: {
+        skipped: true,
+        reason: 'duplicate_open_issue',
+        message: `Open task ${existing.key} already exists for this remind — not created again.`,
+      },
+    };
   }
 
   await applyRequiredJiraFields(env, projectKey, issueType, fields);
@@ -1172,13 +1268,14 @@ async function handleRemindRequest(env, body) {
   const wantsSlack =
     body.sendSlack === true &&
     Boolean(slackUserId || body.editorEmail?.trim() || body.editor?.trim());
-  const wantsJira = body.createJira !== false;
-  /** Slack DMs always require a Jira ticket first (created + verified before postMessage). */
-  const needsJira = wantsJira || wantsSlack;
+  const wantsJira = body.createJira === true;
+  const existingJiraKey = String(body.jiraIssueKey || '').trim();
+  const existingJiraUrl = String(body.jiraIssueUrl || '').trim();
+  const hasExistingJira = Boolean(existingJiraKey && existingJiraUrl);
 
   const out = { ok: false, slack: null, jira: null };
 
-  if (needsJira) {
+  if (wantsJira) {
     try {
       const jira = await createRemindIssue(env, body);
       if (!jira?.issueKey || !jira?.issueUrl) {
@@ -1188,6 +1285,14 @@ async function handleRemindRequest(env, body) {
     } catch (err) {
       out.jira = { ok: false, error: err?.message || 'Jira create failed' };
     }
+  } else if (hasExistingJira) {
+    out.jira = {
+      ok: true,
+      issueKey: existingJiraKey,
+      issueUrl: existingJiraUrl,
+      duplicate: true,
+      linkedFromClient: true,
+    };
   }
 
   if (wantsSlack) {
@@ -1196,7 +1301,7 @@ async function handleRemindRequest(env, body) {
         ok: false,
         error:
           out.jira?.error ||
-          'Slack DM blocked — create the Jira task first (ticket missing or create failed).',
+          'Slack DM blocked — create the Jira task first, then send Slack DM.',
         skippedPendingJira: true,
       };
     } else {
@@ -1218,12 +1323,12 @@ async function handleRemindRequest(env, body) {
   const slackOk =
     !wantsSlack ||
     Boolean(out.slack?.ok && out.slack?.ts && (out.slack?.verified || out.slack?.verifyNote));
-  const jiraOk = !needsJira || Boolean(out.jira?.ok);
+  const jiraOk = !wantsJira || Boolean(out.jira?.ok);
   out.ok = slackOk && jiraOk;
 
-  if ((wantsSlack || needsJira) && !out.ok) {
+  if ((wantsSlack || wantsJira) && !out.ok) {
     const parts = [];
-    if (needsJira && !jiraOk) parts.push(`Jira: ${out.jira?.error || 'create failed'}`);
+    if (wantsJira && !jiraOk) parts.push(`Jira: ${out.jira?.error || 'create failed'}`);
     if (wantsSlack && !slackOk) parts.push(`Slack: ${out.slack?.error || 'DM not delivered'}`);
     out.error = parts.join(' · ') || 'Remind dispatch failed';
   }

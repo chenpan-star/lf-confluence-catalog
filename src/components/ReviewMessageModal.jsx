@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
-import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured, slackRemindAccepted, slackRemindDelivered } from '../lib/remindTrack';
+import {
+  buildRemindJiraPartKey,
+  canAutoSendSlack,
+  dispatchRemind,
+  isRemindTrackConfigured,
+  readRemindJiraPartLock,
+  rememberRemindJiraSuccess,
+  slackRemindAccepted,
+  slackRemindDelivered,
+} from '../lib/remindTrack';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
@@ -27,6 +36,8 @@ export default function ReviewMessageModal({
   const [showMore, setShowMore] = useState(false);
   const [jiraTrack, setJiraTrack] = useState(null);
   const [slackTrack, setSlackTrack] = useState(null);
+  /** part index → { issueKey, issueUrl, duplicate } after successful Jira (this session). */
+  const [jiraByPart, setJiraByPart] = useState({});
   const { remindTrackConfig } = useCatalog();
   const workerOn = isRemindTrackConfigured();
   const slackRecipient = useMemo(
@@ -75,6 +86,29 @@ export default function ReviewMessageModal({
 
   if (!editor || !pages?.length) return null;
 
+  function partJiraKey(partIdx) {
+    const chunk = chunks[partIdx] || [];
+    return buildRemindJiraPartKey({
+      editor,
+      partIndex: partIdx + 1,
+      partTotal,
+      pageIds: chunk.map((p) => p.id),
+    });
+  }
+
+  function jiraLockForPart(partIdx) {
+    return jiraByPart[partIdx] || readRemindJiraPartLock(partJiraKey(partIdx));
+  }
+
+  function recordJiraForPart(partIdx, jira) {
+    const key = partJiraKey(partIdx);
+    const entry = rememberRemindJiraSuccess(key, jira);
+    if (entry) {
+      setJiraByPart((prev) => ({ ...prev, [partIdx]: entry }));
+      setJiraTrack({ ok: true, ...entry });
+    }
+  }
+
   async function copyPreview() {
     try {
       await navigator.clipboard.writeText(message);
@@ -89,6 +123,17 @@ export default function ReviewMessageModal({
     const chunk = chunks[partIdx];
     if (!chunk?.length) return;
 
+    if (action === 'jira' && jiraLockForPart(partIdx)) {
+      setError(`Jira ${jiraLockForPart(partIdx).issueKey} is already linked to this part.`);
+      return;
+    }
+
+    if (action === 'slack' && !jiraLockForPart(partIdx)) {
+      setError('Create the Jira task for this part first, then send Slack DM.');
+      return;
+    }
+
+    const jiraLock = action === 'slack' ? jiraLockForPart(partIdx) : null;
     const actionKey = `${action}-${partIdx}`;
     setSendingPart(actionKey);
     setError('');
@@ -135,12 +180,13 @@ export default function ReviewMessageModal({
         remindTrackConfig,
         slackUserId,
         sendSlack: action === 'slack' && autoSlack,
-        createJira: action === 'jira' || (action === 'slack' && autoSlack),
+        createJira: action === 'jira',
+        jiraIssueKey: jiraLock?.issueKey,
+        jiraIssueUrl: jiraLock?.issueUrl,
       });
 
       if (action === 'slack') {
         setSlackTrack(result.slack ?? null);
-        if (result.jira?.ok) setJiraTrack(result.jira);
         if (slackRemindAccepted(result.slack)) {
           setCopiedPart(partIdx);
         } else {
@@ -149,8 +195,10 @@ export default function ReviewMessageModal({
       }
 
       if (action === 'jira') {
-        setJiraTrack(result.jira ?? null);
-        if (!result.jira?.ok) {
+        if (result.jira?.ok) {
+          recordJiraForPart(partIdx, result.jira);
+        } else {
+          setJiraTrack(result.jira ?? null);
           setError(result.jira?.error || result.error || 'Jira task was not created.');
         }
       }
@@ -165,6 +213,8 @@ export default function ReviewMessageModal({
   const sendingSlack = sendingPart === `slack-${safePreview}`;
   const sendingJira = sendingPart === `jira-${safePreview}`;
   const sendingCopy = sendingPart === `copy-${safePreview}`;
+  const jiraLocked = Boolean(jiraLockForPart(safePreview));
+  const jiraLockedInfo = jiraLockForPart(safePreview);
 
   return (
     <div className="review-modal-backdrop" role="presentation" onClick={onClose}>
@@ -208,15 +258,15 @@ export default function ReviewMessageModal({
         <p className="remind-confirm-mode">
           {partTotal > 1 ? (
             <>
-              Select a <strong>Part</strong> tab, then use <strong>Send Slack DM</strong> and/or{' '}
-              <strong>Create Jira task</strong> separately.
+              For each part: <strong>Create Jira task</strong> first, then <strong>Send Slack DM</strong>{' '}
+              (or copy &amp; open Slack manually).
             </>
           ) : (
             <>
               {workerOn && autoSlack ? (
                 <>
-                  <strong>Send Slack DM</strong> creates a <strong>PROT Jira task first</strong>, then DMs
-                  with the ticket link. <strong>Create Jira task</strong> only if you skip Slack.
+                  <strong>Create Jira task</strong> first, then <strong>Send Slack DM</strong> with the
+                  ticket link. Use <strong>Copy &amp; open Slack</strong> to paste manually anytime.
                 </>
               ) : workerOn ? (
                 <>
@@ -271,19 +321,35 @@ export default function ReviewMessageModal({
         )}
         {jiraTrack?.ok && jiraTrack.issueKey && (
           <p className="review-modal-jira" role="status">
-            ✓ Jira{' '}
-            <a href={jiraTrack.issueUrl} target="_blank" rel="noreferrer">
-              {jiraTrack.issueKey}
-            </a>{' '}
-            created
-            {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
-            {jiraTrack.notifyEmail?.mentionOk
+            {jiraTrack.duplicate ? (
+              <>
+                ✓ Already open —{' '}
+                <a href={jiraTrack.issueUrl} target="_blank" rel="noreferrer">
+                  {jiraTrack.issueKey}
+                </a>{' '}
+                (same remind; not created again).
+              </>
+            ) : (
+              <>
+                ✓ Jira{' '}
+                <a href={jiraTrack.issueUrl} target="_blank" rel="noreferrer">
+                  {jiraTrack.issueKey}
+                </a>{' '}
+                created
+                {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
+              </>
+            )}
+            {!jiraTrack.duplicate && jiraTrack.notifyEmail?.mentionOk
               ? ' @mention comment added (check Jira bell). Inbox email only if the assignee’s Jira profile has email enabled for mentions; otherwise use Slack DM or ask a Jira admin for a PROT Automation email rule (see DEPLOY.md).'
               : null}
-            {jiraTrack.notifyEmail?.ok && !jiraTrack.notifyEmail?.mentionOk
+            {!jiraTrack.duplicate && jiraTrack.notifyEmail?.ok && !jiraTrack.notifyEmail?.mentionOk
               ? ` Owner notified (assign email: ${jiraTrack.notifyEmail.assignNotifyOk ? 'yes' : 'no'}, notify API: ${jiraTrack.notifyEmail.notifyOk ? 'yes' : 'no'}).`
               : null}
-            {jiraTrack.notifyEmail && !jiraTrack.notifyEmail.ok && jiraTrack.notifyEmail.error
+            {!jiraTrack.duplicate &&
+            jiraTrack.notifyEmail &&
+            !jiraTrack.notifyEmail.ok &&
+            !jiraTrack.notifyEmail.skipped &&
+            jiraTrack.notifyEmail.error
               ? ` Owner notification failed: ${jiraTrack.notifyEmail.error}`
               : null}
           </p>
@@ -310,17 +376,19 @@ export default function ReviewMessageModal({
                 aria-selected={idx === safePreview}
                 className={`review-modal-chunk-tab${idx === safePreview ? ' active' : ''}${
                   copiedPart === idx ? ' sent' : ''
-                }`}
+                }${jiraLockForPart(idx) ? ' jira-done' : ''}`}
                 onClick={() => {
                   setPreviewIndex(idx);
                   setCopiedPart(null);
-                  setJiraTrack(null);
+                  const locked = jiraLockForPart(idx);
+                  setJiraTrack(locked ? { ok: true, ...locked } : null);
                   setSlackTrack(null);
                 }}
               >
                 Part {idx + 1}
                 <span className="review-modal-chunk-tab-meta">
                   {chunk.length} page{chunk.length === 1 ? '' : 's'}
+                  {jiraLockForPart(idx) ? ` · ${jiraLockForPart(idx).issueKey}` : ''}
                 </span>
               </button>
             ))}
@@ -333,11 +401,37 @@ export default function ReviewMessageModal({
         <pre className="review-modal-body">{message}</pre>
 
         <div className="review-modal-actions">
+          {workerOn ? (
+            <button
+              type="button"
+              className={jiraLocked ? 'btn btn-secondary' : 'btn btn-primary'}
+              disabled={isSending || jiraLocked}
+              title={
+                jiraLocked
+                  ? `Jira ${jiraLockedInfo.issueKey} already created for this part`
+                  : undefined
+              }
+              onClick={() => runRemindPart(safePreview, 'jira')}
+            >
+              {jiraLocked
+                ? `Jira ${jiraLockedInfo.issueKey} ✓`
+                : sendingJira
+                  ? 'Creating…'
+                  : partTotal > 1
+                    ? `Create Jira (part ${safePreview + 1}/${partTotal})`
+                    : 'Create Jira task'}
+            </button>
+          ) : null}
           {workerOn && autoSlack ? (
             <button
               type="button"
-              className="btn btn-primary"
-              disabled={isSending}
+              className={jiraLocked ? 'btn btn-primary' : 'btn btn-secondary'}
+              disabled={isSending || !jiraLocked}
+              title={
+                !jiraLocked
+                  ? 'Create the Jira task for this part first'
+                  : undefined
+              }
               onClick={() => runRemindPart(safePreview, 'slack')}
             >
               {sendingSlack
@@ -360,20 +454,6 @@ export default function ReviewMessageModal({
                   : 'Copy & open Slack'}
             </button>
           )}
-          {workerOn ? (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={isSending}
-              onClick={() => runRemindPart(safePreview, 'jira')}
-            >
-              {sendingJira
-                ? 'Creating…'
-                : partTotal > 1
-                  ? `Create Jira (part ${safePreview + 1}/${partTotal})`
-                  : 'Create Jira task'}
-            </button>
-          ) : null}
           {workerOn && autoSlack ? (
             <button
               type="button"

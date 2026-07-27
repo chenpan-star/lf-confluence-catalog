@@ -8,9 +8,12 @@ import {
   resolveSlackRecipient,
 } from '../lib/slack';
 import {
+  buildRemindJiraPartKey,
   canAutoSendSlack,
   dispatchRemind,
   isRemindTrackConfigured,
+  readRemindJiraPartLock,
+  rememberRemindJiraSuccess,
   slackRemindAccepted,
   slackRemindDelivered,
 } from '../lib/remindTrack';
@@ -27,6 +30,7 @@ export default function SlackReviewButton({
   const { catalog, slackConfig, remindTrackConfig } = useCatalog();
   const [hint, setHint] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [jiraCreated, setJiraCreated] = useState(null);
   const contact = primaryContact(page);
   const handle = guessSlackHandle(contact);
   const email = guessEmail(contact);
@@ -45,7 +49,27 @@ export default function SlackReviewButton({
     jiraPending: workerOn,
   });
 
+  const jiraPartKey = buildRemindJiraPartKey({
+    editor: contact || 'Unknown',
+    partIndex: 1,
+    partTotal: 1,
+    pageIds: page?.id ? [page.id] : [],
+  });
+  const jiraLocked =
+    jiraCreated || readRemindJiraPartLock(jiraPartKey);
+
+  function storeJira(jira) {
+    const entry = rememberRemindJiraSuccess(jiraPartKey, jira);
+    if (entry) setJiraCreated(entry);
+  }
+
   async function dispatch(action) {
+    if (action === 'jira' && jiraLocked) {
+      throw new Error(`Jira ${jiraLocked.issueKey} is already linked to this reminder.`);
+    }
+    if (action === 'slack' && !jiraLocked?.issueKey) {
+      throw new Error('Create the Jira task first, then send Slack DM.');
+    }
     if (!workerOn && action !== 'copy') {
       throw new Error('Remind service is not configured.');
     }
@@ -81,7 +105,9 @@ export default function SlackReviewButton({
       remindTrackConfig,
       slackUserId,
       sendSlack: action === 'slack' && autoSlack,
-      createJira: action === 'jira' || (action === 'slack' && autoSlack),
+      createJira: action === 'jira',
+      jiraIssueKey: action === 'slack' ? jiraLocked?.issueKey : undefined,
+      jiraIssueUrl: action === 'slack' ? jiraLocked?.issueUrl : undefined,
     });
 
     if (action === 'slack') {
@@ -105,14 +131,17 @@ export default function SlackReviewButton({
 
     if (action === 'jira') {
       if (result.jira?.ok) {
+        storeJira(result.jira);
         const notify = result.jira.notifyEmail;
         let extra = '';
-        if (notify?.ok) {
+        if (result.jira.duplicate) {
+          extra = ' · existing open task (not duplicated)';
+        } else if (notify?.ok) {
           extra = notify.mentionOk ? ' · @mention sent' : notify.notifyOk ? ' · email queued' : ' · notified';
         } else if (notify?.error) {
           extra = ` · notify failed: ${notify.error}`;
         }
-        setHint(`Jira ${result.jira.issueKey} created${extra}`);
+        setHint(`Jira ${result.jira.issueKey}${result.jira.duplicate ? ' (already open)' : ' created'}${extra}`);
         setTimeout(() => setHint(''), 6000);
         return;
       }
@@ -138,6 +167,7 @@ export default function SlackReviewButton({
           onSendSlackDm={autoSlack && workerOn ? () => dispatch('slack') : undefined}
           onCreateJira={workerOn ? () => dispatch('jira') : undefined}
           onCopyOpenSlack={() => dispatch('copy')}
+          jiraCreated={jiraCreated || jiraLocked}
           onClose={() => setConfirmOpen(false)}
         />
       )}

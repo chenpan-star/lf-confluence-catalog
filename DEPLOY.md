@@ -290,7 +290,8 @@ Run `npm run worker:remind:dev` in one terminal and `npm run dev` in another to 
 
 ### 3. Issue behavior
 
-- **One Jira issue per Copy & open Slack click** (each multi-part message gets its own issue).
+- **One Jira issue per remind part** (each multi-part message gets its own summary).
+- **Duplicate guard:** Before create, the Worker searches for an **open** PROT issue (same **summary**, **assignee**, `confluence-catalog` label, same **Confluence URLs** in the description when parsed). If found, it **reuses that issue** — no second ticket, no new @mention spam. Window: **`JIRA_DEDUP_DAYS`** (default `60`). Disable with **`JIRA_DEDUP_DISABLE=true`**. Force a new issue with JSON **`forceRemind: true`** on `POST /v1/remind` (advanced).
 - **Summary:** `[Confluence review] {editor} (part X/Y) — N outdated pages`
 - **Assignee:** Jira user search by editor email / name in the configured project.
 - **Labels:** from `public/config/remind-track.json` (defaults: `confluence-catalog`, `doc-review`).

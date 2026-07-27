@@ -29,6 +29,54 @@ export function slackRemindAccepted(slack) {
   return Boolean(slack?.ok && slack?.ts);
 }
 
+const JIRA_LOCK_PREFIX = 'lf-catalog-jira-lock:';
+
+/** Stable key for “this remind part already has a Jira task” (sessionStorage). */
+export function buildRemindJiraPartKey({ editor, partIndex, partTotal, pageIds = [] }) {
+  const ids = [...pageIds].filter(Boolean).sort().join(',');
+  return `${JIRA_LOCK_PREFIX}${editor}|${partTotal}|${partIndex}|${ids}`;
+}
+
+export function readRemindJiraPartLock(key) {
+  if (typeof sessionStorage === 'undefined' || !key) return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return data?.issueKey ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeRemindJiraPartLock(key, { issueKey, issueUrl, duplicate }) {
+  if (typeof sessionStorage === 'undefined' || !key || !issueKey) return;
+  try {
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        issueKey,
+        issueUrl: issueUrl || '',
+        duplicate: Boolean(duplicate),
+        at: Date.now(),
+      }),
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function rememberRemindJiraSuccess(key, jira) {
+  if (!jira?.ok || !jira?.issueKey) return null;
+  const entry = {
+    issueKey: jira.issueKey,
+    issueUrl: jira.issueUrl,
+    duplicate: Boolean(jira.duplicate),
+  };
+  writeRemindJiraPartLock(key, entry);
+  return entry;
+}
+
 export async function dispatchRemind({
   editor,
   editorEmail,
@@ -39,12 +87,21 @@ export async function dispatchRemind({
   remindTrackConfig,
   slackUserId,
   sendSlack = false,
-  createJira = true,
+  createJira = false,
+  jiraIssueKey,
+  jiraIssueUrl,
 }) {
   const baseUrl = import.meta.env.VITE_REMIND_TRACK_URL?.trim().replace(/\/$/, '');
   const apiKey = import.meta.env.VITE_REMIND_API_KEY?.trim();
   if (!baseUrl || !apiKey) {
     return { skipped: true };
+  }
+
+  if (sendSlack && !String(jiraIssueKey || '').trim()) {
+    return {
+      ok: false,
+      error: 'Create the Jira task first, then send Slack DM.',
+    };
   }
 
   const catalogUrl =
@@ -64,7 +121,9 @@ export async function dispatchRemind({
     labels: remindTrackConfig?.labels,
     sendSlack: Boolean(sendSlack),
     slackUserId: slackUserId || undefined,
-    createJira,
+    createJira: Boolean(createJira),
+    jiraIssueKey: jiraIssueKey?.trim() || undefined,
+    jiraIssueUrl: jiraIssueUrl?.trim() || undefined,
   };
 
   try {
@@ -78,10 +137,10 @@ export async function dispatchRemind({
     });
     const data = await res.json().catch(() => ({}));
     const slackAccepted = !sendSlack || slackRemindAccepted(data.slack);
-    const jiraRequired = createJira || sendSlack;
-    const jiraOk = !jiraRequired || Boolean(data.jira?.ok && data.jira?.issueKey);
-    const ok =
-      (sendSlack ? slackAccepted : true) && (jiraRequired ? jiraOk : true);
+    const jiraCreateRequired = createJira;
+    const jiraOk =
+      !jiraCreateRequired || Boolean(data.jira?.ok && data.jira?.issueKey);
+    const ok = (sendSlack ? slackAccepted : true) && jiraOk;
     return {
       ok,
       slack: data.slack ?? null,
@@ -90,10 +149,10 @@ export async function dispatchRemind({
         (sendSlack && !slackAccepted
           ? data.slack?.error || data.error || 'Slack DM not sent'
           : undefined) ||
-        (jiraRequired && data.jira && !jiraOk
-          ? data.jira.error || 'Jira task required before Slack'
+        (jiraCreateRequired && data.jira && !jiraOk
+          ? data.jira.error || 'Jira create failed'
           : undefined) ||
-        (jiraRequired && !data.jira?.ok ? data.jira?.error || data.error : undefined) ||
+        (jiraCreateRequired && !data.jira?.ok ? data.jira?.error || data.error : undefined) ||
         (!slackAccepted || !jiraOk ? data.error : undefined) ||
         (!res.ok && slackAccepted && jiraOk ? `Remind service HTTP ${res.status}` : undefined) ||
         (!res.ok && !slackAccepted ? data.error || `Remind service HTTP ${res.status}` : undefined),

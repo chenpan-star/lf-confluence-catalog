@@ -295,6 +295,10 @@
   border-color: color-mix(in srgb, var(--green, #22c55e) 40%, var(--border));
 }
 
+.review-modal-chunk-tab.jira-done {
+  border-color: color-mix(in srgb, var(--green, #22c55e) 55%, var(--border));
+}
+
 .review-modal-chunk-tab-meta {
   font-size: 0.72rem;
   color: var(--text-muted);
