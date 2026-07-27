@@ -19,6 +19,7 @@
     "zoho:test": "node scripts/test-zoho.js",
     "zoho:fetch": "node scripts/fetch-zoho-people.js",
     "slack:export-users": "node scripts/export-slack-users.js",
+    "slack:verify-dm": "node scripts/verify-remind-slack-delivery.mjs",
     "worker:remind:dev": "wrangler dev --config worker/remind-track/wrangler.jsonc",
     "worker:remind:deploy": "wrangler deploy --config worker/remind-track/wrangler.jsonc"
   },

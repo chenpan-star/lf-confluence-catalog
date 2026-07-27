@@ -19,8 +19,13 @@ export function canAutoSendSlack(contact, slackConfig) {
   return Boolean(guessEmail(contact));
 }
 
-/** True when Worker reported a delivered Slack DM (needs message timestamp). */
+/** Strict: history-verified DM. */
 export function slackRemindDelivered(slack) {
+  return Boolean(slack?.ok && slack?.ts && slack?.verified);
+}
+
+/** Slack API accepted postMessage (ts) but history verify may be pending. */
+export function slackRemindAccepted(slack) {
   return Boolean(slack?.ok && slack?.ts);
 }
 
@@ -72,15 +77,21 @@ export async function dispatchRemind({
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
+    const slackDelivered = !sendSlack || slackRemindDelivered(data.slack);
+    const slackAccepted = !sendSlack || slackRemindAccepted(data.slack);
+    const jiraOk = createJira === false || Boolean(data.jira?.ok);
     return {
-      ok: Boolean(data.ok),
+      ok: slackAccepted && jiraOk,
       slack: data.slack ?? null,
       jira: data.jira ?? null,
       error:
-        data.error ||
-        (data.slack && !slackRemindDelivered(data.slack) ? data.slack.error : undefined) ||
-        (data.jira && !data.jira.ok ? data.jira.error : undefined) ||
-        (!res.ok ? `Remind service HTTP ${res.status}` : undefined),
+        (sendSlack && !slackAccepted
+          ? data.slack?.error || data.error || 'Slack DM not sent'
+          : undefined) ||
+        (createJira !== false && data.jira && !data.jira.ok ? data.jira.error : undefined) ||
+        (!slackAccepted || !jiraOk ? data.error : undefined) ||
+        (!res.ok && slackAccepted && jiraOk ? `Remind service HTTP ${res.status}` : undefined) ||
+        (!res.ok && !slackAccepted ? data.error || `Remind service HTTP ${res.status}` : undefined),
     };
   } catch (err) {
     return {

@@ -279,7 +279,7 @@ async function slackApi(env, method, params = {}) {
     let hint = '';
     if (err === 'missing_scope') {
       hint =
-        ' (add chat:write, im:write, users:read, and users:read.email to the Slack app, then reinstall)';
+        ' (add chat:write, im:write, im:history, channels:read, users:read, and users:read.email to the Slack app, then reinstall)';
     } else if (err === 'user_not_found') {
       hint =
         ' (stale slack.json id or wrong workspace — use the same SLACK_BOT_TOKEN for export and the Worker, or re-run slack:export-users --apply)';
@@ -417,6 +417,50 @@ async function openSlackDmChannel(env, slackUserId) {
   return channelId;
 }
 
+async function verifySlackDmDelivery(env, { channelId, messageTs, expectedUserId }) {
+  let channelUser = expectedUserId;
+  try {
+    const info = await slackApi(env, 'conversations.info', { channel: channelId });
+    const ch = info.channel;
+    if (!ch?.is_im) {
+      throw new Error(`Delivery verify failed: channel ${channelId} is not a DM`);
+    }
+    if (ch.user && expectedUserId && ch.user !== expectedUserId) {
+      throw new Error(
+        `Delivery verify failed: DM is with Slack user ${ch.user}, expected ${expectedUserId}`,
+      );
+    }
+    channelUser = ch.user || expectedUserId;
+  } catch (err) {
+    if (err.slackError !== 'missing_scope') throw err;
+  }
+
+  try {
+    const hist = await slackApi(env, 'conversations.history', {
+      channel: channelId,
+      latest: messageTs,
+      oldest: messageTs,
+      inclusive: true,
+      limit: 1,
+    });
+    const msg = (hist.messages || []).find((m) => m.ts === messageTs);
+    if (!msg) {
+      throw new Error('Delivery verify failed: message not found in DM history');
+    }
+    return { verified: true, channelUser, verifyNote: null };
+  } catch (err) {
+    if (err.slackError === 'missing_scope') {
+      return {
+        verified: false,
+        channelUser,
+        verifyNote:
+          'Slack accepted the message but history could not be checked — add im:history and channels:read to the app, reinstall, then retry.',
+      };
+    }
+    throw err;
+  }
+}
+
 async function postSlackDmText(env, channelId, text) {
   return slackApi(env, 'chat.postMessage', {
     channel: channelId,
@@ -443,6 +487,12 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
     throw new Error('Slack did not confirm message delivery (missing message id)');
   }
 
+  const delivery = await verifySlackDmDelivery(env, {
+    channelId: channel,
+    messageTs: data.ts,
+    expectedUserId: resolvedUserId,
+  });
+
   const recipientName =
     user.profile?.real_name || user.profile?.display_name || user.name || editor;
 
@@ -452,6 +502,9 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
     slackUserId: resolvedUserId,
     recipientName,
     resolvedVia,
+    verified: delivery.verified,
+    verifyNote: delivery.verifyNote,
+    dmUserId: delivery.channelUser,
   };
 }
 
@@ -487,11 +540,16 @@ async function handleRemindRequest(env, body) {
     }
   }
 
-  out.ok = Boolean(out.slack?.ok || out.jira?.ok);
+  const slackOk =
+    !wantsSlack ||
+    Boolean(out.slack?.ok && out.slack?.ts && (out.slack?.verified || out.slack?.verifyNote));
+  const jiraOk = !wantsJira || Boolean(out.jira?.ok);
+  out.ok = slackOk && jiraOk;
+
   if ((wantsSlack || wantsJira) && !out.ok) {
     const parts = [];
-    if (out.slack && !out.slack.ok) parts.push(`Slack: ${out.slack.error}`);
-    if (out.jira && !out.jira.ok) parts.push(`Jira: ${out.jira.error}`);
+    if (wantsSlack && !slackOk) parts.push(`Slack: ${out.slack?.error || 'DM not delivered'}`);
+    if (wantsJira && !jiraOk) parts.push(`Jira: ${out.jira?.error || 'create failed'}`);
     out.error = parts.join(' · ') || 'Remind dispatch failed';
   }
 

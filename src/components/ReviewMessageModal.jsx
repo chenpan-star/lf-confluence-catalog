@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
-import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured, slackRemindDelivered } from '../lib/remindTrack';
+import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured, slackRemindAccepted, slackRemindDelivered } from '../lib/remindTrack';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
@@ -119,11 +119,11 @@ export default function ReviewMessageModal({
         if (result.slack) setSlackTrack(result.slack);
         if (result.jira) setJiraTrack(result.jira);
 
-        if (!result.skipped && result.error && !slackRemindDelivered(result.slack) && !result.jira?.ok) {
+        if (!result.skipped && result.error && !slackRemindAccepted(result.slack) && !result.jira?.ok) {
           setError(result.error);
         }
 
-        if (autoSlack && result.slack && !slackRemindDelivered(result.slack)) {
+        if (autoSlack && result.slack && !slackRemindAccepted(result.slack)) {
           setError(
             result.slack.error ||
               result.error ||
@@ -131,7 +131,7 @@ export default function ReviewMessageModal({
           );
         }
 
-        if (slackRemindDelivered(result.slack)) {
+        if (slackRemindAccepted(result.slack)) {
           setCopiedPart(partIdx);
           if (partTotal === 1) {
             setTimeout(() => onClose?.(), 1800);
@@ -288,20 +288,26 @@ export default function ReviewMessageModal({
 
         {slackRemindDelivered(slackTrack) && (
           <p className="review-modal-copied" role="status">
-            ✓ Slack DM sent to{' '}
+            ✓ Slack DM verified in recipient bot thread →{' '}
             {slackTrack.recipientName ||
               slackRecipient?.matchedAs ||
               (handle ? `@${handle}` : editor)}
-            . They will see it under <strong>DMs with the catalog Slack app</strong> (not from your
-            personal account).
+            .
           </p>
         )}
-        {slackTrack && !slackRemindDelivered(slackTrack) && (
+        {slackRemindAccepted(slackTrack) && !slackRemindDelivered(slackTrack) && (
+          <p className="review-modal-jira-warn" role="status">
+            Slack accepted the DM to {slackTrack.recipientName || editor}. Recipient must check{' '}
+            <strong>DMs with the catalog Slack app</strong> (not your personal Slack).
+            {slackTrack.verifyNote ? ` ${slackTrack.verifyNote}` : null}
+          </p>
+        )}
+        {slackTrack && !slackRemindAccepted(slackTrack) && (
           <p className="review-modal-jira-warn" role="status">
             Slack DM failed: {slackTrack.error}. Use copy &amp; open below if needed.
           </p>
         )}
-        {copiedPart !== null && !error && !slackRemindDelivered(slackTrack) && (
+        {copiedPart !== null && !error && !slackRemindAccepted(slackTrack) && (
           <p className="review-modal-copied" role="status">
             ✓ Message {copiedPart + 1} copied — paste in Slack
             {handle ? ` to @${handle}` : ''}.

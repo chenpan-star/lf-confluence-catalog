@@ -7,7 +7,7 @@ import {
   openSlackReview,
   resolveSlackRecipient,
 } from '../lib/slack';
-import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured, slackRemindDelivered } from '../lib/remindTrack';
+import { canAutoSendSlack, dispatchRemind, isRemindTrackConfigured, slackRemindAccepted, slackRemindDelivered } from '../lib/remindTrack';
 import RemindConfirmModal from './RemindConfirmModal';
 
 export default function SlackReviewButton({
@@ -55,12 +55,19 @@ export default function SlackReviewButton({
       if (slackRemindDelivered(result.slack)) {
         const to = result.slack.recipientName || slackRecipient?.matchedAs || (handle ? `@${handle}` : contact);
         const jira = result.jira?.ok ? ` · Jira ${result.jira.issueKey}` : '';
-        setHint(`Slack DM sent to ${to} (via catalog bot)${jira}`);
+        setHint(`Slack DM verified to ${to}${jira}`);
         setTimeout(() => setHint(''), 6000);
         return;
       }
 
-      if (autoSlack && result.slack && !slackRemindDelivered(result.slack)) {
+      if (slackRemindAccepted(result.slack)) {
+        const to = result.slack.recipientName || contact;
+        setHint(`Slack accepted DM to ${to} — check their bot DMs${result.slack.verifyNote ? ' (add im:history to verify)' : ''}`);
+        setTimeout(() => setHint(''), 8000);
+        return;
+      }
+
+      if (autoSlack && result.slack && !slackRemindAccepted(result.slack)) {
         setHint(`Slack DM failed: ${result.slack.error || result.error || 'unknown'}`);
         setTimeout(() => setHint(''), 8000);
         return;
