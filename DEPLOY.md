@@ -185,6 +185,8 @@ After refresh commits new `catalog.json`, push triggers **Deploy to GitHub Pages
 
 **Send reminder** on the catalog copies a message and opens Slack so you can paste it into the last editor’s DM.
 
+Optional: **Jira tracking** — when the remind-track Worker is configured, each **Copy & open Slack** also creates a Jira task (one per message part). See [Jira remind tracking](#jira-remind-tracking-server-side) below.
+
 ### Slack user ID map (optional)
 
 Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Slack member IDs).
@@ -206,6 +208,71 @@ Improves **Copy & open Slack** deep-links (maps Confluence names / emails → Sl
 1. Repo **Settings → Secrets and variables → Actions** → secret **`SLACK_BOT_TOKEN`** (`xoxb-…`, scope `users:read`)
 2. First run: **Actions → Refresh Slack user map → Run workflow**
 3. On change it commits `public/config/slack.json`; push to `main` triggers Pages deploy
+
+---
+
+## Jira remind tracking (server-side)
+
+When enabled, **Copy & open Slack** also **`POST`s to a Cloudflare Worker**, which creates a Jira issue via the REST API (same text as the Slack message, assignee matched when possible).
+
+### Architecture
+
+```mermaid
+flowchart LR
+  Catalog[GitHub Pages catalog] -->|Bearer token| Worker[remind-track Worker]
+  Worker -->|Basic auth API token| Jira[Jira Cloud]
+```
+
+The catalog stays static; **Jira credentials live only on the Worker**. The browser holds a shared **`VITE_REMIND_API_KEY`** (same value as Worker secret **`REMIND_API_SECRET`**) — treat the site as internal (Cloudflare Access + Okta) so only staff can use the UI.
+
+### 1. Configure the Worker
+
+1. Edit `worker/remind-track/wrangler.jsonc`:
+   - Set **`JIRA_PROJECT_KEY`** (and optionally `JIRA_ISSUE_TYPE`, `JIRA_LABELS`).
+   - Add your Cloudflare **`account_id`** if `wrangler deploy` asks for it.
+   - Prefer a **custom domain route** on `*.lotusflare.com` if `*.workers.dev` is blocked on office DNS.
+
+2. Local secrets — copy `worker/remind-track/.dev.vars.example` → `.dev.vars` (gitignored).
+
+3. Deploy:
+   ```bash
+   npm ci
+   npx wrangler secret put REMIND_API_SECRET --config worker/remind-track/wrangler.jsonc
+   npx wrangler secret put ATLASSIAN_EMAIL --config worker/remind-track/wrangler.jsonc
+   npx wrangler secret put ATLASSIAN_API_TOKEN --config worker/remind-track/wrangler.jsonc
+   npm run worker:remind:deploy
+   ```
+
+   Or use GitHub Action **Deploy remind-track Worker** (needs secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `REMIND_API_SECRET`, `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN`).
+
+4. Health check: `curl -s https://<worker-host>/health`
+
+### 2. Wire the catalog build
+
+GitHub **Actions → Variables / Secrets**:
+
+| Name | Type | Value |
+|------|------|--------|
+| `VITE_REMIND_TRACK_URL` | Variable | Worker base URL, e.g. `https://lf-catalog-remind-track.<subdomain>.workers.dev` |
+| `VITE_REMIND_API_KEY` | Secret | Same random string as `REMIND_API_SECRET` |
+
+Local `.env`:
+
+```env
+VITE_REMIND_TRACK_URL=http://localhost:8787
+VITE_REMIND_API_KEY=<same as REMIND_API_SECRET in .dev.vars>
+```
+
+Run `npm run worker:remind:dev` in one terminal and `npm run dev` in another to test.
+
+### 3. Issue behavior
+
+- **One Jira issue per Copy & open Slack click** (each multi-part message gets its own issue).
+- **Summary:** `[Confluence review] {editor} (part X/Y) — N outdated pages`
+- **Assignee:** Jira user search by editor email / name in the configured project.
+- **Labels:** from `public/config/remind-track.json` (defaults: `confluence-catalog`, `doc-review`).
+
+If Jira fails, Slack copy still succeeds; the modal shows a warning with the error.
 
 ---
 

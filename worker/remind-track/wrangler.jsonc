@@ -1,0 +1,16 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "lf-catalog-remind-track",
+  "main": "src/index.js",
+  "compatibility_date": "2025-07-01",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "JIRA_BASE_URL": "https://lotusflare.atlassian.net",
+    "JIRA_PROJECT_KEY": "PROT",
+    "JIRA_ISSUE_TYPE": "Task",
+    "JIRA_LABELS": "confluence-catalog,doc-review",
+    "ALLOWED_ORIGINS": "https://chenpan-star.github.io,https://confluence-catalog.lotusflare.com,http://localhost:5173,http://localhost:5174"
+  }
+}

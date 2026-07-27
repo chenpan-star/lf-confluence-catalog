@@ -1,0 +1,41 @@
+name: Deploy remind-track Worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+        run: |
+          printf '%s' "$REMIND_API_SECRET" | npx wrangler secret put REMIND_API_SECRET --config worker/remind-track/wrangler.jsonc
+          printf '%s' "$ATLASSIAN_EMAIL" | npx wrangler secret put ATLASSIAN_EMAIL --config worker/remind-track/wrangler.jsonc
+          printf '%s' "$ATLASSIAN_API_TOKEN" | npx wrangler secret put ATLASSIAN_API_TOKEN --config worker/remind-track/wrangler.jsonc
+        working-directory: .
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config worker/remind-track/wrangler.jsonc
+        working-directory: .

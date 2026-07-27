@@ -18,7 +18,9 @@
     "zoho:auth": "node scripts/zoho-oauth-setup.js",
     "zoho:test": "node scripts/test-zoho.js",
     "zoho:fetch": "node scripts/fetch-zoho-people.js",
-    "slack:export-users": "node scripts/export-slack-users.js"
+    "slack:export-users": "node scripts/export-slack-users.js",
+    "worker:remind:dev": "wrangler dev --config worker/remind-track/wrangler.jsonc",
+    "worker:remind:deploy": "wrangler deploy --config worker/remind-track/wrangler.jsonc"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -27,6 +29,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.5.2",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "wrangler": "^4.28.0"
   }
 }

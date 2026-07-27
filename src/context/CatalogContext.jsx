@@ -65,6 +65,17 @@ export function CatalogProvider({ children }) {
       .catch(() => {});
   }, []);
 
+  const [remindTrackConfig, setRemindTrackConfig] = useState(null);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}config/remind-track.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setRemindTrackConfig(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const spacesByKey = useMemo(() => {
     if (!catalog) return {};
     const map = {};
@@ -122,6 +133,7 @@ export function CatalogProvider({ children }) {
     searchIndex,
     health,
     slackConfig,
+    remindTrackConfig,
   };
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }

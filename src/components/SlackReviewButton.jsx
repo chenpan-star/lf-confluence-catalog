@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCatalog } from '../context/CatalogContext';
 import { guessEmail, primaryContact } from '../lib/contact';
 import { buildReviewMessage, guessSlackHandle, openSlackReview } from '../lib/slack';
+import { isRemindTrackConfigured, trackRemindInJira } from '../lib/remindTrack';
 import RemindConfirmModal from './RemindConfirmModal';
 
 export default function SlackReviewButton({
@@ -12,7 +13,7 @@ export default function SlackReviewButton({
   className = 'btn btn-sm btn-primary',
   children = 'Send reminder',
 }) {
-  const { catalog, slackConfig } = useCatalog();
+  const { catalog, slackConfig, remindTrackConfig } = useCatalog();
   const [hint, setHint] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const contact = primaryContact(page);
@@ -37,6 +38,22 @@ export default function SlackReviewButton({
       catalogPageUrl,
       slackConfig,
     });
+    if (isRemindTrackConfigured()) {
+      const jira = await trackRemindInJira({
+        editor: contact || 'Unknown',
+        editorEmail: email,
+        message,
+        pagesCount: 1,
+        partIndex: 1,
+        partTotal: 1,
+        remindTrackConfig,
+      });
+      if (jira.ok && jira.issueKey) {
+        setHint(`Copied — Jira ${jira.issueKey} created. Paste in Slack.`);
+        setTimeout(() => setHint(''), 6000);
+        return;
+      }
+    }
     const label = handle ? `@${handle}` : contact || 'editor';
     setHint(`Message copied — paste in Slack to ${label}`);
     setTimeout(() => setHint(''), 5000);

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { buildBundledReviewMailto, guessEmail } from '../lib/contact';
+import { trackRemindInJira, isRemindTrackConfigured } from '../lib/remindTrack';
 import {
   buildBundledReviewMessage,
   guessSlackHandle,
@@ -9,6 +10,7 @@ import {
 } from '../lib/slack';
 import './ReviewMessageModal.css';
 import './HygieneHelp.css';
+import { useCatalog } from '../context/CatalogContext';
 
 export default function ReviewMessageModal({
   editor,
@@ -22,6 +24,9 @@ export default function ReviewMessageModal({
   const [sendingPart, setSendingPart] = useState(null);
   const [error, setError] = useState('');
   const [showMore, setShowMore] = useState(false);
+  const [jiraTrack, setJiraTrack] = useState(null);
+  const { remindTrackConfig } = useCatalog();
+  const jiraTrackingOn = isRemindTrackConfigured();
 
   const chunks = useMemo(
     () => splitReminderPageChunks(pages, REMIND_PAGES_PER_MESSAGE),
@@ -77,6 +82,7 @@ export default function ReviewMessageModal({
 
     setSendingPart(partIdx);
     setError('');
+    setJiraTrack(null);
     try {
       await openBundledSlackReview({
         editor,
@@ -88,7 +94,29 @@ export default function ReviewMessageModal({
         globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
       });
       setCopiedPart(partIdx);
-      if (partTotal === 1) {
+
+      if (jiraTrackingOn) {
+        const slackMessage = buildBundledReviewMessage({
+          editor,
+          pages: chunk,
+          site,
+          partIndex: partIdx + 1,
+          partTotal,
+          globalOffset: partIdx * REMIND_PAGES_PER_MESSAGE,
+        });
+        const jiraResult = await trackRemindInJira({
+          editor,
+          editorEmail: guessEmail(editor),
+          message: slackMessage,
+          pagesCount: chunk.length,
+          partIndex: partIdx + 1,
+          partTotal,
+          remindTrackConfig,
+        });
+        setJiraTrack(jiraResult);
+      }
+
+      if (partTotal === 1 && !jiraTrackingOn) {
         setTimeout(() => onClose?.(), 1400);
       }
     } catch (err) {
@@ -137,10 +165,22 @@ export default function ReviewMessageModal({
               Select a <strong>Part</strong> tab to preview it, then{' '}
               <strong>copy &amp; open Slack</strong> for that message only ({partTotal} messages, same
               DM).
+              {jiraTrackingOn ? (
+                <>
+                  {' '}
+                  Each send also creates a matching <strong>Jira task</strong>.
+                </>
+              ) : null}
             </>
           ) : (
             <>
               Confirm will <strong>copy the message</strong> and open Slack — paste into their DM.
+              {jiraTrackingOn ? (
+                <>
+                  {' '}
+                  A <strong>Jira task</strong> is created for the same reminder.
+                </>
+              ) : null}
             </>
           )}
         </p>
@@ -149,6 +189,21 @@ export default function ReviewMessageModal({
           <p className="review-modal-copied" role="status">
             ✓ Message {copiedPart + 1} copied — paste in Slack
             {handle ? ` to @${handle}` : ''}.
+          </p>
+        )}
+        {jiraTrack?.ok && jiraTrack.issueKey && (
+          <p className="review-modal-jira" role="status">
+            ✓ Jira{' '}
+            <a href={jiraTrack.issueUrl} target="_blank" rel="noreferrer">
+              {jiraTrack.issueKey}
+            </a>{' '}
+            created
+            {jiraTrack.assigneeSet ? '' : ' (assign manually if needed)'}.
+          </p>
+        )}
+        {jiraTrack && !jiraTrack.skipped && !jiraTrack.ok && (
+          <p className="review-modal-jira-warn" role="status">
+            Jira tracking: {jiraTrack.error}. Slack message was still copied.
           </p>
         )}
         {error && (
@@ -171,6 +226,7 @@ export default function ReviewMessageModal({
                 onClick={() => {
                   setPreviewIndex(idx);
                   setCopiedPart(null);
+                  setJiraTrack(null);
                 }}
               >
                 Part {idx + 1}

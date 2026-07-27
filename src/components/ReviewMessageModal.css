@@ -222,6 +222,29 @@
   line-height: 1.4;
 }
 
+.review-modal-copied {
+  margin: 0.5rem 1.25rem 0;
+  font-size: 0.88rem;
+  color: var(--green, #16a34a);
+}
+
+.review-modal-jira {
+  margin: 0.35rem 1.25rem 0;
+  font-size: 0.88rem;
+  color: var(--green, #16a34a);
+}
+
+.review-modal-jira a {
+  font-weight: 600;
+}
+
+.review-modal-jira-warn {
+  margin: 0.35rem 1.25rem 0;
+  font-size: 0.88rem;
+  color: var(--amber, #d97706);
+  line-height: 1.4;
+}
+
 .review-modal-preview-label {
   margin: 0.75rem 1.25rem 0;
   font-size: 0.72rem;
