@@ -594,7 +594,7 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
       fields[fieldId] = dueDefault;
       continue;
     }
-    if (isRequestedDueDateField(fieldId, name)) {
+    if (isRequestedDueDateField(fieldId, name, requestedDueField)) {
       fields[fieldId] = dueDefault;
       continue;
     }
@@ -608,7 +608,10 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
     const name = String(spec.name || '');
     const schema = spec.schema || {};
     if (schema.type !== 'date') continue;
-    if (isRequestedDueDateField(fieldId, name) || isRemindDueDateField(fieldId, name)) {
+    if (
+      isRequestedDueDateField(fieldId, name, requestedDueField) ||
+      isRemindDueDateField(fieldId, name)
+    ) {
       fields[fieldId] = dueDefault;
     }
   }
