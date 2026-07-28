@@ -518,52 +518,95 @@ function defaultRequestedDueDate(env) {
   return addCalendarDays(today, calendarDays);
 }
 
+function isRemindDueDateField(fieldId, fieldName) {
+  const name = String(fieldName || '').toLowerCase();
+  if (fieldId === 'duedate') return true;
+  if (name === 'due date') return true;
+  if (name.includes('requested') && name.includes('due')) return true;
+  return false;
+}
+
+/** PROT + catalog defaults (override via Worker env). */
+function remindDueDateFieldIds(env) {
+  const due = (env.JIRA_REQUESTED_DUE_DATE_FIELD || 'customfield_11063').trim();
+  const start = (env.JIRA_START_DATE_FIELD || 'customfield_10912').trim();
+  return { dueFieldId: due, startFieldId: start };
+}
+
+function buildRemindDateFieldValues(env) {
+  const dueDefault = defaultRequestedDueDate(env);
+  const startDefault = defaultStartDate(env);
+  const { dueFieldId, startFieldId } = remindDueDateFieldIds(env);
+  const fields = {};
+  if (dueFieldId) fields[dueFieldId] = dueDefault;
+  fields.duedate = dueDefault;
+  if (startFieldId) fields[startFieldId] = startDefault;
+  return { dueDefault, startDefault, fields };
+}
+
 /** Fill required Jira fields (e.g. PROT "Requested Due Date") from create metadata. */
 async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
+  const { fields: dateFields } = buildRemindDateFieldValues(env);
+  Object.assign(fields, dateFields);
+
   const params = new URLSearchParams({
     projectKeys: projectKey,
     issuetypeNames: issueType,
     expand: 'projects.issuetypes.fields',
   });
-  const meta = await jiraFetch(env, `/rest/api/3/issue/createmeta?${params}`);
-  const issueTypes = meta.projects?.[0]?.issuetypes || [];
-  const typeMeta =
-    issueTypes.find((t) => t.name?.toLowerCase() === issueType.toLowerCase()) || issueTypes[0];
-  const fieldSpecs = typeMeta?.fields || {};
+  let fieldSpecs = {};
+  try {
+    const meta = await jiraFetch(env, `/rest/api/3/issue/createmeta?${params}`);
+    const issueTypes = meta.projects?.[0]?.issuetypes || [];
+    const typeMeta =
+      issueTypes.find((t) => t.name?.toLowerCase() === issueType.toLowerCase()) || issueTypes[0];
+    fieldSpecs = typeMeta?.fields || {};
+  } catch {
+    /* createmeta optional — explicit PROT field ids already merged above */
+  }
+
   const startDefault = defaultStartDate(env);
   const dueDefault = defaultRequestedDueDate(env);
-  const explicitDueField = (env.JIRA_REQUESTED_DUE_DATE_FIELD || '').trim();
-  const explicitStartField = (env.JIRA_START_DATE_FIELD || '').trim();
+  const { dueFieldId } = remindDueDateFieldIds(env);
 
-  if (explicitStartField && !fields[explicitStartField]) {
-    fields[explicitStartField] = startDefault;
+  if (dueFieldId && fields[dueFieldId] == null) {
+    fields[dueFieldId] = dueDefault;
   }
-  if (explicitDueField && !fields[explicitDueField]) {
-    fields[explicitDueField] = dueDefault;
+  if (fields.duedate == null) {
+    fields.duedate = dueDefault;
   }
 
   for (const [fieldId, spec] of Object.entries(fieldSpecs)) {
     if (fields[fieldId] != null) continue;
-    const name = String(spec.name || '').toLowerCase();
+    const name = String(spec.name || '');
     const schema = spec.schema || {};
     if (schema.type !== 'date') continue;
-    if (fieldId === 'duedate' || name === 'due date') {
+    if (isRemindDueDateField(fieldId, name)) {
       fields[fieldId] = dueDefault;
       continue;
     }
-    if (name.includes('start')) {
+    if (name.toLowerCase().includes('start')) {
       fields[fieldId] = startDefault;
     }
   }
 
   for (const [fieldId, spec] of Object.entries(fieldSpecs)) {
     if (!spec?.required || fields[fieldId] != null) continue;
-    const name = String(spec.name || '').toLowerCase();
+    const name = String(spec.name || '');
     const schema = spec.schema || {};
-    if (schema.type === 'date' || name.includes('due date')) {
+    if (schema.type === 'date' || isRemindDueDateField(fieldId, name)) {
       fields[fieldId] = dueDefault;
     }
   }
+}
+
+/** Ensure due/start dates after create (create screen sometimes omits custom fields). */
+async function updateRemindIssueDates(env, issueKey) {
+  const { fields } = buildRemindDateFieldValues(env);
+  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ fields }),
+  });
 }
 
 async function findUserAccountIdByQuery(env, query) {
@@ -973,6 +1016,14 @@ async function createRemindIssue(env, body) {
     method: 'POST',
     body: JSON.stringify({ fields }),
   });
+
+  try {
+    await updateRemindIssueDates(env, created.key);
+  } catch (err) {
+    throw new Error(
+      `Issue ${created.key} created but due date update failed: ${err?.message || err}`,
+    );
+  }
 
   const base = (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
   const issueUrl = `${base}/browse/${created.key}`;
