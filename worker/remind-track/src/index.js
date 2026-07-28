@@ -522,26 +522,35 @@ function isRemindDueDateField(fieldId, fieldName) {
   const name = String(fieldName || '').toLowerCase();
   if (fieldId === 'duedate') return true;
   if (name === 'due date') return true;
-  if (name.includes('requested') && name.includes('due')) return true;
   return false;
 }
 
-/** PROT + catalog defaults (override via Worker env). */
-function remindDueDateFieldIds(env) {
-  const due = (env.JIRA_REQUESTED_DUE_DATE_FIELD || 'customfield_11063').trim();
-  const start = (env.JIRA_START_DATE_FIELD || 'customfield_10912').trim();
-  return { dueFieldId: due, startFieldId: start };
+function isRequestedDueDateField(fieldId, fieldName, requestedFieldId = '') {
+  if (requestedFieldId && fieldId === requestedFieldId) return true;
+  const name = String(fieldName || '').toLowerCase();
+  return name.includes('requested') && name.includes('due');
+}
+
+/** Jira field ids: Due date (duedate) vs PROT Requested Due Date (required on create). */
+function remindJiraDateFieldConfig(env) {
+  return {
+    dueDateField: (env.JIRA_DUE_DATE_FIELD || 'duedate').trim() || 'duedate',
+    requestedDueField: (env.JIRA_REQUESTED_DUE_DATE_FIELD || 'customfield_11063').trim(),
+    startField: (env.JIRA_START_DATE_FIELD || 'customfield_10912').trim(),
+  };
 }
 
 function buildRemindDateFieldValues(env) {
   const dueDefault = defaultRequestedDueDate(env);
   const startDefault = defaultStartDate(env);
-  const { dueFieldId, startFieldId } = remindDueDateFieldIds(env);
+  const { dueDateField, requestedDueField, startField } = remindJiraDateFieldConfig(env);
   const fields = {};
-  if (dueFieldId) fields[dueFieldId] = dueDefault;
-  fields.duedate = dueDefault;
-  if (startFieldId) fields[startFieldId] = startDefault;
-  return { dueDefault, startDefault, fields };
+  fields[dueDateField] = dueDefault;
+  if (requestedDueField && requestedDueField !== dueDateField) {
+    fields[requestedDueField] = dueDefault;
+  }
+  if (startField) fields[startField] = startDefault;
+  return { dueDefault, startDefault, fields, dueDateField, requestedDueField, startField };
 }
 
 /** Fill required Jira fields (e.g. PROT "Requested Due Date") from create metadata. */
@@ -567,13 +576,13 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
 
   const startDefault = defaultStartDate(env);
   const dueDefault = defaultRequestedDueDate(env);
-  const { dueFieldId } = remindDueDateFieldIds(env);
+  const { dueDateField, requestedDueField } = remindJiraDateFieldConfig(env);
 
-  if (dueFieldId && fields[dueFieldId] == null) {
-    fields[dueFieldId] = dueDefault;
+  if (fields[dueDateField] == null) {
+    fields[dueDateField] = dueDefault;
   }
-  if (fields.duedate == null) {
-    fields.duedate = dueDefault;
+  if (requestedDueField && fields[requestedDueField] == null) {
+    fields[requestedDueField] = dueDefault;
   }
 
   for (const [fieldId, spec] of Object.entries(fieldSpecs)) {
@@ -582,6 +591,10 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
     const schema = spec.schema || {};
     if (schema.type !== 'date') continue;
     if (isRemindDueDateField(fieldId, name)) {
+      fields[fieldId] = dueDefault;
+      continue;
+    }
+    if (isRequestedDueDateField(fieldId, name)) {
       fields[fieldId] = dueDefault;
       continue;
     }
@@ -594,18 +607,47 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
     if (!spec?.required || fields[fieldId] != null) continue;
     const name = String(spec.name || '');
     const schema = spec.schema || {};
-    if (schema.type === 'date' || isRemindDueDateField(fieldId, name)) {
+    if (schema.type !== 'date') continue;
+    if (isRequestedDueDateField(fieldId, name) || isRemindDueDateField(fieldId, name)) {
       fields[fieldId] = dueDefault;
     }
   }
 }
 
-/** Ensure due/start dates after create (create screen sometimes omits custom fields). */
+/** Set Jira Due date (+ optional Requested Due Date / Start date). Due date is applied last. */
 async function updateRemindIssueDates(env, issueKey) {
-  const { fields } = buildRemindDateFieldValues(env);
-  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}`, {
+  const dueDefault = defaultRequestedDueDate(env);
+  const startDefault = defaultStartDate(env);
+  const { dueDateField, requestedDueField, startField } = remindJiraDateFieldConfig(env);
+  const path = `/rest/api/3/issue/${encodeURIComponent(issueKey)}`;
+
+  if (requestedDueField && requestedDueField !== dueDateField) {
+    try {
+      await jiraFetch(env, path, {
+        method: 'PUT',
+        body: JSON.stringify({ fields: { [requestedDueField]: dueDefault } }),
+      });
+    } catch {
+      /* may already be set on create */
+    }
+  }
+
+  const extraStart = {};
+  if (startField) extraStart[startField] = startDefault;
+  if (Object.keys(extraStart).length) {
+    try {
+      await jiraFetch(env, path, {
+        method: 'PUT',
+        body: JSON.stringify({ fields: extraStart }),
+      });
+    } catch {
+      /* start date optional */
+    }
+  }
+
+  await jiraFetch(env, path, {
     method: 'PUT',
-    body: JSON.stringify({ fields }),
+    body: JSON.stringify({ fields: { [dueDateField]: dueDefault } }),
   });
 }
 
@@ -1017,14 +1059,6 @@ async function createRemindIssue(env, body) {
     body: JSON.stringify({ fields }),
   });
 
-  try {
-    await updateRemindIssueDates(env, created.key);
-  } catch (err) {
-    throw new Error(
-      `Issue ${created.key} created but due date update failed: ${err?.message || err}`,
-    );
-  }
-
   const base = (env.JIRA_BASE_URL || 'https://lotusflare.atlassian.net').replace(/\/$/, '');
   const issueUrl = `${base}/browse/${created.key}`;
 
@@ -1060,6 +1094,14 @@ async function createRemindIssue(env, body) {
     } catch {
       assigneeSet = false;
     }
+  }
+
+  try {
+    await updateRemindIssueDates(env, created.key);
+  } catch (err) {
+    throw new Error(
+      `Issue ${created.key} created but Due date update failed: ${err?.message || err}`,
+    );
   }
 
   const notifyEmail = await notifyIssueRecipient(env, created.key, {

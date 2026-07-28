@@ -16,6 +16,7 @@
     "JIRA_LABELS": "confluence-catalog,doc-review",
     "JIRA_DUE_DATE_DAYS": "14",
     "JIRA_DUE_DATE_TIMEZONE": "Asia/Singapore",
+    "JIRA_DUE_DATE_FIELD": "duedate",
     "JIRA_REQUESTED_DUE_DATE_FIELD": "customfield_11063",
     "JIRA_START_DATE_FIELD": "customfield_10912",
     "JIRA_DEDUP_DAYS": "60",
