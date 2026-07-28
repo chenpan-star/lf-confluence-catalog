@@ -109,7 +109,9 @@ Note: `catalog.json` is still a public static file for technical users; this blo
 | `npm run generate` | Build catalog.json from `data/raw-pages.json` |
 | `npm run refresh` | Fetch + generate (full pipeline) |
 | `npm run build` | Production build → `dist/` |
-| `npm run slack:export-users` | Export Slack user IDs into `slack.json` |
+| `npm run test:e2e` | Catalog + routes + HTTP (run `npm run preview` first) |
+| `npm run test:e2e:extended` | Search, crumbs, GitHub Pages base-path build |
+| `npm run test:remind` | Remind Jira/Slack helpers + live Worker (optional `.env`) |
 
 ## Data flow
 

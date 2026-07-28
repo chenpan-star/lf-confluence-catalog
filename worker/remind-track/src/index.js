@@ -480,6 +480,15 @@ function calendarDateInTimeZone(timeZone, date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+/** Add N calendar days after `isoDate` (YYYY-MM-DD). */
+function addCalendarDays(isoDate, days) {
+  const n = Math.max(0, Number(days) || 0);
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
 /** Add N Mon–Fri days after `isoDate` (YYYY-MM-DD); does not count `isoDate` as a working day. */
 function addWorkingDays(isoDate, workingDays) {
   const [y, m, d] = isoDate.split('-').map(Number);
@@ -499,11 +508,14 @@ function defaultStartDate(env) {
 }
 
 function defaultRequestedDueDate(env) {
-  const workingDays =
-    Number(env.JIRA_DUE_DATE_WORKING_DAYS) || Number(env.JIRA_DUE_DATE_DAYS) || 14;
   const tz = (env.JIRA_DUE_DATE_TIMEZONE || 'Asia/Singapore').trim();
   const today = calendarDateInTimeZone(tz);
-  return addWorkingDays(today, workingDays);
+  const workingDaysRaw = env.JIRA_DUE_DATE_WORKING_DAYS;
+  if (workingDaysRaw != null && String(workingDaysRaw).trim() !== '') {
+    return addWorkingDays(today, Number(workingDaysRaw) || 14);
+  }
+  const calendarDays = Number(env.JIRA_DUE_DATE_DAYS) || 14;
+  return addCalendarDays(today, calendarDays);
 }
 
 /** Fill required Jira fields (e.g. PROT "Requested Due Date") from create metadata. */
@@ -535,6 +547,10 @@ async function applyRequiredJiraFields(env, projectKey, issueType, fields) {
     const name = String(spec.name || '').toLowerCase();
     const schema = spec.schema || {};
     if (schema.type !== 'date') continue;
+    if (fieldId === 'duedate' || name === 'due date') {
+      fields[fieldId] = dueDefault;
+      continue;
+    }
     if (name.includes('start')) {
       fields[fieldId] = startDefault;
     }

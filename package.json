@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test:e2e": "node scripts/e2e-smoke.js",
     "test:e2e:extended": "node scripts/e2e-extended.js",
+    "test:remind": "node scripts/test-remind-flow.mjs",
+    "test": "npm run build && npm run test:e2e:extended && npm run test:remind",
     "fetch": "node scripts/fetch-confluence.js",
     "generate": "node scripts/generate-catalog.js",
     "refresh": "node scripts/refresh-catalog.js",

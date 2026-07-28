@@ -269,13 +269,3 @@ export async function dispatchRemind({
     };
   }
 }
-
-/** @deprecated use dispatchRemind */
-export async function trackRemindInJira(args) {
-  const result = await dispatchRemind({ ...args, sendSlack: false, createJira: true });
-  if (result.skipped) return { skipped: true };
-  if (result.jira?.ok) {
-    return { ok: true, ...result.jira };
-  }
-  return { ok: false, error: result.jira?.error || result.error || 'Jira failed' };
-}

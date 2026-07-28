@@ -22,7 +22,7 @@ function pass(msg) {
 }
 
 // ── Catalog integrity ─────────────────────────────────────────────
-function testCatalog() {
+async function testCatalog() {
   console.log('\nCatalog integrity');
   const raw = readFileSync(join(ROOT, 'public/data/catalog.json'), 'utf8');
   const catalog = JSON.parse(raw);
@@ -42,9 +42,9 @@ function testCatalog() {
     pass(`${catalog.spaces.length} spaces`);
   }
 
-  const withOwner = catalog.spaces.filter((s) => s.owner?.name?.trim());
-  if (withOwner.length) fail(`${withOwner.length} spaces still have owner (per-space maintainers removed)`);
-  else pass('no per-space owners');
+  const badSpace = catalog.spaces.filter((s) => !s.key || !Array.isArray(s.pages));
+  if (badSpace.length) fail(`${badSpace.length} spaces missing key or pages`);
+  else pass('spaces have key and pages[]');
 
   const chunks = [];
   for (let i = 0; i < 25; i += 1) chunks.push(i);
@@ -53,6 +53,14 @@ function testCatalog() {
   if (parts.length !== 3 || parts[0].length !== 12 || parts[2].length !== 1) {
     fail('reminder chunk split: expected 3 parts (12+12+1) for 25 pages');
   } else pass('reminder page chunks (12 per message)');
+
+  const { splitReminderPageChunks, REMIND_PAGES_PER_MESSAGE } = await import(
+    `file://${join(ROOT, 'src/lib/slack.js')}`
+  );
+  const fakePages = Array.from({ length: 25 }, (_, i) => ({ id: String(i), title: `P${i}` }));
+  const split = splitReminderPageChunks(fakePages, REMIND_PAGES_PER_MESSAGE);
+  if (split.length !== 3) fail(`splitReminderPageChunks: ${split.length} parts`);
+  else pass('splitReminderPageChunks matches catalog smoke');
 
   const sample = catalog.spaces.find((s) => s.pages?.length > 5 && s.category);
   if (!sample) {
@@ -178,7 +186,7 @@ async function main() {
   console.log('E2E smoke tests');
   console.log(`Preview base: ${BASE}`);
 
-  const sample = testCatalog();
+  const sample = await testCatalog();
   if (sample) {
     const routes = testRoutes(sample);
     await testHttp(routes);

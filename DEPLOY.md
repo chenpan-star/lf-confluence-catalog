@@ -236,7 +236,7 @@ The catalog stays static; **Jira credentials live only on the Worker**. The brow
 
 1. Edit `worker/remind-track/wrangler.jsonc`:
    - Set **`JIRA_PROJECT_KEY`** (and optionally `JIRA_ISSUE_TYPE`, **`JIRA_PRIORITY_NAME`** (default `Major`), `JIRA_LABELS`).
-   - **PROT** requires **Requested Due Date** — the Worker fills required date fields automatically (**today + 14 working days**, Mon–Fri; override with **`JIRA_DUE_DATE_WORKING_DAYS`**, **`JIRA_DUE_DATE_TIMEZONE`**, or **`JIRA_REQUESTED_DUE_DATE_FIELD`**).
+   - **PROT** requires **Requested Due Date** — the Worker sets due dates to **today + 14 calendar days** in **`JIRA_DUE_DATE_TIMEZONE`** (default `Asia/Singapore`). Override with **`JIRA_DUE_DATE_DAYS`**, **`JIRA_REQUESTED_DUE_DATE_FIELD`**, or **`JIRA_DUE_DATE_WORKING_DAYS`** (Mon–Fri only, if set).
    - **Start date** fields (name contains “start”) default to **today** in **`JIRA_DUE_DATE_TIMEZONE`** (override with **`JIRA_START_DATE_FIELD`**).
    - After create, the Worker tries **four** Jira-side nudges (best-effort): assign with `notifyUsers=true`, add watcher, **@mention comment** (usually shows in the issue; triggers Jira “mentioned you” if the user’s profile allows email), and `POST /issue/{key}/notify`. Disable all with **`JIRA_NOTIFY_ASSIGNEE=false`**. **Inbox delivery is still controlled by Jira** (profile notifications, project notification scheme, spam). See **Owner inbox email** below.
    - Add your Cloudflare **`account_id`** if `wrangler deploy` asks for it.
