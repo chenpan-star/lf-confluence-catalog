@@ -83,6 +83,31 @@ const shots = [
     caption: 'Job 3 — Send reminders',
     wait: '.editor-review-stack, .page-shell',
   },
+  {
+    file: '07-remind-modal.png',
+    path: '/review/editors',
+    caption: 'Remind dialog — preview, Jira, and Slack',
+    wait: '.editor-review-stack, .page-shell',
+    beforeShot: async (page) => {
+      const opened = await page.evaluate(() => {
+        const cards = [...document.querySelectorAll('.editor-review-card')];
+        for (const card of cards) {
+          if (card.querySelector('.editor-review-badges .badge')) continue;
+          const btn = card.querySelector(
+            '.editor-review-actions .btn-primary:not([disabled])',
+          );
+          if (btn) {
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      if (!opened) throw new Error('No remind button found');
+      await page.waitForSelector('.review-modal', { timeout: 15000 });
+      await new Promise((r) => setTimeout(r, 400));
+    },
+  },
 ];
 
 async function applySoftTheme(page) {

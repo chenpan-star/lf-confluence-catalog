@@ -40,5 +40,12 @@
     "caption": "Job 3 — Send reminders",
     "theme": "soft",
     "url": "onboarding/06-send-reminders.png"
+  },
+  {
+    "file": "07-remind-modal.png",
+    "path": "/review/editors",
+    "caption": "Remind dialog — preview, Jira, and Slack",
+    "theme": "soft",
+    "url": "onboarding/07-remind-modal.png"
   }
 ]

@@ -9,10 +9,9 @@ export default function RemindStatusBanner() {
       <p>
         {workerOn ? (
           <>
-            <strong>Send reminder</strong> can <strong>DM people on Slack automatically</strong>{' '}
-            (when your network can reach the remind service) and create <strong>Jira</strong>{' '}
-            tasks. Recipients must appear in <span className="mono">slack.json</span>. Otherwise you
-            get copy &amp; open Slack to paste manually.
+            <strong>Create Jira task</strong> first for each part, then <strong>Send Slack DM</strong>{' '}
+            (when the remind service is reachable). Use <strong>Copy &amp; open Slack</strong> to paste
+            manually anytime.
           </>
         ) : (
           <>

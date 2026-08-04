@@ -92,6 +92,8 @@ Optional: add `ATLASSIAN_EMAIL` + `ATLASSIAN_API_TOKEN` secrets for daily catalo
 **Send reminder** copies a message and opens Slack so you can paste it into the last editor’s DM.  
 Optional: map Slack member IDs in `public/config/slack.json` (monthly Action — see [DEPLOY.md](./DEPLOY.md)).
 
+**User guide:** [docs/user-guide.md](./docs/user-guide.md) — end-to-end browse, remind, Jira, and Slack.
+
 ### Simple password (no IT)
 
 1. Pick a team password and add GitHub **repository secret** `SITE_ACCESS_PASSWORD` (plain password).
