@@ -5,6 +5,12 @@
  */
 import { loadEnv } from './load-env.js';
 import {
+  isEligibleForFollowUp,
+  summarizeRemindTracking,
+  outdatedPageUrls,
+  buildCatalogUrlIndex,
+} from './lib/remind-followup-lib.mjs';
+import {
   buildRemindJiraPartKey,
   normalizeRemindJiraLock,
   resolveRemindJiraUrl,
@@ -104,9 +110,40 @@ async function testLiveWorker() {
   else pass('Worker rejects Slack without jiraIssueKey');
 }
 
+async function testFollowUpHelpers() {
+  console.log('\nRemind follow-up helpers');
+
+  const tracking = summarizeRemindTracking([
+    { event: 'first_slack', at: new Date(Date.now() - 3 * 60 * 1000).toISOString() },
+  ]);
+  const due = isEligibleForFollowUp(tracking, {
+    intervalMinutes: 2,
+    maxFollowUps: 5,
+    force: false,
+  });
+  if (!due.eligible) fail(`expected eligible after 3 min with 2 min interval: ${due.reason}`);
+  else pass('follow-up eligible when interval elapsed');
+
+  const early = isEligibleForFollowUp(tracking, {
+    intervalMinutes: 10,
+    maxFollowUps: 5,
+    force: false,
+  });
+  if (early.eligible) fail('expected not eligible before interval');
+  else pass('follow-up blocked before interval');
+
+  const index = buildCatalogUrlIndex({
+    spaces: [{ pages: [{ url: 'https://lotusflare.atlassian.net/wiki/x', recency: 'stale' }] }],
+  });
+  const stale = outdatedPageUrls(['https://lotusflare.atlassian.net/wiki/x'], index);
+  if (stale.length !== 1) fail('stale page should stay outdated');
+  else pass('catalog stale check');
+}
+
 async function main() {
   console.log('Remind flow tests');
   await testClientHelpers();
+  await testFollowUpHelpers();
   await testLiveWorker();
 
   console.log('');

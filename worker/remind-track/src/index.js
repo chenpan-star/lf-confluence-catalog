@@ -1434,6 +1434,476 @@ async function sendSlackDirectMessage(env, { slackUserId, message, editor, edito
   };
 }
 
+const REMIND_SENT_LABEL = 'catalog-remind-sent';
+const REMIND_TRACKING_PREFIX = 'catalog-remind-meta:';
+
+function remindTrackingCommentBody(payload) {
+  return `${REMIND_TRACKING_PREFIX}${JSON.stringify(payload)}`;
+}
+
+function parseRemindTrackingComments(comments) {
+  const events = [];
+  const list = comments?.comments || comments;
+  if (!Array.isArray(list)) return events;
+  for (const c of list) {
+    const raw =
+      typeof c.body === 'string'
+        ? c.body
+        : JSON.stringify(c.body || '');
+    const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
+    if (idx < 0) continue;
+    const jsonPart = raw.slice(idx + REMIND_TRACKING_PREFIX.length).trim();
+    try {
+      const parsed = JSON.parse(jsonPart.split('\n')[0]);
+      if (parsed?.event) events.push({ ...parsed, commentId: c.id, created: c.created });
+    } catch {
+      /* ignore malformed meta */
+    }
+  }
+  return events;
+}
+
+function summarizeRemindTracking(events) {
+  const firstSlack = events.find((e) => e.event === 'first_slack');
+  const followUps = events.filter((e) => e.event === 'follow_up');
+  const lastFollowUp = followUps.length ? followUps[followUps.length - 1] : null;
+  return {
+    firstSlack,
+    followUpCount: followUps.length,
+    lastFollowUp,
+    meta: firstSlack || null,
+  };
+}
+
+async function jiraAddLabel(env, issueKey, label) {
+  const key = String(label || '').trim();
+  if (!key) return;
+  const issue = await jiraFetch(
+    env,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=labels`,
+  );
+  const labels = issue.fields?.labels || [];
+  if (labels.includes(key)) return;
+  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ fields: { labels: [...labels, key] } }),
+  });
+}
+
+async function jiraListComments(env, issueKey) {
+  const data = await jiraFetch(
+    env,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment?maxResults=100`,
+  );
+  return data?.comments || [];
+}
+
+async function jiraAddTrackingComment(env, issueKey, payload) {
+  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      body: textToAdf(remindTrackingCommentBody(payload)),
+    }),
+  });
+}
+
+async function getRemindTrackingState(env, issueKey) {
+  const comments = await jiraListComments(env, issueKey);
+  const events = parseRemindTrackingComments(comments);
+  return summarizeRemindTracking(events);
+}
+
+async function recordFirstSlackSent(env, issueKey, meta) {
+  const payload = {
+    event: 'first_slack',
+    at: new Date().toISOString(),
+    editor: meta.editor || '',
+    editorEmail: meta.editorEmail || '',
+    slackUserId: meta.slackUserId || '',
+    message: meta.message || '',
+    partIndex: meta.partIndex || 1,
+    partTotal: meta.partTotal || 1,
+    pagesCount: meta.pagesCount || 0,
+    catalogUrl: meta.catalogUrl || '',
+  };
+  await jiraAddLabel(env, issueKey, REMIND_SENT_LABEL);
+  await jiraAddTrackingComment(env, issueKey, payload);
+  return payload;
+}
+
+/** Follow-up wording (Slack / Jira comment / email). */
+function remindFollowUpCopyContext({ editor, pagesCount, partIndex, partTotal, pages, issueKey }) {
+  const copy = remindCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages,
+    issueKey,
+  });
+  const firstName = String(editor || '')
+    .trim()
+    .split(/\s+/)[0];
+  const hi = firstName ? `👋 Hi ${firstName} — quick follow-up` : '👋 Hi — quick follow-up';
+  const intro =
+    pagesCount === 1
+      ? 'Just checking in on **1 Confluence page** we flagged for review. If you already updated it, thank you — otherwise could you take another look when you have a moment?'
+      : `Just checking in on **${pagesCount || pages?.length || 'some'} Confluence pages** we flagged for review. If you already updated them, thank you — otherwise could you take another look when you have a moment?`;
+  return { ...copy, hi, intro };
+}
+
+function buildFollowUpSlackMessage(originalMessage, jira, env, ctx) {
+  const base = String(originalMessage || '').trim();
+  const ref = normalizeRemindJiraRef(env, jira);
+  const withJira = ref ? appendJiraTicketToSlackMessage(base, jira, env) : base;
+  const header = `🔔 *Follow-up from the Confluence catalog*\n${ctx.hi}\n${plainFriendly(ctx.intro)}\n\n`;
+  const combined = `${header}${withJira}`.trim();
+  if (combined.length > 3900) {
+    throw new Error('Follow-up message is too long for Slack — send a smaller part');
+  }
+  return combined;
+}
+
+async function addFollowUpJiraComment(
+  env,
+  issueKey,
+  accountId,
+  { message, editor, pagesCount, partIndex, partTotal, issueUrl },
+) {
+  const pages = parseRemindPagesFromMessage(message);
+  const copy = remindFollowUpCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages,
+    issueKey,
+  });
+
+  const content = [
+    {
+      type: 'paragraph',
+      content: [
+        {
+          type: 'mention',
+          attrs: { id: accountId, text: '@assignee', accessLevel: '' },
+        },
+        {
+          type: 'text',
+          text: ` ${copy.hi}`,
+          marks: [{ type: 'strong' }],
+        },
+      ],
+    },
+    adfParagraph(adfText(plainFriendly(copy.intro))),
+    adfParagraph(adfText(plainFriendly(copy.action))),
+    ...buildRemindPageListAdfContent(pages),
+    adfParagraph(
+      adfText('📌 Open task: '),
+      adfLink(issueKey, issueUrl),
+    ),
+    adfParagraph(adfText(`${plainFriendly(copy.done)} ${copy.thanks}`)),
+  ];
+
+  await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      body: { type: 'doc', version: 1, content },
+    }),
+  });
+}
+
+async function notifyFollowUpRecipient(
+  env,
+  issueKey,
+  {
+    summary,
+    issueUrl,
+    assigneeAccountId,
+    editor,
+    editorEmail,
+    projectKey,
+    pagesCount,
+    message,
+    partIndex,
+    partTotal,
+  },
+  { sendComment = true, sendEmail = true } = {},
+) {
+  let accountId = assigneeAccountId || null;
+  if (!accountId) {
+    accountId = await findAssigneeAccountId(env, projectKey, editor, editorEmail);
+  }
+  if (!accountId) {
+    accountId = await findUserAccountIdByQuery(env, editorEmail || editor);
+  }
+  if (!accountId) {
+    return {
+      ok: false,
+      error: 'No Jira user found for follow-up',
+    };
+  }
+
+  const pages = parseRemindPagesFromMessage(message);
+  const copy = remindFollowUpCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages,
+    issueKey,
+  });
+
+  const { textBody, htmlBody } = buildRemindEmailBodies({
+    editor,
+    summary: `Follow-up: ${summary}`,
+    issueKey,
+    issueUrl,
+    message,
+    pagesCount,
+    partIndex,
+    partTotal,
+  });
+
+  const followText = [copy.hi, plainFriendly(copy.intro), '', textBody].join('\n');
+  const followHtml = wrapRemindEmailHtml(
+    [
+      `<p style="${REMIND_EMAIL_LEAD}">${escapeHtml(copy.hi)}</p>`,
+      `<p style="${REMIND_EMAIL_P}">${escapeHtml(plainFriendly(copy.intro))}</p>`,
+      htmlBody.replace(/^<div style="[^"]*">/, '').replace(/<\/div>$/, ''),
+    ].join(''),
+  );
+
+  let commentOk = !sendComment;
+  let notifyOk = !sendEmail;
+  let commentError = null;
+  let notifyError = null;
+
+  if (sendComment) {
+    try {
+      await addFollowUpJiraComment(env, issueKey, accountId, {
+        message,
+        editor,
+        pagesCount,
+        partIndex,
+        partTotal,
+        issueUrl,
+      });
+      commentOk = true;
+    } catch (err) {
+      commentError = err?.message || 'Follow-up comment failed';
+    }
+  }
+
+  if (sendEmail) {
+    try {
+      await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/notify`, {
+        method: 'POST',
+        body: JSON.stringify({
+          subject: `Follow-up: ${summary}`,
+          textBody: followText,
+          htmlBody: followHtml,
+          to: {
+            assignee: true,
+            reporter: false,
+            watchers: true,
+            users: [{ accountId }],
+          },
+        }),
+      });
+      notifyOk = true;
+    } catch (err) {
+      notifyError = err?.message || 'Follow-up email notify failed';
+    }
+  }
+
+  const ok = commentOk && notifyOk;
+  return {
+    ok,
+    emailedAccountId: accountId,
+    commentOk,
+    notifyOk,
+    error: ok ? undefined : [commentError, notifyError].filter(Boolean).join(' · '),
+  };
+}
+
+function followUpIntervalMs(env, body = null) {
+  const bodyMins = Number(body?.intervalMinutes);
+  if (Number.isFinite(bodyMins) && bodyMins > 0) return bodyMins * 60 * 1000;
+  const minutes = Number(env.REMIND_FOLLOWUP_INTERVAL_MINUTES);
+  if (Number.isFinite(minutes) && minutes > 0) return minutes * 60 * 1000;
+  const days = Number(env.REMIND_FOLLOWUP_INTERVAL_DAYS);
+  if (Number.isFinite(days) && days > 0) return days * 24 * 60 * 60 * 1000;
+  return 7 * 24 * 60 * 60 * 1000;
+}
+
+function followUpMaxCount(env) {
+  const n = Number(env.REMIND_FOLLOWUP_MAX);
+  return Number.isFinite(n) && n >= 0 ? n : 5;
+}
+
+function msSince(iso) {
+  if (!iso) return Infinity;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? Date.now() - t : Infinity;
+}
+
+async function fetchRemindIssueForFollowUp(env, issueKey) {
+  const data = await jiraFetch(
+    env,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,status,assignee,labels,project`,
+  );
+  return data;
+}
+
+async function handleRemindFollowUp(env, body) {
+  const issueKey = String(body.jiraIssueKey || body.issueKey || '').trim();
+  if (!issueKey) throw new Error('jiraIssueKey is required');
+
+  const force = body.force === true;
+  const tracking = await getRemindTrackingState(env, issueKey);
+  if (!tracking.meta?.message && !body.message) {
+    throw new Error(
+      `No remind tracking on ${issueKey} — send the first Slack DM from the catalog before follow-up`,
+    );
+  }
+
+  const intervalMs = followUpIntervalMs(env, body);
+  const maxFollowUps = followUpMaxCount(env);
+  if (!force) {
+    if (!tracking.firstSlack) {
+      throw new Error(`${issueKey} has no first_slack tracking event yet`);
+    }
+    if (tracking.followUpCount >= maxFollowUps) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'max_followups_reached',
+        followUpCount: tracking.followUpCount,
+      };
+    }
+    const refIso = tracking.lastFollowUp?.at || tracking.firstSlack.at;
+    if (msSince(refIso) < intervalMs) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'interval_not_elapsed',
+        nextEligibleAt: new Date(Date.parse(refIso) + intervalMs).toISOString(),
+        intervalMinutes: Math.round(intervalMs / 60000),
+      };
+    }
+  }
+
+  const issue = await fetchRemindIssueForFollowUp(env, issueKey);
+  const statusCategory = issue.fields?.status?.statusCategory?.key;
+  if (statusCategory === 'done' && !force) {
+    return { ok: true, skipped: true, reason: 'issue_closed' };
+  }
+
+  const meta = tracking.meta;
+  const editor = String(body.editor || meta?.editor || '').trim();
+  const editorEmail = String(body.editorEmail || meta?.editorEmail || '').trim();
+  const slackUserId = String(body.slackUserId || meta?.slackUserId || '').trim();
+  const message = String(body.message || meta?.message || '').trim();
+  const partIndex = Number(body.partIndex || meta?.partIndex) || 1;
+  const partTotal = Number(body.partTotal || meta?.partTotal) || 1;
+  const pagesCount = Number(body.pagesCount || meta?.pagesCount) || parseRemindPagesFromMessage(message).length;
+  const projectKey = issue.fields?.project?.key || env.JIRA_PROJECT_KEY || 'PROT';
+  const summary = issue.fields?.summary || `[Confluence review] ${editor}`;
+  const issueUrl = `${jiraBrowseBase(env)}/browse/${issueKey}`;
+  const assigneeAccountId = issue.fields?.assignee?.accountId || null;
+
+  const jiraRef = { issueKey, issueUrl };
+  const copyCtx = remindFollowUpCopyContext({
+    editor,
+    pagesCount,
+    partIndex,
+    partTotal,
+    pages: parseRemindPagesFromMessage(message),
+    issueKey,
+  });
+
+  const out = {
+    ok: false,
+    issueKey,
+    slack: null,
+    jiraComment: null,
+    email: null,
+  };
+
+  const wantsSlack = body.sendSlack !== false;
+  const wantsComment = body.sendJiraComment !== false;
+  const wantsEmail = body.sendEmail !== false;
+
+  if (wantsSlack) {
+    try {
+      const slackText = buildFollowUpSlackMessage(message, jiraRef, env, copyCtx);
+      const slack = await sendSlackDirectMessage(env, {
+        slackUserId,
+        message: slackText,
+        editor,
+        editorEmail,
+      });
+      out.slack = { ok: true, ...slack };
+    } catch (err) {
+      out.slack = { ok: false, error: err?.message || 'Follow-up Slack failed' };
+    }
+  }
+
+  if (wantsComment || wantsEmail) {
+    const notify = await notifyFollowUpRecipient(
+      env,
+      issueKey,
+      {
+        summary,
+        issueUrl,
+        assigneeAccountId,
+        editor,
+        editorEmail,
+        projectKey,
+        pagesCount,
+        message,
+        partIndex,
+        partTotal,
+      },
+      { sendComment: wantsComment, sendEmail: wantsEmail },
+    );
+    out.jiraComment = wantsComment
+      ? { ok: notify.commentOk, error: notify.commentOk ? undefined : notify.error }
+      : { ok: true, skipped: true };
+    out.email = wantsEmail
+      ? {
+          ok: notify.notifyOk,
+          emailedAccountId: notify.emailedAccountId,
+          error: notify.notifyOk ? undefined : notify.error,
+        }
+      : { ok: true, skipped: true };
+  }
+
+  await jiraAddTrackingComment(env, issueKey, {
+    event: 'follow_up',
+    at: new Date().toISOString(),
+    slackOk: Boolean(out.slack?.ok),
+    commentOk: Boolean(out.jiraComment?.ok),
+    emailOk: Boolean(out.email?.ok),
+  });
+
+  const slackOk = !wantsSlack || Boolean(out.slack?.ok);
+  const commentOk = !wantsComment || Boolean(out.jiraComment?.ok);
+  const emailOk = !wantsEmail || Boolean(out.email?.ok);
+  out.ok = slackOk && commentOk && emailOk;
+
+  if (!out.ok) {
+    const parts = [];
+    if (wantsSlack && !slackOk) parts.push(`Slack: ${out.slack?.error || 'failed'}`);
+    if (wantsComment && !commentOk) parts.push(`Jira comment: ${out.jiraComment?.error || 'failed'}`);
+    if (wantsEmail && !emailOk) parts.push(`Email: ${out.email?.error || 'failed'}`);
+    out.error = parts.join(' · ') || 'Follow-up failed';
+  }
+
+  return out;
+}
+
 async function handleRemindRequest(env, body) {
   const slackUserId = String(body.slackUserId || '').trim();
   const wantsSlack =
@@ -1488,6 +1958,22 @@ async function handleRemindRequest(env, body) {
           editorEmail: body.editorEmail?.trim(),
         });
         out.slack = { ok: true, ...slack, jiraIssueKey: out.jira.issueKey };
+        if (out.slack?.ok && out.slack?.ts) {
+          try {
+            await recordFirstSlackSent(env, out.jira.issueKey, {
+              editor: (body.editor || '').trim(),
+              editorEmail: body.editorEmail?.trim(),
+              slackUserId,
+              message: String(body.message || '').trim(),
+              partIndex: Number(body.partIndex) || 1,
+              partTotal: Number(body.partTotal) || 1,
+              pagesCount: Number(body.pagesCount) || 0,
+              catalogUrl: String(body.catalogUrl || '').trim(),
+            });
+          } catch (trackErr) {
+            out.trackingWarning = trackErr?.message || 'Failed to record first Slack for follow-up';
+          }
+        }
       } catch (err) {
         out.slack = { ok: false, error: err?.message || 'Slack send failed' };
       }
@@ -1551,6 +2037,28 @@ export default {
       } catch (err) {
         return jsonResponse(
           { ok: false, error: err?.message || 'Jira lookup failed' },
+          502,
+          request,
+          env,
+        );
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/remind/followup') {
+      if (!authorize(request, env)) return unauthorized(request, env);
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return jsonResponse({ error: 'Invalid JSON body' }, 400, request, env);
+      }
+      try {
+        const result = await handleRemindFollowUp(env, body);
+        const status = result.ok || result.skipped ? 200 : 502;
+        return jsonResponse(result, status, request, env);
+      } catch (err) {
+        return jsonResponse(
+          { ok: false, error: err?.message || 'Follow-up failed' },
           502,
           request,
           env,

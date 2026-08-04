@@ -334,6 +334,32 @@ If the assignee sees the **@mention in the issue comments** but **nothing in Gma
 - Use **Send Slack DM** in the catalog for owners who need a direct message (Worker + Slack scopes).
 - For **guaranteed email on every catalog task**, a **Jira admin** can add **Automation** on **PROT** — see **[docs/jira-automation-email.md](../docs/jira-automation-email.md)** for subject/body templates (titles + issue link, not URL-only).
 
+### Scheduled follow-up (7 days — Slack + Jira comment + email)
+
+After someone sends the **first Slack DM** from the catalog, the Worker records tracking on the **PROT** issue (label `catalog-remind-sent` + a hidden comment). A **GitHub Action** can send a **follow-up** on the same channels:
+
+| Channel | Follow-up behavior |
+|---------|-------------------|
+| **Slack** | Second DM with “quick follow-up” header + same page list |
+| **Jira** | New @mention comment on the issue |
+| **Email** | `POST /issue/{key}/notify` with follow-up subject/body |
+
+**Production:** workflow **Remind follow-up (production)** — daily, **7 days** after first Slack (or last follow-up). Skips closed issues and issues whose pages are no longer stale in `catalog.json`.
+
+**Test (2 minutes):** workflow **Remind follow-up (test — 2 min)** — manual dispatch:
+
+1. Deploy Worker (**Deploy remind-track Worker**) so `/v1/remind/followup` exists.
+2. From catalog: **Create Jira** → **Send Slack DM** for one editor.
+3. Run the test workflow with the **PROT-…** key — it waits **2 minutes**, then sends follow-up on all three channels.
+
+Local equivalent:
+
+```bash
+npm run test:remind-followup -- --issue PROT-123 --wait-minutes 2
+```
+
+Worker vars (in `wrangler.jsonc`): `REMIND_FOLLOWUP_INTERVAL_DAYS=7`, `REMIND_FOLLOWUP_MAX=5`. Tests pass `intervalMinutes: 2` in the API body so production Worker config stays at 7 days.
+
 ### 4. Cannot open `*.workers.dev` (office DNS)
 
 The Worker can be **healthy** (GitHub Actions / Cloudflare dashboard) while your **browser or office network blocks** `https://….workers.dev` — same as before with other Workers.

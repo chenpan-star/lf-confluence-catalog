@@ -1,0 +1,64 @@
+name: Remind follow-up (production)
+
+on:
+  schedule:
+    # Daily at 07:30 UTC — after catalog refresh (06:00 UTC)
+    - cron: '30 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remind-followup
+  cancel-in-progress: false
+
+jobs:
+  followup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Verify secrets
+        env:
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          VITE_REMIND_TRACK_URL: ${{ vars.VITE_REMIND_TRACK_URL }}
+        run: |
+          missing=0
+          for name in ATLASSIAN_EMAIL ATLASSIAN_API_TOKEN REMIND_API_SECRET VITE_REMIND_TRACK_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing $name (secret or variable)"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Send due follow-ups (Slack + Jira comment + email)
+        env:
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          VITE_REMIND_TRACK_URL: ${{ vars.VITE_REMIND_TRACK_URL }}
+          REMIND_FOLLOWUP_INTERVAL_DAYS: '7'
+          REMIND_FOLLOWUP_MAX: '5'
+        run: node scripts/remind-followup.mjs
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Remind follow-up (production)"
+            echo "- Interval: **7 days** after first Slack (or last follow-up)"
+            echo "- Channels: Slack DM, Jira @comment, Jira email notify"
+            echo "- Requires first remind sent via catalog (**Send Slack DM**) so tracking exists on the PROT issue"
+          } >> "$GITHUB_STEP_SUMMARY"

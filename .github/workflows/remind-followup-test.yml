@@ -1,0 +1,85 @@
+name: Remind follow-up (test — 2 min)
+
+on:
+  workflow_dispatch:
+    inputs:
+      jira_issue_key:
+        description: 'PROT issue key (must have first Slack sent from catalog)'
+        required: true
+        type: string
+      wait_minutes:
+        description: 'Minutes to wait before follow-up (default 2)'
+        required: false
+        default: '2'
+      force:
+        description: 'Skip interval check (send immediately)'
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 'List only — do not send'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test-followup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Verify secrets
+        env:
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          VITE_REMIND_TRACK_URL: ${{ vars.VITE_REMIND_TRACK_URL }}
+        run: |
+          missing=0
+          for name in ATLASSIAN_EMAIL ATLASSIAN_API_TOKEN REMIND_API_SECRET VITE_REMIND_TRACK_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing $name"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait then send follow-up (Slack + Jira comment + email)
+        env:
+          ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
+          ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+          REMIND_API_SECRET: ${{ secrets.REMIND_API_SECRET }}
+          VITE_REMIND_TRACK_URL: ${{ vars.VITE_REMIND_TRACK_URL }}
+          REMIND_FOLLOWUP_INTERVAL_MINUTES: ${{ inputs.wait_minutes }}
+          REMIND_FOLLOWUP_TEST_WAIT_MINUTES: ${{ inputs.wait_minutes }}
+        run: |
+          ARGS="--issue ${{ inputs.jira_issue_key }} --wait-minutes ${{ inputs.wait_minutes }}"
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          node scripts/test-remind-followup.mjs $ARGS
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Remind follow-up test"
+            echo "- Issue: \`${{ inputs.jira_issue_key }}\`"
+            echo "- Wait: **${{ inputs.wait_minutes }}** minute(s) (unless force)"
+            echo "- Channels: **Slack DM**, **Jira comment**, **email**"
+            echo ""
+            echo "### Before running"
+            echo "1. Deploy Worker with \`/v1/remind/followup\` (Deploy remind-track Worker workflow)"
+            echo "2. From catalog: **Create Jira** → **Send Slack DM** for this issue's editor"
+            echo "3. Run this workflow with the PROT key"
+          } >> "$GITHUB_STEP_SUMMARY"
