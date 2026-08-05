@@ -192,10 +192,9 @@ export async function searchFollowUpCandidates(env, { projectKey = 'PROT', maxRe
     `labels = "confluence-catalog"`,
     `labels = "${REMIND_SENT_LABEL}"`,
     'statusCategory != Done',
-    'ORDER BY updated DESC',
   ].join(' AND ');
   return jiraSearchJql(env, {
-    jql,
+    jql: `${jql} ORDER BY updated DESC`,
     maxResults,
     fields: ['summary', 'status', 'labels', 'description', 'assignee'],
   });

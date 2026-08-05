@@ -10,6 +10,7 @@
     "test:e2e": "node scripts/e2e-smoke.js",
     "test:e2e:extended": "node scripts/e2e-extended.js",
     "test:remind": "node scripts/test-remind-flow.mjs",
+    "test:remind-followup-lib": "node scripts/test-remind-followup-lib.mjs",
     "remind:followup": "node scripts/remind-followup.mjs",
     "test:remind-followup": "node scripts/test-remind-followup.mjs",
     "test": "npm run build && npm run test:e2e:extended && npm run test:remind",
