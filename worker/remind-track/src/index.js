@@ -467,6 +467,33 @@ async function jiraFetch(env, path, init = {}) {
   return data;
 }
 
+/** Jira Cloud enhanced JQL search (replaces removed GET /rest/api/3/search). */
+async function jiraSearchJql(env, { jql, maxResults = 50, fields = [] }) {
+  const issues = [];
+  let nextPageToken;
+
+  while (issues.length < maxResults) {
+    const body = {
+      jql,
+      maxResults: Math.min(maxResults - issues.length, 100),
+      fields,
+    };
+    if (nextPageToken) body.nextPageToken = nextPageToken;
+
+    const data = await jiraFetch(env, '/rest/api/3/search/jql', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    const batch = data?.issues || [];
+    issues.push(...batch);
+    nextPageToken = data?.nextPageToken;
+    if (!nextPageToken || !batch.length) break;
+  }
+
+  return issues.slice(0, maxResults);
+}
+
 function calendarDateInTimeZone(timeZone, date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -892,20 +919,17 @@ async function findExistingOpenRemindIssue(
   if (days > 0) jql += ` AND created >= -${days}d`;
   jql += ' ORDER BY created DESC';
 
-  const params = new URLSearchParams({
-    jql,
-    maxResults: '8',
-    fields: 'summary,status,assignee,description',
-  });
-
-  let data;
+  let issues;
   try {
-    data = await jiraFetch(env, `/rest/api/3/search?${params}`);
+    issues = await jiraSearchJql(env, {
+      jql,
+      maxResults: 8,
+      fields: ['summary', 'status', 'assignee', 'description'],
+    });
   } catch {
     return null;
   }
 
-  const issues = data?.issues;
   if (!Array.isArray(issues) || !issues.length) return null;
 
   const pageUrls = parseRemindPagesFromMessage(message)

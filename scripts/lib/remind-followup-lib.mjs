@@ -153,6 +153,39 @@ export async function jiraFetch(env, path, init = {}) {
   return data;
 }
 
+/**
+ * Jira Cloud enhanced JQL search (replaces removed GET /rest/api/3/search).
+ * @see https://developer.atlassian.com/changelog/#CHANGE-2046
+ */
+export async function jiraSearchJql(
+  env,
+  { jql, maxResults = 50, fields = ['summary', 'status', 'labels', 'description', 'assignee'] },
+) {
+  const issues = [];
+  let nextPageToken;
+
+  while (issues.length < maxResults) {
+    const body = {
+      jql,
+      maxResults: Math.min(maxResults - issues.length, 100),
+      fields,
+    };
+    if (nextPageToken) body.nextPageToken = nextPageToken;
+
+    const data = await jiraFetch(env, '/rest/api/3/search/jql', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    const batch = data?.issues || [];
+    issues.push(...batch);
+    nextPageToken = data?.nextPageToken;
+    if (!nextPageToken || !batch.length) break;
+  }
+
+  return issues.slice(0, maxResults);
+}
+
 export async function searchFollowUpCandidates(env, { projectKey = 'PROT', maxResults = 50 } = {}) {
   const jql = [
     `project = ${projectKey}`,
@@ -161,13 +194,11 @@ export async function searchFollowUpCandidates(env, { projectKey = 'PROT', maxRe
     'statusCategory != Done',
     'ORDER BY updated DESC',
   ].join(' AND ');
-  const params = new URLSearchParams({
+  return jiraSearchJql(env, {
     jql,
-    maxResults: String(maxResults),
-    fields: 'summary,status,labels,description,assignee',
+    maxResults,
+    fields: ['summary', 'status', 'labels', 'description', 'assignee'],
   });
-  const data = await jiraFetch(env, `/rest/api/3/search?${params}`);
-  return data?.issues || [];
 }
 
 export async function loadIssueTracking(env, issueKey) {
