@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: confluence-catalog
@@ -70,57 +68,6 @@ jobs:
           ZOHO_ACCOUNTS_URL: https://accounts.zoho.com
           ZOHO_PEOPLE_URL: https://people.zoho.com
         run: npm run refresh
-
-      - name: Upload refreshed catalog
-        uses: actions/upload-artifact@v4
-        with:
-          name: catalog
-          path: public/data/catalog.json
-          retention-days: 1
-
-  deploy:
-    needs: refresh
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-
-      - name: Download refreshed catalog
-        uses: actions/download-artifact@v4
-        with:
-          name: catalog
-          path: public/data
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build site with fresh catalog
-        env:
-          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-          SITE_ACCESS_PASSWORD: ${{ secrets.SITE_ACCESS_PASSWORD }}
-        run: |
-          if [ -n "$SITE_ACCESS_PASSWORD" ]; then
-            export VITE_ACCESS_PASSWORD_HASH=$(node -e "console.log(require('crypto').createHash('sha256').update(process.env.SITE_ACCESS_PASSWORD).digest('hex'))")
-          fi
-          npm run build
-
-      - name: Deploy to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Publish site
-        id: deployment
-        uses: actions/deploy-pages@v4
 
       - name: Commit updated catalog to repo
         run: |
