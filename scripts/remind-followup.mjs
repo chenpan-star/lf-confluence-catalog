@@ -100,7 +100,7 @@ async function processIssue(env, worker, issue, opts, catalogIndex) {
     console.log(`    worker skipped: ${result.reason}`);
   } else if (result.ok) {
     console.log(
-      `    ok — slack=${result.slack?.ok} comment=${result.jiraComment?.ok} email=${result.email?.ok}`,
+      `    ok — slack=${result.slack?.ok} comment=${result.jiraComment?.ok} email=${result.email?.ok}${result.warning ? ` (${result.warning})` : ''}`,
     );
   } else {
     console.error(`    failed: ${result.error || 'unknown'}`);

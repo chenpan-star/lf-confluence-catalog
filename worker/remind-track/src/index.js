@@ -2022,14 +2022,18 @@ async function handleRemindFollowUp(env, body) {
   const slackOk = !wantsSlack || Boolean(out.slack?.ok);
   const commentOk = !wantsComment || Boolean(out.jiraComment?.ok);
   const emailOk = !wantsEmail || Boolean(out.email?.ok);
-  out.ok = slackOk && commentOk && emailOk;
+  out.ok = slackOk && commentOk;
+  if (!emailOk && wantsEmail) {
+    out.emailWarning = out.email?.error || 'Follow-up email notify failed';
+  }
 
   if (!out.ok) {
     const parts = [];
     if (wantsSlack && !slackOk) parts.push(`Slack: ${out.slack?.error || 'failed'}`);
     if (wantsComment && !commentOk) parts.push(`Jira comment: ${out.jiraComment?.error || 'failed'}`);
-    if (wantsEmail && !emailOk) parts.push(`Email: ${out.email?.error || 'failed'}`);
     out.error = parts.join(' · ') || 'Follow-up failed';
+  } else if (out.emailWarning) {
+    out.warning = `Email: ${out.emailWarning}`;
   }
 
   return out;
