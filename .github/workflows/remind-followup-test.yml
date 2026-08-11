@@ -76,6 +76,7 @@ jobs:
             echo "## Remind follow-up test"
             echo "- Issue: \`${{ inputs.jira_issue_key }}\`"
             echo "- Wait: **${{ inputs.wait_minutes }}** minute(s) (unless force)"
+            echo "- Test mode: **ignores catalog stale check** (sends even if pages are now active/recent)"
             echo "- Channels: **Slack DM**, **Jira comment**, **email**"
             echo ""
             echo "### Before running"
