@@ -144,6 +144,10 @@ async function main() {
 
   console.log(`\nDone: ${sent.length} sent, ${skipped.length} skipped, ${failed.length} failed`);
   if (failed.length) process.exit(1);
+  if (opts.issue && skipped.length && !sent.length && !opts.dryRun) {
+    console.error(`Follow-up for ${opts.issue} was skipped (${skipped[0]?.reason})`);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {

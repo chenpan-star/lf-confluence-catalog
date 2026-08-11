@@ -31,6 +31,71 @@ export function msSince(iso) {
   return Number.isFinite(t) ? Date.now() - t : Infinity;
 }
 
+export function extractTrackingJsonFromRaw(raw) {
+  const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
+  if (idx < 0) return null;
+  let rest = raw.slice(idx + REMIND_TRACKING_PREFIX.length).trim();
+  rest = rest.replace(/\\"/g, '"').replace(/\\n/g, '\n');
+  const start = rest.indexOf('{');
+  if (start < 0) return null;
+  rest = rest.slice(start);
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < rest.length; i += 1) {
+    const ch = rest[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString && ch === '\\') {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') inString = !inString;
+    if (!inString) {
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) return rest.slice(0, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+export function parseTrackingPayloadFallback(raw) {
+  const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
+  if (idx < 0) return null;
+  const frag = raw.slice(idx + REMIND_TRACKING_PREFIX.length);
+  const pick = (key) => {
+    const patterns = [
+      new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 'i'),
+      new RegExp(`\\\\"${key}\\\\"\\s*:\\s*\\\\"([^"]*)\\\\"`, 'i'),
+    ];
+    for (const re of patterns) {
+      const m = frag.match(re);
+      if (m?.[1]) return m[1].replace(/\\"/g, '"');
+    }
+    const num = frag.match(new RegExp(`"?${key}"?\\s*:\\s*(\\d+)`, 'i'));
+    return num ? Number(num[1]) : '';
+  };
+  const event = pick('event');
+  if (!event) return null;
+  return {
+    event,
+    at: pick('at'),
+    editor: pick('editor'),
+    editorEmail: pick('editorEmail'),
+    slackUserId: pick('slackUserId'),
+    partIndex: Number(pick('partIndex')) || 1,
+    partTotal: Number(pick('partTotal')) || 1,
+    pagesCount: Number(pick('pagesCount')) || 0,
+    catalogUrl: pick('catalogUrl') || '',
+  };
+}
+
 export function parseRemindTrackingComments(comments) {
   const events = [];
   const list = comments?.comments || comments;
@@ -40,15 +105,19 @@ export function parseRemindTrackingComments(comments) {
       typeof c.body === 'string'
         ? c.body
         : JSON.stringify(c.body || '');
-    const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
-    if (idx < 0) continue;
-    const jsonPart = raw.slice(idx + REMIND_TRACKING_PREFIX.length).trim();
-    try {
-      const parsed = JSON.parse(jsonPart.split('\n')[0]);
-      if (parsed?.event) events.push({ ...parsed, commentId: c.id, created: c.created });
-    } catch {
-      /* ignore */
+    if (!raw.includes(REMIND_TRACKING_PREFIX)) continue;
+
+    let parsed = null;
+    const jsonStr = extractTrackingJsonFromRaw(raw);
+    if (jsonStr) {
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch {
+        /* try fallback */
+      }
     }
+    if (!parsed?.event) parsed = parseTrackingPayloadFallback(raw);
+    if (parsed?.event) events.push({ ...parsed, commentId: c.id, created: c.created });
   }
   return events;
 }
@@ -91,6 +160,14 @@ export function extractPageUrlsFromIssue(issue) {
     (m) => m[0],
   );
   return [...new Set(urls)];
+}
+
+export function rebuildRemindMessageFromIssue(issue) {
+  const urls = extractPageUrlsFromIssue(issue);
+  if (!urls.length) return '';
+  return urls
+    .map((url, i) => `${i + 1}. Page\n   ${url}`)
+    .join('\n\n');
 }
 
 export function loadCatalog(catalogPath) {

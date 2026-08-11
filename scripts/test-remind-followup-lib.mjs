@@ -15,6 +15,7 @@ import {
   jiraSearchJql,
   outdatedPageUrls,
   parseRemindTrackingComments,
+  parseTrackingPayloadFallback,
   searchFollowUpCandidates,
   summarizeRemindTracking,
 } from './lib/remind-followup-lib.mjs';
@@ -52,6 +53,13 @@ function testTrackingParse() {
   if (summary.followUpCount !== 1 || !summary.firstSlack) {
     fail('summarizeRemindTracking miscount');
   } else pass('summarizeRemindTracking counts follow-ups');
+
+  const adfBroken =
+    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"catalog-remind-meta:{\\"event\\":\\"first_slack\\",\\"at\\":\\"2026-08-11T03:36:53.952Z\\",\\"editor\\":\\"chen.pan\\",\\"editorEmail\\":\\"chen.pan@lotusflare.com\\",\\"slackUserId\\":\\"U0A4H691631\\",\\"message\\":\\"truncated"},{"type":"text","text":"Page title"}]}]}';
+  const recovered = parseTrackingPayloadFallback(adfBroken);
+  if (recovered?.event !== 'first_slack' || recovered?.editor !== 'chen.pan') {
+    fail('ADF-split tracking fallback parse failed');
+  } else pass('recovers first_slack from ADF-split tracking comment');
 }
 
 function testEligibility() {

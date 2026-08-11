@@ -1465,6 +1465,89 @@ function remindTrackingCommentBody(payload) {
   return `${REMIND_TRACKING_PREFIX}${JSON.stringify(payload)}`;
 }
 
+function compactRemindTrackingPayload(payload) {
+  const out = {
+    event: payload.event,
+    at: payload.at,
+    editor: payload.editor || '',
+    editorEmail: payload.editorEmail || '',
+    slackUserId: payload.slackUserId || '',
+    partIndex: payload.partIndex || 1,
+    partTotal: payload.partTotal || 1,
+    pagesCount: payload.pagesCount || 0,
+    catalogUrl: payload.catalogUrl || '',
+  };
+  if (payload.slackOk != null) out.slackOk = payload.slackOk;
+  if (payload.commentOk != null) out.commentOk = payload.commentOk;
+  if (payload.emailOk != null) out.emailOk = payload.emailOk;
+  return out;
+}
+
+function extractTrackingJsonFromRaw(raw) {
+  const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
+  if (idx < 0) return null;
+  let rest = raw.slice(idx + REMIND_TRACKING_PREFIX.length).trim();
+  rest = rest.replace(/\\"/g, '"').replace(/\\n/g, '\n');
+  const start = rest.indexOf('{');
+  if (start < 0) return null;
+  rest = rest.slice(start);
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < rest.length; i += 1) {
+    const ch = rest[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString && ch === '\\') {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') inString = !inString;
+    if (!inString) {
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) return rest.slice(0, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function parseTrackingPayloadFallback(raw) {
+  const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
+  if (idx < 0) return null;
+  const frag = raw.slice(idx + REMIND_TRACKING_PREFIX.length);
+  const pick = (key) => {
+    const patterns = [
+      new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 'i'),
+      new RegExp(`\\\\"${key}\\\\"\\s*:\\s*\\\\"([^"]*)\\\\"`, 'i'),
+    ];
+    for (const re of patterns) {
+      const m = frag.match(re);
+      if (m?.[1]) return m[1].replace(/\\"/g, '"');
+    }
+    const num = frag.match(new RegExp(`"?${key}"?\\s*:\\s*(\\d+)`, 'i'));
+    return num ? Number(num[1]) : '';
+  };
+  const event = pick('event');
+  if (!event) return null;
+  return {
+    event,
+    at: pick('at'),
+    editor: pick('editor'),
+    editorEmail: pick('editorEmail'),
+    slackUserId: pick('slackUserId'),
+    partIndex: Number(pick('partIndex')) || 1,
+    partTotal: Number(pick('partTotal')) || 1,
+    pagesCount: Number(pick('pagesCount')) || 0,
+    catalogUrl: pick('catalogUrl') || '',
+  };
+}
+
 function parseRemindTrackingComments(comments) {
   const events = [];
   const list = comments?.comments || comments;
@@ -1474,15 +1557,19 @@ function parseRemindTrackingComments(comments) {
       typeof c.body === 'string'
         ? c.body
         : JSON.stringify(c.body || '');
-    const idx = raw.indexOf(REMIND_TRACKING_PREFIX);
-    if (idx < 0) continue;
-    const jsonPart = raw.slice(idx + REMIND_TRACKING_PREFIX.length).trim();
-    try {
-      const parsed = JSON.parse(jsonPart.split('\n')[0]);
-      if (parsed?.event) events.push({ ...parsed, commentId: c.id, created: c.created });
-    } catch {
-      /* ignore malformed meta */
+    if (!raw.includes(REMIND_TRACKING_PREFIX)) continue;
+
+    let parsed = null;
+    const jsonStr = extractTrackingJsonFromRaw(raw);
+    if (jsonStr) {
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch {
+        /* try fallback */
+      }
     }
+    if (!parsed?.event) parsed = parseTrackingPayloadFallback(raw);
+    if (parsed?.event) events.push({ ...parsed, commentId: c.id, created: c.created });
   }
   return events;
 }
@@ -1523,10 +1610,20 @@ async function jiraListComments(env, issueKey) {
 }
 
 async function jiraAddTrackingComment(env, issueKey, payload) {
+  const metaLine = remindTrackingCommentBody(compactRemindTrackingPayload(payload));
   await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
     method: 'POST',
     body: JSON.stringify({
-      body: textToAdf(remindTrackingCommentBody(payload)),
+      body: {
+        type: 'doc',
+        version: 1,
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: metaLine }],
+          },
+        ],
+      },
     }),
   });
 }
@@ -1538,18 +1635,17 @@ async function getRemindTrackingState(env, issueKey) {
 }
 
 async function recordFirstSlackSent(env, issueKey, meta) {
-  const payload = {
+  const payload = compactRemindTrackingPayload({
     event: 'first_slack',
     at: new Date().toISOString(),
     editor: meta.editor || '',
     editorEmail: meta.editorEmail || '',
     slackUserId: meta.slackUserId || '',
-    message: meta.message || '',
     partIndex: meta.partIndex || 1,
     partTotal: meta.partTotal || 1,
     pagesCount: meta.pagesCount || 0,
     catalogUrl: meta.catalogUrl || '',
-  };
+  });
   await jiraAddLabel(env, issueKey, REMIND_SENT_LABEL);
   await jiraAddTrackingComment(env, issueKey, payload);
   return payload;
@@ -1775,9 +1871,19 @@ function msSince(iso) {
 async function fetchRemindIssueForFollowUp(env, issueKey) {
   const data = await jiraFetch(
     env,
-    `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,status,assignee,labels,project`,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,status,assignee,labels,project,description`,
   );
   return data;
+}
+
+function rebuildRemindMessageFromIssue(issue) {
+  const blob = JSON.stringify(issue.fields?.description || '');
+  const urls = [...blob.matchAll(/https:\/\/lotusflare\.atlassian\.net\/wiki\/[^\s"\\]+/g)].map(
+    (m) => m[0],
+  );
+  const unique = [...new Set(urls)];
+  if (!unique.length) return '';
+  return unique.map((url, i) => `${i + 1}. Page\n   ${url}`).join('\n\n');
 }
 
 async function handleRemindFollowUp(env, body) {
@@ -1786,7 +1892,9 @@ async function handleRemindFollowUp(env, body) {
 
   const force = body.force === true;
   const tracking = await getRemindTrackingState(env, issueKey);
-  if (!tracking.meta?.message && !body.message) {
+  const issue = await fetchRemindIssueForFollowUp(env, issueKey);
+  const rebuiltMessage = rebuildRemindMessageFromIssue(issue);
+  if (!tracking.firstSlack && !tracking.meta && !rebuiltMessage && !body.message) {
     throw new Error(
       `No remind tracking on ${issueKey} — send the first Slack DM from the catalog before follow-up`,
     );
@@ -1818,7 +1926,6 @@ async function handleRemindFollowUp(env, body) {
     }
   }
 
-  const issue = await fetchRemindIssueForFollowUp(env, issueKey);
   const statusCategory = issue.fields?.status?.statusCategory?.key;
   if (statusCategory === 'done' && !force) {
     return { ok: true, skipped: true, reason: 'issue_closed' };
@@ -1828,7 +1935,7 @@ async function handleRemindFollowUp(env, body) {
   const editor = String(body.editor || meta?.editor || '').trim();
   const editorEmail = String(body.editorEmail || meta?.editorEmail || '').trim();
   const slackUserId = String(body.slackUserId || meta?.slackUserId || '').trim();
-  const message = String(body.message || meta?.message || '').trim();
+  const message = String(body.message || meta?.message || rebuiltMessage || '').trim();
   const partIndex = Number(body.partIndex || meta?.partIndex) || 1;
   const partTotal = Number(body.partTotal || meta?.partTotal) || 1;
   const pagesCount = Number(body.pagesCount || meta?.pagesCount) || parseRemindPagesFromMessage(message).length;
