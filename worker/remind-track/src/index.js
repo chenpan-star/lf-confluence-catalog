@@ -1651,7 +1651,7 @@ async function recordFirstSlackSent(env, issueKey, meta) {
   return payload;
 }
 
-/** Follow-up wording (Slack / Jira comment / email). */
+/** Follow-up wording (Slack / Jira comment). */
 function remindFollowUpCopyContext({ editor, pagesCount, partIndex, partTotal, pages, issueKey }) {
   const copy = remindCopyContext({
     editor,
@@ -1748,7 +1748,6 @@ async function notifyFollowUpRecipient(
     partIndex,
     partTotal,
   },
-  { sendComment = true, sendEmail = true } = {},
 ) {
   let accountId = assigneeAccountId || null;
   if (!accountId) {
@@ -1764,87 +1763,20 @@ async function notifyFollowUpRecipient(
     };
   }
 
-  const pages = parseRemindPagesFromMessage(message);
-  const copy = remindFollowUpCopyContext({
-    editor,
-    pagesCount,
-    partIndex,
-    partTotal,
-    pages,
-    issueKey,
-  });
-
-  const { textBody, htmlBody } = buildRemindEmailBodies({
-    editor,
-    summary: `Follow-up: ${summary}`,
-    issueKey,
-    issueUrl,
-    message,
-    pagesCount,
-    partIndex,
-    partTotal,
-  });
-
-  const followText = [copy.hi, plainFriendly(copy.intro), '', textBody].join('\n');
-  const followHtml = wrapRemindEmailHtml(
-    [
-      `<p style="${REMIND_EMAIL_LEAD}">${escapeHtml(copy.hi)}</p>`,
-      `<p style="${REMIND_EMAIL_P}">${escapeHtml(plainFriendly(copy.intro))}</p>`,
-      htmlBody.replace(/^<div style="[^"]*">/, '').replace(/<\/div>$/, ''),
-    ].join(''),
-  );
-
-  let commentOk = !sendComment;
-  let notifyOk = !sendEmail;
-  let commentError = null;
-  let notifyError = null;
-
-  if (sendComment) {
-    try {
-      await addFollowUpJiraComment(env, issueKey, accountId, {
-        message,
-        editor,
-        pagesCount,
-        partIndex,
-        partTotal,
-        issueUrl,
-      });
-      commentOk = true;
-    } catch (err) {
-      commentError = err?.message || 'Follow-up comment failed';
-    }
+  try {
+    await addFollowUpJiraComment(env, issueKey, accountId, {
+      message,
+      editor,
+      pagesCount,
+      partIndex,
+      partTotal,
+      issueUrl,
+    });
+    return { ok: true, commentOk: true };
+  } catch (err) {
+    const error = err?.message || 'Follow-up comment failed';
+    return { ok: false, commentOk: false, error };
   }
-
-  if (sendEmail) {
-    try {
-      await jiraFetch(env, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/notify`, {
-        method: 'POST',
-        body: JSON.stringify({
-          subject: `Follow-up: ${summary}`,
-          textBody: followText,
-          htmlBody: followHtml,
-          to: {
-            assignee: true,
-            reporter: false,
-            watchers: true,
-            users: [{ accountId }],
-          },
-        }),
-      });
-      notifyOk = true;
-    } catch (err) {
-      notifyError = err?.message || 'Follow-up email notify failed';
-    }
-  }
-
-  const ok = commentOk && notifyOk;
-  return {
-    ok,
-    emailedAccountId: accountId,
-    commentOk,
-    notifyOk,
-    error: ok ? undefined : [commentError, notifyError].filter(Boolean).join(' · '),
-  };
 }
 
 function followUpIntervalMs(env, body = null) {
@@ -1959,12 +1891,10 @@ async function handleRemindFollowUp(env, body) {
     issueKey,
     slack: null,
     jiraComment: null,
-    email: null,
   };
 
   const wantsSlack = body.sendSlack !== false;
   const wantsComment = body.sendJiraComment !== false;
-  const wantsEmail = body.sendEmail !== false;
 
   if (wantsSlack) {
     try {
@@ -1981,7 +1911,7 @@ async function handleRemindFollowUp(env, body) {
     }
   }
 
-  if (wantsComment || wantsEmail) {
+  if (wantsComment) {
     const notify = await notifyFollowUpRecipient(
       env,
       issueKey,
@@ -1997,18 +1927,13 @@ async function handleRemindFollowUp(env, body) {
         partIndex,
         partTotal,
       },
-      { sendComment: wantsComment, sendEmail: wantsEmail },
     );
-    out.jiraComment = wantsComment
-      ? { ok: notify.commentOk, error: notify.commentOk ? undefined : notify.error }
-      : { ok: true, skipped: true };
-    out.email = wantsEmail
-      ? {
-          ok: notify.notifyOk,
-          emailedAccountId: notify.emailedAccountId,
-          error: notify.notifyOk ? undefined : notify.error,
-        }
-      : { ok: true, skipped: true };
+    out.jiraComment = {
+      ok: notify.commentOk,
+      error: notify.commentOk ? undefined : notify.error,
+    };
+  } else {
+    out.jiraComment = { ok: true, skipped: true };
   }
 
   await jiraAddTrackingComment(env, issueKey, {
@@ -2016,24 +1941,17 @@ async function handleRemindFollowUp(env, body) {
     at: new Date().toISOString(),
     slackOk: Boolean(out.slack?.ok),
     commentOk: Boolean(out.jiraComment?.ok),
-    emailOk: Boolean(out.email?.ok),
   });
 
   const slackOk = !wantsSlack || Boolean(out.slack?.ok);
   const commentOk = !wantsComment || Boolean(out.jiraComment?.ok);
-  const emailOk = !wantsEmail || Boolean(out.email?.ok);
   out.ok = slackOk && commentOk;
-  if (!emailOk && wantsEmail) {
-    out.emailWarning = out.email?.error || 'Follow-up email notify failed';
-  }
 
   if (!out.ok) {
     const parts = [];
     if (wantsSlack && !slackOk) parts.push(`Slack: ${out.slack?.error || 'failed'}`);
     if (wantsComment && !commentOk) parts.push(`Jira comment: ${out.jiraComment?.error || 'failed'}`);
     out.error = parts.join(' · ') || 'Follow-up failed';
-  } else if (out.emailWarning) {
-    out.warning = `Email: ${out.emailWarning}`;
   }
 
   return out;

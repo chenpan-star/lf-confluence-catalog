@@ -334,7 +334,7 @@ If the assignee sees the **@mention in the issue comments** but **nothing in Gma
 - Use **Send Slack DM** in the catalog for owners who need a direct message (Worker + Slack scopes).
 - For **guaranteed email on every catalog task**, a **Jira admin** can add **Automation** on **PROT** — see **[docs/jira-automation-email.md](../docs/jira-automation-email.md)** for subject/body templates (titles + issue link, not URL-only).
 
-### Scheduled follow-up (7 days — Slack + Jira comment + email)
+### Scheduled follow-up (7 days — Slack + Jira comment)
 
 After someone sends the **first Slack DM** from the catalog, the Worker records tracking on the **PROT** issue (label `catalog-remind-sent` + a hidden comment). A **GitHub Action** can send a **follow-up** on the same channels:
 
@@ -342,7 +342,6 @@ After someone sends the **first Slack DM** from the catalog, the Worker records 
 |---------|-------------------|
 | **Slack** | Second DM with “quick follow-up” header + same page list |
 | **Jira** | New @mention comment on the issue |
-| **Email** | `POST /issue/{key}/notify` with follow-up subject/body |
 
 **Production:** workflow **Remind follow-up (production)** — daily, **7 days** after first Slack (or last follow-up). Skips closed issues and issues whose pages are no longer stale in `catalog.json`.
 
@@ -350,7 +349,7 @@ After someone sends the **first Slack DM** from the catalog, the Worker records 
 
 1. Deploy Worker (**Deploy remind-track Worker**) so `/v1/remind/followup` exists.
 2. From catalog: **Create Jira** → **Send Slack DM** for one editor.
-3. Run the test workflow with the **PROT-…** key — it waits **2 minutes**, then sends follow-up on all three channels.
+3. Run the test workflow with the **PROT-…** key — it waits **2 minutes**, then sends follow-up via Slack and Jira comment.
 
 Local equivalent:
 

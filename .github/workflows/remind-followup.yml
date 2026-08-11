@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Send due follow-ups (Slack + Jira comment + email)
+      - name: Send due follow-ups (Slack + Jira comment)
         env:
           ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
           ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
@@ -59,6 +59,6 @@ jobs:
           {
             echo "## Remind follow-up (production)"
             echo "- Interval: **7 days** after first Slack (or last follow-up)"
-            echo "- Channels: Slack DM, Jira @comment, Jira email notify"
+            echo "- Channels: Slack DM, Jira @comment"
             echo "- Requires first remind sent via catalog (**Send Slack DM**) so tracking exists on the PROT issue"
           } >> "$GITHUB_STEP_SUMMARY"

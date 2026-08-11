@@ -55,7 +55,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Wait then send follow-up (Slack + Jira comment + email)
+      - name: Wait then send follow-up (Slack + Jira comment)
         env:
           ATLASSIAN_EMAIL: ${{ secrets.ATLASSIAN_EMAIL }}
           ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
@@ -79,7 +79,7 @@ jobs:
             echo "- Issue: \`${{ inputs.jira_issue_key }}\`"
             echo "- Wait: **${{ inputs.wait_minutes }}** minute(s) (unless force)"
             echo "- Test mode: **ignores catalog stale check** (sends even if pages are now active/recent)"
-            echo "- Channels: **Slack DM**, **Jira comment**, **email**"
+            echo "- Channels: **Slack DM**, **Jira comment**"
             echo ""
             echo "### Before running"
             echo "1. Deploy Worker with \`/v1/remind/followup\` (Deploy remind-track Worker workflow)"

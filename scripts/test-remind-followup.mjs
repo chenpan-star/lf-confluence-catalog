@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * E2E test: wait for follow-up interval, then send Slack + Jira comment + email.
+ * E2E test: wait for follow-up interval, then send Slack + Jira comment.
  *
  * Prerequisite: send a first Slack DM from the catalog for the issue (creates tracking).
  *
@@ -57,7 +57,7 @@ async function main() {
   }
 
   console.log(`Follow-up E2E test for ${opts.issue}`);
-  console.log(`Channels: Slack DM + Jira comment + email (via Worker /v1/remind/followup)`);
+  console.log(`Channels: Slack DM + Jira comment (via Worker /v1/remind/followup)`);
 
   if (!opts.skipWait && !opts.force) {
     const waitMs = Math.max(0, opts.waitMinutes) * 60 * 1000;
@@ -98,7 +98,6 @@ async function main() {
   console.log('\nVerify manually:');
   console.log(`  • Slack DM to assignee (follow-up header)`);
   console.log(`  • Jira comment with @mention on ${opts.issue}`);
-  console.log(`  • Email to assignee inbox (Jira notify — may depend on user settings)`);
 }
 
 main().catch((err) => {

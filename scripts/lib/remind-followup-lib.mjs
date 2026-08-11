@@ -303,7 +303,6 @@ export async function callWorkerFollowUp(
     force,
     sendSlack: true,
     sendJiraComment: true,
-    sendEmail: true,
   };
   if (intervalMinutes != null) payload.intervalMinutes = intervalMinutes;
 

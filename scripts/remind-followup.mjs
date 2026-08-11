@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Run remind follow-ups: Slack DM + Jira comment + email (via Worker).
+ * Run remind follow-ups: Slack DM + Jira comment (via Worker).
  *
  * Usage:
  *   node scripts/remind-followup.mjs
@@ -100,7 +100,7 @@ async function processIssue(env, worker, issue, opts, catalogIndex) {
     console.log(`    worker skipped: ${result.reason}`);
   } else if (result.ok) {
     console.log(
-      `    ok — slack=${result.slack?.ok} comment=${result.jiraComment?.ok} email=${result.email?.ok}${result.warning ? ` (${result.warning})` : ''}`,
+      `    ok — slack=${result.slack?.ok} comment=${result.jiraComment?.ok}`,
     );
   } else {
     console.error(`    failed: ${result.error || 'unknown'}`);
