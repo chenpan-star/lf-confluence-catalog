@@ -63,7 +63,9 @@ jobs:
           VITE_REMIND_TRACK_URL: ${{ vars.VITE_REMIND_TRACK_URL }}
           REMIND_FOLLOWUP_INTERVAL_MINUTES: ${{ inputs.wait_minutes }}
           REMIND_FOLLOWUP_TEST_WAIT_MINUTES: ${{ inputs.wait_minutes }}
+          REMIND_FOLLOWUP_IGNORE_STALE: 'true'
         run: |
+          echo "Commit: $(git rev-parse --short HEAD)"
           ARGS="--issue ${{ inputs.jira_issue_key }} --wait-minutes ${{ inputs.wait_minutes }}"
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi

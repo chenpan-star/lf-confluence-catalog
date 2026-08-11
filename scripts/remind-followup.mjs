@@ -32,7 +32,7 @@ function parseArgs(argv) {
     issue: '',
     force: false,
     dryRun: false,
-    ignoreStaleCheck: false,
+    ignoreStaleCheck: process.env.REMIND_FOLLOWUP_IGNORE_STALE === 'true',
     catalogPath: '',
   };
   for (let i = 2; i < argv.length; i += 1) {

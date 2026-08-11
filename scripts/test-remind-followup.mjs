@@ -82,6 +82,7 @@ async function main() {
     env: {
       ...process.env,
       REMIND_FOLLOWUP_INTERVAL_MINUTES: String(opts.waitMinutes),
+      REMIND_FOLLOWUP_IGNORE_STALE: 'true',
     },
   });
 
