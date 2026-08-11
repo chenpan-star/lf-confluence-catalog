@@ -71,6 +71,7 @@ async function main() {
     opts.issue,
     '--interval-minutes',
     String(opts.waitMinutes),
+    '--ignore-stale-check',
   ];
   if (opts.force) args.push('--force');
   if (opts.dryRun) args.push('--dry-run');

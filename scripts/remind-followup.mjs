@@ -32,6 +32,7 @@ function parseArgs(argv) {
     issue: '',
     force: false,
     dryRun: false,
+    ignoreStaleCheck: false,
     catalogPath: '',
   };
   for (let i = 2; i < argv.length; i += 1) {
@@ -48,6 +49,8 @@ function parseArgs(argv) {
       out.force = true;
     } else if (a === '--dry-run') {
       out.dryRun = true;
+    } else if (a === '--ignore-stale-check') {
+      out.ignoreStaleCheck = true;
     }
   }
   return out;
@@ -76,9 +79,13 @@ async function processIssue(env, worker, issue, opts, catalogIndex) {
 
   const pageUrls = extractPageUrlsFromIssue(issue);
   const stillOutdated = outdatedPageUrls(pageUrls, catalogIndex);
-  if (pageUrls.length && stillOutdated.length === 0) {
+  if (!opts.ignoreStaleCheck && pageUrls.length && stillOutdated.length === 0) {
     console.log(`  skip ${key}: pages no longer outdated in catalog`);
     return { key, skipped: true, reason: 'pages_fresh' };
+  }
+
+  if (opts.ignoreStaleCheck && pageUrls.length && stillOutdated.length === 0) {
+    console.log(`  note ${key}: pages are fresh in catalog — sending anyway (ignore-stale-check)`);
   }
 
   console.log(`  follow-up ${key} (${stillOutdated.length || pageUrls.length || '?'} pages)`);
@@ -114,7 +121,7 @@ async function main() {
   };
 
   console.log(
-    `Remind follow-up — interval ${opts.intervalMinutes} min, max ${opts.maxFollowUps}, force=${opts.force}, dryRun=${opts.dryRun}`,
+    `Remind follow-up — interval ${opts.intervalMinutes} min, max ${opts.maxFollowUps}, force=${opts.force}, ignoreStale=${opts.ignoreStaleCheck}, dryRun=${opts.dryRun}`,
   );
 
   const catalog = loadCatalog(opts.catalogPath || undefined);
